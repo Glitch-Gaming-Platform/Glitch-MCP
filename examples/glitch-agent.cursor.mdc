@@ -1,0 +1,12 @@
+---
+description: Use Glitch MCP for title-scoped game marketing agent workflows.
+alwaysApply: false
+---
+
+When using Glitch MCP:
+
+- Use Glitch tools for game marketing, launch planning, Steam, Twitch, creator, social, PR, and campaign workflows.
+- If title_id is unknown, call `glitch_list_titles` and ask the user which title to use.
+- Do not request private Glitch prompts, planner traces, route-resolution internals, database access, or executor source.
+- Treat Glitch dashboard URLs as the source of truth for rich review, approvals, billing, connected accounts, and draft editing.
+- Never call `glitch_approve_action` or `glitch_execute_action` without explicit user instruction and `confirm=true`.

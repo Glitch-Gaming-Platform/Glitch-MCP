@@ -1,0 +1,12 @@
+[mcp_servers.glitch]
+command = "npx"
+args = ["-y", "@glitch/mcp"]
+env_vars = ["GLITCH_API_BASE_URL", "GLITCH_API_TOKEN", "GLITCH_TITLE_ID"]
+default_tools_approval_mode = "prompt"
+tool_timeout_sec = 120
+
+[mcp_servers.glitch.tools.glitch_approve_action]
+approval_mode = "prompt"
+
+[mcp_servers.glitch.tools.glitch_execute_action]
+approval_mode = "prompt"
