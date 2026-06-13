@@ -4,6 +4,8 @@ Glitch MCP connects AI developer tools to the hosted Glitch Agent service for ga
 
 Glitch MCP makes marketing your game feel like coding. Instead of leaving Codex, Cursor, or Claude Code to open dashboards, rebuild spreadsheets, or translate marketing requests into manual workflows, developers can ask for a concrete marketing task in plain language and get back structured reports, recommended actions, draft assets, upload links, approval steps, and deep links into the full Glitch browser experience. The goal is simple: keep developers focused on building the game while Glitch turns marketing work into reviewable, executable tasks.
 
+More Info Here: https://www.glitch.fun/publishers/agents
+
 ## Example Game Marketing Workflows
 
 Use these examples as starting prompts inside your MCP client. Glitch returns structured data your coding agent can read, summarize, compare, and turn into next steps for your game.
