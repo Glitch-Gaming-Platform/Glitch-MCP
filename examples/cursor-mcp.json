@@ -2,7 +2,7 @@
   "mcpServers": {
     "glitch": {
       "command": "npx",
-      "args": ["-y", "@glitch/mcp"],
+      "args": ["-y", "glitch-mcp"],
       "env": {
         "GLITCH_API_BASE_URL": "https://api.glitch.fun/api",
         "GLITCH_API_TOKEN": "${GLITCH_API_TOKEN}",

@@ -104,7 +104,7 @@ Codex / Cursor / Claude Code
 ## Install
 
 ```bash
-npm install -g @glitch/mcp
+npm install -g glitch-mcp
 ```
 
 For local development from this repository:
@@ -142,7 +142,7 @@ Codex stdio proxy:
 ```toml
 [mcp_servers.glitch]
 command = "npx"
-args = ["-y", "@glitch/mcp"]
+args = ["-y", "glitch-mcp"]
 env_vars = ["GLITCH_API_BASE_URL", "GLITCH_API_TOKEN", "GLITCH_TITLE_ID"]
 default_tools_approval_mode = "prompt"
 ```
@@ -154,7 +154,7 @@ Local development stdio proxy:
 ```toml
 [mcp_servers.glitch]
 command = "npx"
-args = ["-y", "@glitch/mcp"]
+args = ["-y", "glitch-mcp"]
 env_vars = ["GLITCH_API_BASE_URL", "GLITCH_API_TOKEN", "GLITCH_TITLE_ID"]
 default_tools_approval_mode = "prompt"
 ```
@@ -170,7 +170,7 @@ Cursor stdio proxy:
   "mcpServers": {
     "glitch": {
       "command": "npx",
-      "args": ["-y", "@glitch/mcp"],
+      "args": ["-y", "glitch-mcp"],
       "env": {
         "GLITCH_API_BASE_URL": "https://api.glitch.fun/api",
         "GLITCH_API_TOKEN": "${GLITCH_API_TOKEN}",
@@ -188,7 +188,7 @@ Local development stdio proxy:
   "mcpServers": {
     "glitch": {
       "command": "npx",
-      "args": ["-y", "@glitch/mcp"],
+      "args": ["-y", "glitch-mcp"],
       "env": {
         "GLITCH_API_BASE_URL": "https://api.glitch.fun/api",
         "GLITCH_API_TOKEN": "${GLITCH_API_TOKEN}",
@@ -209,7 +209,7 @@ Claude Code stdio proxy:
 export GLITCH_API_BASE_URL="https://api.glitch.fun/api"
 export GLITCH_API_TOKEN="gl_mcp_..."
 export GLITCH_TITLE_ID="title_..."
-claude mcp add glitch -- npx -y @glitch/mcp
+claude mcp add glitch -- npx -y glitch-mcp
 ```
 
 Full guide: [docs/claude-code.md](docs/claude-code.md).

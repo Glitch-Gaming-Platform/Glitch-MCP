@@ -8,7 +8,7 @@ Publish a Cursor install link from Glitch docs once the production MCP endpoint 
 
 ```text
 server name: glitch
-command: npx -y @glitch/mcp
+command: npx -y glitch-mcp
 env: GLITCH_API_BASE_URL=https://api.glitch.fun/api
 auth: title-scoped MCP token from the Glitch subscription/security interface
 ```
@@ -22,7 +22,7 @@ Add this to global `~/.cursor/mcp.json` or project `.cursor/mcp.json`:
   "mcpServers": {
     "glitch": {
       "command": "npx",
-      "args": ["-y", "@glitch/mcp"],
+      "args": ["-y", "glitch-mcp"],
       "env": {
         "GLITCH_API_BASE_URL": "https://api.glitch.fun/api",
         "GLITCH_API_TOKEN": "${GLITCH_API_TOKEN}",
@@ -40,7 +40,7 @@ Add this to global `~/.cursor/mcp.json` or project `.cursor/mcp.json`:
   "mcpServers": {
     "glitch": {
       "command": "npx",
-      "args": ["-y", "@glitch/mcp"],
+      "args": ["-y", "glitch-mcp"],
       "env": {
         "GLITCH_API_BASE_URL": "https://api.glitch.fun/api",
         "GLITCH_API_TOKEN": "${GLITCH_API_TOKEN}",

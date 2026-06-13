@@ -7,7 +7,7 @@ Codex uses the public Glitch MCP adapter as a local stdio server. The adapter fo
 ```toml
 [mcp_servers.glitch]
 command = "npx"
-args = ["-y", "@glitch/mcp"]
+args = ["-y", "glitch-mcp"]
 env_vars = ["GLITCH_API_BASE_URL", "GLITCH_API_TOKEN", "GLITCH_TITLE_ID"]
 default_tools_approval_mode = "prompt"
 tool_timeout_sec = 120

@@ -8,7 +8,7 @@ Claude Code connects to Glitch MCP by launching the local stdio proxy. The proxy
 export GLITCH_API_BASE_URL="https://api.glitch.fun/api"
 export GLITCH_API_TOKEN="gl_mcp_..."
 export GLITCH_TITLE_ID="title_..."
-claude mcp add glitch -- npx -y @glitch/mcp
+claude mcp add glitch -- npx -y glitch-mcp
 ```
 
 When a hosted Streamable HTTP gateway is deployed later, keep it on the same API domain, for example `https://api.glitch.fun/mcp`.

@@ -1,10 +1,13 @@
 {
-  "name": "@glitch/mcp",
+  "name": "glitch-mcp",
   "version": "0.1.0",
   "description": "Public MCP adapter for the hosted Glitch Agent service.",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
-    "glitch-mcp": "./dist/cli.js"
+    "glitch-mcp": "dist/cli.js"
   },
   "files": [
     "dist",
