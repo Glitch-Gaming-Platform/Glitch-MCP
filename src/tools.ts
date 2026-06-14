@@ -71,12 +71,38 @@ type RawShape = z.core.$ZodShape;
  * (a richer experience in Codex/Cursor/Claude Code) and observe cancellation.
  * All emitters are best-effort no-ops when the client did not request them.
  */
+/** A single field requested in an elicitation prompt. */
+export interface ElicitProperty {
+  readonly type: "string";
+  readonly title?: string;
+  readonly description?: string;
+  readonly enum?: string[];
+  readonly enumNames?: string[];
+  readonly default?: string;
+}
+
+export interface ElicitSchema {
+  readonly type: "object";
+  readonly properties: Record<string, ElicitProperty>;
+  readonly required?: string[];
+}
+
+export interface ElicitOutcome {
+  /** "unsupported" means the client cannot show prompts; callers should fall back. */
+  readonly action: "accept" | "decline" | "cancel" | "unsupported";
+  readonly content?: Record<string, unknown>;
+}
+
 export interface ToolRuntimeContext {
   readonly signal?: AbortSignal;
   /** True when the client can receive progress/log notifications. */
   readonly streamingEnabled: boolean;
+  /** True when the client declared the MCP elicitation capability (interactive prompts). */
+  readonly canElicit: boolean;
   log(level: "debug" | "info" | "warning" | "error", message: string): Promise<void>;
   progress(progress: number, total: number | undefined, message?: string): Promise<void>;
+  /** Ask the user a structured question (multiple choice / free text). */
+  elicit(request: { message: string; requestedSchema: ElicitSchema }): Promise<ElicitOutcome>;
 }
 
 export interface GlitchToolDefinition {
@@ -207,6 +233,13 @@ const answerGuidanceInput = z.object({
   guidance_id: guidanceIdSchema,
   answer: z.string().trim().min(1).max(8000),
   payload: z.record(z.string(), z.unknown()).optional()
+});
+
+const resolveGuidanceInput = z.object({
+  ...optionalTitleShape,
+  run_id: runIdSchema.optional().describe("Limit to guidance for a specific run."),
+  guidance_id: guidanceIdSchema.optional().describe("Resolve a single guidance request."),
+  limit: z.number().int().positive().max(10).default(5).describe("Maximum number of open questions to resolve in one call.")
 });
 
 const uploadUrlInput = z.object({
@@ -502,6 +535,89 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
+  defineTool("glitch_resolve_guidance", "Resolve Guidance", "Present the agent's open stop-gate questions to the user as interactive multiple-choice prompts (MCP elicitation) and route each answer back to resume the run. Falls back to a readable question list when the client cannot show prompts.", resolveGuidanceInput, false, async (client, input, ctx) => {
+    const titleId = client.resolveTitleId(input.title_id);
+    const data = await client.guidance(titleId, omitUndefined({
+      run_id: input.run_id,
+      status: "open",
+      limit: input.limit
+    }));
+
+    let items = toArray(data.items).map(toRecord).filter((item): item is JsonObject => item !== undefined);
+    if (input.guidance_id) {
+      items = items.filter((item) => String(item.id) === input.guidance_id);
+    }
+
+    const titleLink = [{ name: "Open title workspace", url: client.dashboardUrl("title", { titleId }) }];
+
+    if (items.length === 0) {
+      return toolSuccess({
+        title: "Glitch guidance",
+        summary: "No open guidance to resolve.",
+        data: { resolved: [], open_count: 0 },
+        bodyMarkdown: "There are no open questions from the agent right now.",
+        links: titleLink
+      });
+    }
+
+    // Fallback: the client cannot show interactive prompts. Return the questions as
+    // readable multiple choice and let the model/user answer with glitch_answer_guidance.
+    if (!ctx?.canElicit) {
+      return toolSuccess({
+        title: "Glitch guidance (manual answer)",
+        summary: "This client cannot show interactive prompts. Review each question and answer with glitch_answer_guidance.",
+        data: { items, open_count: items.length, interactive: false },
+        bodyMarkdown: `${presentGuidance({ items })}\n\nAnswer with **glitch_answer_guidance** (pass guidance_id and your chosen option text).`,
+        links: titleLink
+      });
+    }
+
+    const resolved: JsonObject[] = [];
+    for (const guidance of items) {
+      const guidanceId = String(guidance.id || "");
+      if (!guidanceId) {
+        continue;
+      }
+
+      const prompt = buildGuidanceElicitation(guidance);
+      const outcome = await ctx.elicit({ message: prompt.message, requestedSchema: prompt.requestedSchema });
+
+      if (outcome.action !== "accept" || !outcome.content) {
+        // Respect decline/cancel: never answer on the user's behalf.
+        resolved.push({ guidance_id: guidanceId, status: outcome.action });
+        continue;
+      }
+
+      const selectedValue = String(outcome.content.answer ?? "").trim();
+      if (!selectedValue) {
+        resolved.push({ guidance_id: guidanceId, status: "skipped_no_answer" });
+        continue;
+      }
+      const notes = typeof outcome.content.notes === "string" ? outcome.content.notes.trim() : "";
+      const option = prompt.optionByValue.get(selectedValue);
+      const answerText = option?.label || selectedValue;
+
+      const result = await client.answerGuidance(titleId, guidanceId, omitUndefined({
+        answer: answerText,
+        selected_option: selectedValue,
+        notes: notes || undefined,
+        payload: option ? { id: selectedValue, label: option.label } : { answer: selectedValue },
+        source: "mcp_elicitation"
+      }));
+
+      resolved.push({ guidance_id: guidanceId, status: "answered", selected: answerText, result });
+    }
+
+    const answeredCount = resolved.filter((entry) => entry.status === "answered").length;
+    return toolSuccess({
+      title: "Glitch guidance resolved",
+      summary: `Routed ${answeredCount} of ${items.length} answer(s) back to the agent.`,
+      data: { resolved, interactive: true },
+      bodyMarkdown: presentGuidanceResolution(resolved),
+      links: titleLink
+    });
+  }),
+
   defineTool("glitch_create_upload_url", "Create Upload URL", "Create a short-lived upload URL for attaching a file to a Glitch Agent title or run.", uploadUrlInput, false, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.createUploadUrl(titleId, omitUndefined({
@@ -581,12 +697,12 @@ export function registerGlitchTools(server: McpServer, client: GlitchClient): vo
         },
         ...(definition.uiResourceUri ? { _meta: { "ui.resourceUri": definition.uiResourceUri } } : {})
       },
-      async (input, extra) => safeTool(() => definition.handler(client, input as never, buildToolContext(extra)))
+      async (input, extra) => safeTool(() => definition.handler(client, input as never, buildToolContext(extra, server)))
     );
   }
 }
 
-function buildToolContext(extra: unknown): ToolRuntimeContext {
+function buildToolContext(extra: unknown, server: McpServer): ToolRuntimeContext {
   const record = (extra ?? {}) as {
     signal?: AbortSignal;
     sendNotification?: (notification: unknown) => Promise<void>;
@@ -594,10 +710,27 @@ function buildToolContext(extra: unknown): ToolRuntimeContext {
   };
   const send = typeof record.sendNotification === "function" ? record.sendNotification : undefined;
   const progressToken = record._meta?.progressToken;
+  const canElicit = Boolean(server.server.getClientCapabilities()?.elicitation);
 
   return {
     ...(record.signal ? { signal: record.signal } : {}),
     streamingEnabled: Boolean(send),
+    canElicit,
+    async elicit(request) {
+      if (!canElicit) {
+        return { action: "unsupported" };
+      }
+      try {
+        const result = await server.server.elicitInput({
+          message: request.message,
+          requestedSchema: request.requestedSchema
+        });
+        return result.content ? { action: result.action, content: result.content } : { action: result.action };
+      } catch {
+        // Client advertised elicitation but failed to handle it — let the caller fall back.
+        return { action: "unsupported" };
+      }
+    },
     async log(level, message) {
       if (!send) {
         return;
@@ -653,6 +786,143 @@ function requireConfirmation(confirmed: boolean, action: string): void {
   if (!confirmed) {
     throw confirmationRequiredError(action);
   }
+}
+
+function toArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function toRecord(value: unknown): JsonObject | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonObject) : undefined;
+}
+
+function readString(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return undefined;
+}
+
+interface GuidanceOption {
+  readonly value: string;
+  readonly label: string;
+  readonly description?: string;
+}
+
+interface GuidanceElicitation {
+  readonly message: string;
+  readonly requestedSchema: ElicitSchema;
+  readonly optionByValue: Map<string, GuidanceOption>;
+}
+
+/**
+ * Turn an agent stop-gate (guidance request) into an MCP elicitation prompt.
+ *
+ * Options become a multiple-choice enum (with human-readable labels and the
+ * agent's recommended option preselected). A guidance request without options
+ * becomes a free-text prompt. A "notes" field is always offered for context.
+ */
+function buildGuidanceElicitation(guidance: JsonObject): GuidanceElicitation {
+  const options = normalizeGuidanceOptions(guidance.options);
+  const optionByValue = new Map<string, GuidanceOption>();
+  for (const option of options) {
+    optionByValue.set(option.value, option);
+  }
+
+  const messageLines: string[] = [];
+  const question = readString(guidance.question) || "The agent needs your input to continue.";
+  messageLines.push(question);
+  const reason = readString(guidance.reason);
+  if (reason) {
+    messageLines.push("", reason);
+  }
+  const recommended = resolveRecommended(guidance.recommended_option, options);
+  if (recommended) {
+    messageLines.push("", `Agent's recommendation: ${recommended.label}`);
+  }
+
+  const answerProperty: ElicitProperty =
+    options.length > 0
+      ? {
+          type: "string",
+          title: "Your choice",
+          description: "Select one option for the agent.",
+          enum: options.map((option) => option.value),
+          enumNames: options.map((option) => option.label),
+          ...(recommended ? { default: recommended.value } : {})
+        }
+      : {
+          type: "string",
+          title: "Your answer",
+          description: "Type your answer for the agent."
+        };
+
+  return {
+    message: messageLines.join("\n"),
+    requestedSchema: {
+      type: "object",
+      properties: {
+        answer: answerProperty,
+        notes: { type: "string", title: "Notes (optional)", description: "Any extra context for the agent." }
+      },
+      required: ["answer"]
+    },
+    optionByValue
+  };
+}
+
+function normalizeGuidanceOptions(value: unknown): GuidanceOption[] {
+  const options: GuidanceOption[] = [];
+  for (const entry of toArray(value)) {
+    if (typeof entry === "string" && entry.trim()) {
+      options.push({ value: entry.trim(), label: entry.trim() });
+      continue;
+    }
+    const record = toRecord(entry);
+    if (!record) {
+      continue;
+    }
+    const optValue = readString(record.value) || readString(record.id) || readString(record.key) || readString(record.label);
+    const label = readString(record.label) || readString(record.title) || readString(record.name) || optValue;
+    if (!optValue || !label) {
+      continue;
+    }
+    const description = readString(record.description);
+    options.push({ value: optValue, label, ...(description ? { description } : {}) });
+  }
+  return options;
+}
+
+function resolveRecommended(value: unknown, options: GuidanceOption[]): GuidanceOption | undefined {
+  const record = toRecord(value);
+  const candidate = record
+    ? readString(record.value) || readString(record.id) || readString(record.label)
+    : readString(value);
+  if (!candidate) {
+    return undefined;
+  }
+  return options.find((option) => option.value === candidate || option.label === candidate);
+}
+
+function presentGuidanceResolution(resolved: JsonObject[]): string {
+  if (resolved.length === 0) {
+    return "No guidance was resolved.";
+  }
+  const lines: string[] = [];
+  for (const entry of resolved) {
+    const status = readString(entry.status) || "unknown";
+    if (status === "answered") {
+      lines.push(`- ✓ ${readString(entry.guidance_id)}: answered with "${readString(entry.selected) || ""}"`);
+    } else if (status === "decline" || status === "cancel") {
+      lines.push(`- ↩ ${readString(entry.guidance_id)}: ${status === "decline" ? "declined" : "cancelled"} by user (left open)`);
+    } else {
+      lines.push(`- • ${readString(entry.guidance_id)}: ${status}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 async function loadUploadBytes(

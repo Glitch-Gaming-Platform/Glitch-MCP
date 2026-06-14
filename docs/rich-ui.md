@@ -11,15 +11,23 @@ Use progressive enhancement:
 3. **MCP Apps widget**
    Inline interactive UI where the host supports MCP Apps.
 
+## What Is Implemented Today (Codex / Cursor / Claude Code)
+
+A fully interactive React experience cannot render inline in these coding clients — that surface belongs to the hosted Glitch dashboard (and to MCP Apps / ChatGPT Apps hosts). Within the clients, the rich experience is delivered three ways, all live now:
+
+- **Dashboard-style results.** Every read tool renders a compact markdown summary (status, pending actions by risk, open questions, report sections, artifact links) in its text content — not just raw JSON. See `src/present.ts`.
+- **Live run streaming.** `glitch_wait_for_agent_run` streams the run's events as MCP progress + log notifications while it waits, so the user sees the agent working in real time. Backed by the SSE endpoint `GET /mcp/v1/titles/{title}/runs/{run}/stream`, with polling fallback.
+- **Interactive stop gates.** `glitch_resolve_guidance` turns the agent's multiple-choice questions into native MCP elicitation prompts (a real selection UI in clients like Claude Code) and routes the user's choice back to resume the run. Falls back to a readable question list where elicitation is unsupported.
+
 ## UX Matrix
 
 | Feature | Codex | Cursor | Claude Code | Hosted Glitch |
 | --- | --- | --- | --- | --- |
 | Start agent run | MCP tool | MCP tool | MCP tool | Full UI |
-| Live run timeline | Structured result + link | Structured result + link | Markdown + link | Rich timeline |
+| Live run timeline | Progress/log stream + link | Progress/log stream + link | Progress/log stream + link | Rich timeline |
 | Final report | Markdown + JSON + link | Markdown + JSON + link | Markdown + JSON + link | Full dashboard |
-| Approval queue | Tool cards + prompt approval | Tool cards + IDE chat | Terminal cards | Rich queue |
-| Guidance forms | Tool data + link | Tool data + link | Tool data + link | Full forms |
+| Approval queue | Markdown cards + prompt approval | Markdown cards + IDE chat | Markdown cards | Rich queue |
+| Guidance / stop gates | Elicitation prompt (or list) | Elicitation prompt (or list) | Interactive multiple choice | Full forms |
 | Draft editing | Link to Glitch | Link to Glitch | Link to Glitch | Rich editor |
 | Media preview | Link/artifact | Link/artifact | Link/artifact | Gallery |
 | Billing | Link only | Link only | Link only | Billing UI |

@@ -116,7 +116,7 @@ Input:
 
 ### glitch_wait_for_agent_run
 
-Polls a run.
+Waits for a run to settle. When `stream` is true (default) and the client accepts notifications, live events are streamed as MCP progress + log notifications (via the backend SSE endpoint), with automatic fallback to polling.
 
 Input:
 
@@ -125,7 +125,8 @@ Input:
   "title_id": "title_123",
   "run_id": "run_123",
   "timeout_ms": 180000,
-  "poll_interval_ms": 2000
+  "poll_interval_ms": 2000,
+  "stream": true
 }
 ```
 
@@ -263,7 +264,7 @@ Input:
 
 ### glitch_answer_guidance
 
-Answers guidance.
+Answers a single guidance request directly (no prompt). Use this when the model or developer already knows the answer.
 
 Input:
 
@@ -275,6 +276,25 @@ Input:
   "payload": {}
 }
 ```
+
+### glitch_resolve_guidance
+
+Presents the agent's open stop-gate questions to the **user** as interactive multiple-choice prompts (MCP elicitation) and routes each selection back to resume the run. The agent's options become a choice list with its recommended option preselected; a free-text prompt is used when a question has no options. The user can decline, in which case the question is left open and nothing is answered.
+
+If the client does not support elicitation, the tool returns the questions as a readable multiple-choice list and asks the model/developer to answer with `glitch_answer_guidance` — so behavior degrades gracefully.
+
+Input:
+
+```json
+{
+  "title_id": "title_123",
+  "run_id": "run_123",
+  "guidance_id": "guidance_123",
+  "limit": 5
+}
+```
+
+All fields are optional: omit `guidance_id` to resolve all open questions (up to `limit`), and omit `run_id` to cover the whole title.
 
 ### glitch_create_upload_url
 

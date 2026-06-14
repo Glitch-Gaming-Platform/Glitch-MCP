@@ -250,6 +250,7 @@ The adapter exposes a deliberately narrow tool surface:
 - `glitch_execute_action`
 - `glitch_list_guidance`
 - `glitch_answer_guidance`
+- `glitch_resolve_guidance` — present the agent's stop-gate questions as interactive multiple-choice prompts (MCP elicitation) and route answers back to resume the run
 - `glitch_create_upload_url`
 - `glitch_upload_file` — upload a local image, video, or document (screenshot, gameplay clip, brief) to a title or run
 - `glitch_open_dashboard`

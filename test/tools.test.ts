@@ -32,6 +32,7 @@ describe("Glitch MCP tools", () => {
       "glitch_execute_action",
       "glitch_list_guidance",
       "glitch_answer_guidance",
+      "glitch_resolve_guidance",
       "glitch_create_upload_url",
       "glitch_upload_file",
       "glitch_open_dashboard"
