@@ -6,6 +6,18 @@ import * as z from "zod/v4";
 import { GlitchMcpError, confirmationRequiredError } from "./errors.js";
 import { GlitchClient, JsonObject } from "./glitchClient.js";
 import {
+  DEFAULT_SOCIAL_ASSET_FOLDERS,
+  assertLocalPathAllowed,
+  hashLocalAssetFile,
+  mimeTypeForSocialAsset,
+  readSocialAssetManifest,
+  scanSocialAssetFolders,
+  setupSocialAssetFolders,
+  startSocialAssetWatch,
+  stopSocialAssetWatch,
+  type SocialAssetCandidate
+} from "./localAssets.js";
+import {
   presentActions,
   presentArtifacts,
   presentBilling,
@@ -268,6 +280,68 @@ const uploadFileInput = z.object({
     .describe("Base64-encoded file contents. Use this instead of file_path over the HTTP transport. Requires file_name."),
   file_name: z.string().trim().min(1).max(255).optional().describe("File name. Inferred from file_path when omitted; required with content_base64."),
   mime_type: z.string().trim().min(1).max(120).optional().describe("MIME type. Inferred from the file extension when omitted.")
+});
+
+const localProjectRootSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(4096)
+  .describe("Absolute or process-relative project root on the developer machine running this stdio MCP.");
+
+const socialAssetFolderSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(240)
+  .describe("Relative folder under project_root to create or scan.");
+
+const setupSocialAssetFoldersInput = z.object({
+  project_root: localProjectRootSchema,
+  folders: z.array(socialAssetFolderSchema).max(20).optional().describe("Optional custom relative folders. Defaults to Glitch's local social asset convention."),
+  write_config: z.boolean().default(true).describe("Write .glitch/social-assets/config.json so future scans use the same roots."),
+  confirm: z.boolean().default(false).describe("Must be true. Creates local folders on the developer machine.")
+});
+
+const scanLocalSocialAssetsInput = z.object({
+  project_root: localProjectRootSchema,
+  folders: z.array(socialAssetFolderSchema).max(20).optional().describe("Optional custom relative folders. Defaults to config.json, then Glitch's convention."),
+  max_files: z.number().int().positive().max(500).default(50),
+  max_depth: z.number().int().min(0).max(8).default(4),
+  min_score: z.number().int().min(0).max(100).default(20),
+  since_hours: z.number().positive().max(8760).optional().describe("Only include assets modified within this many hours."),
+  write_manifest: z.boolean().default(true).describe("Write .glitch/social-assets/candidates.json for review and later upload selection.")
+});
+
+const startSocialAssetWatchInput = z.object({
+  project_root: localProjectRootSchema,
+  folders: z.array(socialAssetFolderSchema).max(20).optional().describe("Optional custom relative folders. Defaults to config.json, then Glitch's convention."),
+  interval_hours: z.number().positive().max(168).default(24).describe("How often the stdio MCP process should rescan. Defaults to daily."),
+  run_immediately: z.boolean().default(true).describe("Run a scan as soon as the watcher is activated."),
+  max_files: z.number().int().positive().max(500).default(50),
+  max_depth: z.number().int().min(0).max(8).default(4),
+  min_score: z.number().int().min(0).max(100).default(20),
+  since_hours: z.number().positive().max(8760).optional().describe("Only include assets modified within this many hours on each watcher scan."),
+  confirm: z.boolean().default(false).describe("Must be true. Activates a local timer in this stdio MCP process.")
+});
+
+const stopSocialAssetWatchInput = z.object({
+  project_root: localProjectRootSchema
+});
+
+const socialPlatformSchema = z.enum(["reddit", "tiktok", "instagram", "facebook", "bluesky", "discord", "youtube", "twitter", "telegram"]);
+
+const uploadSocialAssetCandidatesInput = z.object({
+  ...optionalTitleShape,
+  project_root: localProjectRootSchema,
+  candidate_ids: z.array(z.string().trim().min(1).max(80)).max(50).default([]).describe("Candidate ids from the latest scan manifest."),
+  file_paths: z.array(z.string().trim().min(1).max(4096)).max(50).default([]).describe("Explicit local files to upload as Media without relying on a scan manifest."),
+  upload_all_candidates: z.boolean().default(false).describe("Upload every candidate from the latest scan manifest."),
+  agent_run_id: runIdSchema.optional().describe("Optional run id for audit/source metadata."),
+  create_title_updates: z.boolean().default(true).describe("After AI media processing, create scheduler library TitleUpdates from the uploaded Media."),
+  title_promotion_schedule_id: idSchema.optional().describe("Required when create_title_updates=true. Scheduler/library to receive TitleUpdates."),
+  platforms: z.array(socialPlatformSchema).max(9).optional().describe("Optional platform filter/targets for the scheduler library item."),
+  confirm: z.boolean().default(false).describe("Must be true. Uploads local files to Glitch as Media.")
 });
 
 const openDashboardInput = z.object({
@@ -618,6 +692,161 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
+  defineTool("glitch_setup_social_asset_folders", "Setup Social Asset Folders", "Create the local Glitch social asset folders and config under a developer's game project.", setupSocialAssetFoldersInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Creating local Glitch social asset folders");
+    assertCanReadLocalFiles(client, "set up local social asset folders");
+    await assertLocalPathAllowed(input.project_root, client.uploadAllowedRoots, "Project root");
+
+    const result = await setupSocialAssetFolders(
+      input.project_root,
+      input.folders ?? DEFAULT_SOCIAL_ASSET_FOLDERS,
+      input.write_config
+    );
+
+    return toolSuccess({
+      title: "Glitch social asset folders ready",
+      summary: `Created or verified ${result.created_or_verified.length} local social asset folder(s).`,
+      data: result as unknown as JsonObject,
+      bodyMarkdown: presentSocialAssetSetup(result)
+    });
+  }),
+
+  defineTool("glitch_scan_local_social_assets", "Scan Local Social Assets", "Scan local game capture folders for screenshot, trailer, and marketing candidates that could become Glitch Media.", scanLocalSocialAssetsInput, false, async (client, input) => {
+    assertCanReadLocalFiles(client, "scan local social asset folders");
+    await assertLocalPathAllowed(input.project_root, client.uploadAllowedRoots, "Project root");
+
+    const result = await scanSocialAssetFolders(input.project_root, {
+      ...(input.folders ? { folders: input.folders } : {}),
+      maxFiles: input.max_files,
+      maxDepth: input.max_depth,
+      minScore: input.min_score,
+      ...(input.since_hours ? { sinceHours: input.since_hours } : {}),
+      writeManifest: input.write_manifest
+    });
+
+    return toolSuccess({
+      title: "Glitch local social asset scan",
+      summary: `Found ${result.candidates.length} candidate social asset(s).`,
+      data: result as unknown as JsonObject,
+      bodyMarkdown: presentSocialAssetScan(result)
+    });
+  }),
+
+  defineTool("glitch_start_social_asset_watch", "Start Social Asset Watch", "Activate an opt-in daily local scan timer for Glitch social asset folders in this stdio MCP process.", startSocialAssetWatchInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Activating the local Glitch social asset watcher");
+    assertCanReadLocalFiles(client, "watch local social asset folders");
+    await assertLocalPathAllowed(input.project_root, client.uploadAllowedRoots, "Project root");
+
+    const result = await startSocialAssetWatch(input.project_root, {
+      intervalHours: input.interval_hours,
+      runImmediately: input.run_immediately,
+      scanOptions: {
+        ...(input.folders ? { folders: input.folders } : {}),
+        max_files: input.max_files,
+        max_depth: input.max_depth,
+        min_score: input.min_score,
+        ...(input.since_hours ? { since_hours: input.since_hours } : {}),
+        write_manifest: true
+      }
+    });
+
+    return toolSuccess({
+      title: "Glitch social asset watcher active",
+      summary: `Local watcher enabled; rescans every ${result.interval_hours} hour(s).`,
+      data: result as unknown as JsonObject,
+      bodyMarkdown: presentSocialAssetWatch(result)
+    });
+  }),
+
+  defineTool("glitch_stop_social_asset_watch", "Stop Social Asset Watch", "Disable the local Glitch social asset folder watcher for this project.", stopSocialAssetWatchInput, false, async (client, input) => {
+    assertCanReadLocalFiles(client, "stop watching local social asset folders");
+    await assertLocalPathAllowed(input.project_root, client.uploadAllowedRoots, "Project root");
+
+    const result = await stopSocialAssetWatch(input.project_root);
+
+    return toolSuccess({
+      title: "Glitch social asset watcher stopped",
+      summary: "Local watcher disabled for this project.",
+      data: result as unknown as JsonObject,
+      bodyMarkdown: presentSocialAssetWatch(result)
+    });
+  }),
+
+  defineTool("glitch_upload_social_asset_candidates", "Upload Social Asset Candidates", "Upload selected local scan candidates to Glitch as Media so AI processing can promote them into scheduler library TitleUpdates.", uploadSocialAssetCandidatesInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Uploading local social assets to Glitch Media");
+    assertCanReadLocalFiles(client, "upload local social asset candidates");
+    await assertLocalPathAllowed(input.project_root, client.uploadAllowedRoots, "Project root");
+
+    if (input.create_title_updates && !input.title_promotion_schedule_id) {
+      throw new GlitchMcpError(
+        "validation_error",
+        "title_promotion_schedule_id is required when create_title_updates=true. Create or select a scheduler in Glitch, then pass that scheduler id."
+      );
+    }
+
+    const titleId = client.resolveTitleId(input.title_id);
+    const selections = await resolveSocialAssetUploadSelections(input.project_root, {
+      candidateIds: input.candidate_ids,
+      filePaths: input.file_paths,
+      uploadAllCandidates: input.upload_all_candidates
+    });
+
+    if (selections.length === 0) {
+      throw new GlitchMcpError("validation_error", "No social assets selected. Pass candidate_ids, file_paths, or upload_all_candidates=true.");
+    }
+
+    const uploaded: JsonObject[] = [];
+    for (const selection of selections) {
+      const { bytes, fileName } = await loadUploadBytes(client, {
+        file_path: selection.filePath,
+        file_name: selection.candidate?.file_name
+      });
+      const mimeType = selection.candidate?.mime_type || mimeTypeForSocialAsset(fileName);
+      if (!mimeType) {
+        throw new GlitchMcpError("validation_error", `File "${fileName}" is not an image or video type accepted as a Glitch social Media asset.`);
+      }
+
+      const sourceMetadata = omitUndefined({
+        source: "mcp_local_social_asset",
+        project_root: selection.projectRoot,
+        file_path: selection.filePath,
+        relative_path: selection.candidate?.relative_path,
+        candidate_id: selection.candidate?.id,
+        sha256: selection.sha256,
+        score: selection.candidate?.score,
+        reasons: selection.candidate?.reasons,
+        suggested_platforms: selection.candidate?.suggested_platforms
+      });
+
+      const data = await client.uploadMediaAsset(titleId, {
+        bytes,
+        fileName,
+        mimeType,
+        ...(input.agent_run_id ? { agentRunId: input.agent_run_id } : {}),
+        createTitleUpdate: input.create_title_updates,
+        ...(input.title_promotion_schedule_id ? { titlePromotionScheduleId: input.title_promotion_schedule_id } : {}),
+        ...(input.platforms ? { platforms: input.platforms } : {}),
+        sourceMetadata
+      });
+
+      uploaded.push({
+        file_path: selection.filePath,
+        file_name: fileName,
+        mime_type: mimeType,
+        candidate_id: selection.candidate?.id ?? null,
+        response: data
+      });
+    }
+
+    return toolSuccess({
+      title: "Glitch social Media uploaded",
+      summary: `Uploaded ${uploaded.length} local social asset(s) as Glitch Media.`,
+      data: { uploaded, count: uploaded.length },
+      bodyMarkdown: presentSocialAssetUpload(uploaded),
+      links: [{ name: "Open title media library", url: client.dashboardUrl("title", { titleId }) }]
+    });
+  }),
+
   defineTool("glitch_create_upload_url", "Create Upload URL", "Create a short-lived upload URL for attaching a file to a Glitch Agent title or run.", uploadUrlInput, false, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.createUploadUrl(titleId, omitUndefined({
@@ -923,6 +1152,218 @@ function presentGuidanceResolution(resolved: JsonObject[]): string {
     }
   }
   return lines.join("\n");
+}
+
+function assertCanReadLocalFiles(client: GlitchClient, action: string): void {
+  if (!client.canReadLocalFiles) {
+    throw new GlitchMcpError(
+      "validation_error",
+      `Local file reads are disabled for this transport (HTTP). Use the stdio MCP adapter on the developer machine to ${action}.`
+    );
+  }
+}
+
+function presentSocialAssetSetup(result: {
+  readonly project_root: string;
+  readonly folders: readonly string[];
+  readonly config_path?: string;
+  readonly watch_config_path?: string;
+  readonly created_or_verified: readonly string[];
+}): string {
+  const lines = [
+    `Project root: ${result.project_root}`,
+    "",
+    "Social asset folders:",
+    ...result.folders.map((folder) => `- ${folder}`)
+  ];
+
+  if (result.config_path) {
+    lines.push("", `Config: ${result.config_path}`);
+  }
+  if (result.watch_config_path) {
+    lines.push(`Watch config: ${result.watch_config_path}`);
+  }
+
+  lines.push("", "Next step: run glitch_scan_local_social_assets to review candidate screenshots, captures, trailers, and marketing exports. The local watcher is off until glitch_start_social_asset_watch is activated.");
+
+  return lines.join("\n");
+}
+
+function presentSocialAssetWatch(result: {
+  readonly project_root: string;
+  readonly enabled: boolean;
+  readonly interval_hours: number;
+  readonly watch_config_path: string;
+  readonly next_scan_at?: string;
+  readonly scan?: {
+    readonly candidates: readonly SocialAssetCandidate[];
+    readonly manifest_path?: string;
+  };
+}): string {
+  const lines = [
+    `Project root: ${result.project_root}`,
+    `Watcher: ${result.enabled ? "enabled" : "disabled"}`,
+    `Config: ${result.watch_config_path}`
+  ];
+
+  if (result.enabled) {
+    lines.push(`Interval: every ${result.interval_hours} hour(s)`);
+  }
+  if (result.next_scan_at) {
+    lines.push(`Next scan: ${result.next_scan_at}`);
+  }
+  if (result.scan) {
+    lines.push(`Latest scan: ${result.scan.candidates.length} candidate(s)${result.scan.manifest_path ? `, manifest ${result.scan.manifest_path}` : ""}`);
+  }
+
+  return lines.join("\n");
+}
+
+function presentSocialAssetScan(result: {
+  readonly scanned_roots: readonly string[];
+  readonly ignored_roots: readonly string[];
+  readonly candidates: readonly SocialAssetCandidate[];
+  readonly manifest_path?: string;
+}): string {
+  const lines = [
+    `Scanned ${result.scanned_roots.length} folder(s). Found ${result.candidates.length} candidate(s).`
+  ];
+
+  if (result.manifest_path) {
+    lines.push(`Manifest: ${result.manifest_path}`);
+  }
+
+  if (result.ignored_roots.length > 0) {
+    lines.push("", "Missing or unreadable roots:", ...result.ignored_roots.map((root) => `- ${root}`));
+  }
+
+  if (result.candidates.length === 0) {
+    lines.push("", "No upload candidates met the scan threshold.");
+    return lines.join("\n");
+  }
+
+  lines.push("", "Candidates:");
+  for (const candidate of result.candidates.slice(0, 25)) {
+    const platforms = candidate.suggested_platforms.length > 0 ? ` platforms=${candidate.suggested_platforms.join(",")}` : "";
+    lines.push(`- ${candidate.id} score=${candidate.score}${platforms} ${candidate.relative_path}`);
+    lines.push(`  ${candidate.reasons.join("; ")}`);
+  }
+
+  if (result.candidates.length > 25) {
+    lines.push(`- ... ${result.candidates.length - 25} more candidate(s) in the manifest.`);
+  }
+
+  lines.push("", "Upload reviewed picks with glitch_upload_social_asset_candidates using candidate_ids, or pass upload_all_candidates=true after explicit approval.");
+
+  return lines.join("\n");
+}
+
+function presentSocialAssetUpload(uploaded: readonly JsonObject[]): string {
+  if (uploaded.length === 0) {
+    return "No social assets were uploaded.";
+  }
+
+  const lines = [
+    "Uploaded Media assets:",
+    ...uploaded.map((item) => {
+      const fileName = readString(item.file_name) || readString(item.file_path) || "asset";
+      const mimeType = readString(item.mime_type) || "media";
+      const candidate = readString(item.candidate_id);
+      return `- ${fileName} (${mimeType})${candidate ? ` candidate=${candidate}` : ""}`;
+    }),
+    "",
+    "Glitch queued Media AI processing. After AI analysis completes, eligible uploads can become scheduler library TitleUpdates with platform-specific OpenAI copy."
+  ];
+
+  return lines.join("\n");
+}
+
+interface SocialAssetUploadSelection {
+  readonly projectRoot: string;
+  readonly filePath: string;
+  readonly sha256: string;
+  readonly candidate?: SocialAssetCandidate;
+}
+
+async function resolveSocialAssetUploadSelections(
+  projectRootInput: string,
+  input: {
+    readonly candidateIds: readonly string[];
+    readonly filePaths: readonly string[];
+    readonly uploadAllCandidates: boolean;
+  }
+): Promise<SocialAssetUploadSelection[]> {
+  const projectRoot = await resolveProjectRootForTool(projectRootInput);
+  const selections: SocialAssetUploadSelection[] = [];
+
+  if (input.uploadAllCandidates || input.candidateIds.length > 0) {
+    const manifestCandidates = await readSocialAssetManifest(projectRoot);
+    const byId = new Map(manifestCandidates.map((candidate) => [candidate.id, candidate]));
+    const candidates = input.uploadAllCandidates
+      ? manifestCandidates
+      : input.candidateIds.map((id) => {
+          const candidate = byId.get(id);
+          if (!candidate) {
+            throw new GlitchMcpError("validation_error", `Candidate "${id}" was not found in the latest social asset scan manifest.`);
+          }
+          return candidate;
+        });
+
+    for (const candidate of candidates) {
+      const filePath = await resolveProjectFilePath(projectRoot, candidate.file_path);
+      selections.push({
+        projectRoot,
+        filePath,
+        sha256: candidate.sha256 || await hashLocalAssetFile(filePath),
+        candidate
+      });
+    }
+  }
+
+  for (const filePathInput of input.filePaths) {
+    const filePath = await resolveProjectFilePath(projectRoot, filePathInput);
+    selections.push({ projectRoot, filePath, sha256: await hashLocalAssetFile(filePath) });
+  }
+
+  const unique = new Map<string, SocialAssetUploadSelection>();
+  for (const selection of selections) {
+    if (!unique.has(selection.sha256)) {
+      unique.set(selection.sha256, selection);
+    }
+  }
+
+  return [...unique.values()];
+}
+
+async function resolveProjectRootForTool(projectRootInput: string): Promise<string> {
+  const absolute = isAbsolute(projectRootInput) ? projectRootInput : resolve(projectRootInput);
+  let metadata;
+  try {
+    metadata = await stat(absolute);
+  } catch {
+    throw new GlitchMcpError("not_found", `Project root "${projectRootInput}" does not exist.`);
+  }
+  if (!metadata.isDirectory()) {
+    throw new GlitchMcpError("validation_error", `Project root "${projectRootInput}" is not a directory.`);
+  }
+  return realpath(absolute);
+}
+
+async function resolveProjectFilePath(projectRoot: string, filePathInput: string): Promise<string> {
+  const absolute = isAbsolute(filePathInput) ? filePathInput : resolve(projectRoot, filePathInput);
+  let filePath: string;
+  try {
+    filePath = await realpath(absolute);
+  } catch {
+    throw new GlitchMcpError("not_found", `Could not read local social asset "${filePathInput}".`);
+  }
+
+  const pathFromRoot = relative(projectRoot, filePath);
+  if (pathFromRoot.startsWith("..") || pathFromRoot.includes(`..${sep}`) || isAbsolute(pathFromRoot)) {
+    throw new GlitchMcpError("validation_error", `Social asset "${filePathInput}" must be inside project_root.`);
+  }
+
+  return filePath;
 }
 
 async function loadUploadBytes(

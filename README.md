@@ -251,6 +251,11 @@ The adapter exposes a deliberately narrow tool surface:
 - `glitch_list_guidance`
 - `glitch_answer_guidance`
 - `glitch_resolve_guidance` — present the agent's stop-gate questions as interactive multiple-choice prompts (MCP elicitation) and route answers back to resume the run
+- `glitch_setup_social_asset_folders` — create local capture/screenshot/trailer/marketing folders for developer social assets
+- `glitch_scan_local_social_assets` — scan local game asset folders, dedupe by content hash, and write a review manifest of social candidates
+- `glitch_start_social_asset_watch` — opt in to a local daily scan timer for social asset folders
+- `glitch_stop_social_asset_watch` — disable the local scan timer
+- `glitch_upload_social_asset_candidates` — upload reviewed local candidates as Glitch Media for AI processing and scheduler library creation
 - `glitch_create_upload_url`
 - `glitch_upload_file` — upload a local image, video, or document (screenshot, gameplay clip, brief) to a title or run
 - `glitch_open_dashboard`
@@ -258,6 +263,18 @@ The adapter exposes a deliberately narrow tool surface:
 Full contract: [docs/tool-reference.md](docs/tool-reference.md).
 
 Hosted facade contract: [docs/hosted-api-contract.md](docs/hosted-api-contract.md).
+
+## Developer Social Assets
+
+The local adapter can turn development artifacts into scheduled social drafts without asking a developer to leave their project folder.
+
+1. `glitch_setup_social_asset_folders` creates the conventional folders:
+   `captures/`, `screenshots/`, `trailers/`, `builds/latest/social/`, `marketing/`, and `.glitch/social-assets/`.
+2. `glitch_scan_local_social_assets` ranks screenshots, clips, trailers, and marketing exports, computes SHA-256 hashes, dedupes repeated files, and writes a review manifest.
+3. `glitch_upload_social_asset_candidates` uploads only approved candidates as Glitch `Media`. A `title_promotion_schedule_id` is required when the upload should create social library posts.
+4. Glitch Media AI analyzes the uploaded asset first. After that analysis completes, the backend creates a scheduler library `TitleUpdate` and uses the existing `OpenAIApiService` social copy functions with the selected title promotion schedule to write platform-specific text.
+
+The watcher stays off by default. Developers can opt in with `glitch_start_social_asset_watch` to refresh the local candidate manifest daily; the watcher never uploads by itself.
 
 ## Rich Experience
 
@@ -276,6 +293,9 @@ Full UX map: [docs/rich-ui.md](docs/rich-ui.md).
 - Approval and execution are separate.
 - Uploaded files are reference material, not trusted instructions.
 - `glitch_upload_file` supports images, videos, and documents up to 50 MB; shared HTTP mode rejects local `file_path`s and stdio can be constrained with `GLITCH_MCP_UPLOAD_ALLOWED_ROOTS`.
+- Local social asset tools are stdio-only, review-first, and upload screenshots/clips as `Media`; scheduler `TitleUpdate` library items are created only after Media AI processing, not before.
+- The local social watcher is off by default. When activated, it rescans and dedupes candidates; uploads still require explicit approval and a `title_promotion_schedule_id`.
+- Social asset uploads require an explicit scheduler when they should create `TitleUpdate` library posts. After AI analysis completes, Glitch uses the selected title promotion schedule and the existing `OpenAIApiService` social copy system to write platform-specific text.
 - Tool errors are sanitized before they reach the AI client.
 - Tokens are never printed by `doctor`.
 - The public package cannot run the agent without Glitch SaaS.

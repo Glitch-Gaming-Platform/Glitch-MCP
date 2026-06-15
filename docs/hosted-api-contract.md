@@ -67,6 +67,7 @@ GET  /mcp/v1/titles/{title_id}/guidance
 POST /mcp/v1/titles/{title_id}/guidance/{guidance_id}/answer
 POST /mcp/v1/titles/{title_id}/uploads
 POST /mcp/v1/titles/{title_id}/files
+POST /mcp/v1/titles/{title_id}/media
 GET  /mcp/v1/titles/{title_id}/tokens
 POST /mcp/v1/titles/{title_id}/tokens
 DELETE /mcp/v1/titles/{title_id}/tokens/{token_id}
@@ -78,9 +79,12 @@ The facade is now implemented directly in Laravel and reuses the existing agent 
 
 ```text
 POST /api/mcp/v1/titles/{title_id}/files
+POST /api/mcp/v1/titles/{title_id}/media
 ```
 
 The backend stores uploaded images, videos, and documents with the same attachment model used by the browser agent UI. Files are capped at 50 MB, validated by extension/mime type, and marked as reference material behind the prompt-injection boundary. The facade hides internal route catalog details and only returns safe MCP-facing payloads.
+
+`/media` is for reviewed developer social assets. It accepts multipart field `media`, creates a `Media` record, queues the existing image/video AI processing jobs, and stores MCP scheduler metadata. If `create_title_update` is true, callers must provide `title_promotion_schedule_id`; the backend returns a conflict with dashboard/scheduler links instead of guessing a calendar. Repeated uploads are deduped by SHA-256 source hash for the same title. Non-MP4 videos are converted through the same media upload conversion path so downstream AI receives MP4 media. When AI processing completes, Glitch can promote the processed media into a scheduler-owned `TitleUpdate` library item and use the existing `OpenAIApiService` social copy system to write platform-specific text for later scheduling jobs.
 
 The optional SSE route streams user-visible run progress as `text/event-stream`:
 

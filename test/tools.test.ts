@@ -33,6 +33,11 @@ describe("Glitch MCP tools", () => {
       "glitch_list_guidance",
       "glitch_answer_guidance",
       "glitch_resolve_guidance",
+      "glitch_setup_social_asset_folders",
+      "glitch_scan_local_social_assets",
+      "glitch_start_social_asset_watch",
+      "glitch_stop_social_asset_watch",
+      "glitch_upload_social_asset_candidates",
       "glitch_create_upload_url",
       "glitch_upload_file",
       "glitch_open_dashboard"

@@ -296,6 +296,94 @@ Input:
 
 All fields are optional: omit `guidance_id` to resolve all open questions (up to `limit`), and omit `run_id` to cover the whole title.
 
+### glitch_setup_social_asset_folders
+
+Creates the local developer folders Glitch watches for social-ready game assets:
+
+```text
+captures/
+screenshots/
+trailers/
+builds/latest/social/
+marketing/
+.glitch/social-assets/
+```
+
+Input:
+
+```json
+{
+  "project_root": "/Users/you/game",
+  "confirm": true
+}
+```
+
+The tool writes `.glitch/social-assets/config.json` and an off-by-default `.glitch/social-assets/watch.json` by default. It is only available when the MCP server is running locally over stdio with local file reads enabled.
+
+### glitch_scan_local_social_assets
+
+Scans configured local folders for images and videos likely to work as social content. It ranks candidates by folder, recency, filename signals, size, and media kind, dedupes repeated files by SHA-256 content hash, then writes `.glitch/social-assets/candidates.json` for review.
+
+Input:
+
+```json
+{
+  "project_root": "/Users/you/game",
+  "max_files": 50,
+  "since_hours": 168
+}
+```
+
+The result includes candidate ids, SHA-256 hashes, reasons, and suggested platforms. Scanning does not upload anything.
+
+### glitch_start_social_asset_watch
+
+Activates the opt-in local watcher for the current stdio MCP process. The watcher runs the same scan and hash dedupe logic on an interval, defaulting to once per day. It only updates the local manifest; it never uploads files.
+
+Input:
+
+```json
+{
+  "project_root": "/Users/you/game",
+  "interval_hours": 24,
+  "run_immediately": true,
+  "confirm": true
+}
+```
+
+The watcher remains off unless this tool is called. Restarting the MCP process requires starting the watcher again.
+
+### glitch_stop_social_asset_watch
+
+Disables the local social asset watcher and updates `.glitch/social-assets/watch.json`.
+
+Input:
+
+```json
+{
+  "project_root": "/Users/you/game"
+}
+```
+
+### glitch_upload_social_asset_candidates
+
+Uploads reviewed local candidates as first-class Glitch `Media`, not run attachments. Glitch queues Media AI processing first. After AI metadata is available, eligible uploads can create scheduler-owned `TitleUpdate` library items and write platform-specific social text through the existing `OpenAIApiService` social copy system.
+
+Input:
+
+```json
+{
+  "title_id": "title_123",
+  "project_root": "/Users/you/game",
+  "candidate_ids": ["abc123def456"],
+  "title_promotion_schedule_id": "schedule_123",
+  "platforms": ["twitter", "reddit", "discord"],
+  "confirm": true
+}
+```
+
+`title_promotion_schedule_id` is required when `create_title_updates=true`; the adapter will not guess among multiple social calendars. You can also pass `file_paths` for explicit files or `upload_all_candidates=true` after manual approval. Local paths must stay under `project_root` and inside `GLITCH_MCP_UPLOAD_ALLOWED_ROOTS` when that allow-list is configured.
+
 ### glitch_create_upload_url
 
 Creates a short-lived upload URL.

@@ -305,6 +305,45 @@ export class GlitchClient {
     }
     return this.http.postMultipart<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/files`, form);
   }
+
+  /**
+   * Upload a developer-selected screenshot, clip, trailer, or marketing export as
+   * first-class Glitch Media so existing AI media processing and social library
+   * workflows can handle it.
+   */
+  async uploadMediaAsset(
+    titleId: string,
+    input: {
+      bytes: Uint8Array;
+      fileName: string;
+      mimeType: string;
+      agentRunId?: string;
+      createTitleUpdate?: boolean;
+      titlePromotionScheduleId?: string;
+      platforms?: readonly string[];
+      sourceMetadata?: JsonObject;
+    }
+  ): Promise<JsonObject> {
+    const form = new FormData();
+    const blob = new Blob([input.bytes as BlobPart], { type: input.mimeType });
+    form.append("media", blob, input.fileName);
+    if (input.agentRunId) {
+      form.append("agent_run_id", input.agentRunId);
+    }
+    if (input.createTitleUpdate !== undefined) {
+      form.append("create_title_update", input.createTitleUpdate ? "1" : "0");
+    }
+    if (input.titlePromotionScheduleId) {
+      form.append("title_promotion_schedule_id", input.titlePromotionScheduleId);
+    }
+    if (input.platforms?.length) {
+      form.append("platforms", JSON.stringify(input.platforms));
+    }
+    if (input.sourceMetadata) {
+      form.append("source_metadata", JSON.stringify(input.sourceMetadata));
+    }
+    return this.http.postMultipart<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/media`, form);
+  }
 }
 
 /**
