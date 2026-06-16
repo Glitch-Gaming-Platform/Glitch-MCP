@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { installCodexPrompts } from "./codexPrompts.js";
+import { installClaudePrompts, installCodexPrompts, installCursorPrompts } from "./codexPrompts.js";
 import { loadConfig } from "./config.js";
 import { GlitchClient } from "./glitchClient.js";
 import { runHttpServer, runStdioServer } from "./server.js";
@@ -11,6 +11,8 @@ Usage:
   glitch-mcp [stdio]
   glitch-mcp http [--host 127.0.0.1] [--port 3333]
   glitch-mcp install-codex-prompts [--codex-home ~/.codex] [--dry-run]
+  glitch-mcp install-cursor-prompts [--project-root .] [--target-dir .cursor/commands] [--dry-run]
+  glitch-mcp install-claude-prompts [--project-root .] [--target-dir .claude/commands] [--dry-run]
   glitch-mcp doctor
   glitch-mcp version
 
@@ -47,6 +49,18 @@ async function main(argv: string[]): Promise<void> {
     process.stdout.write(`${action} ${result.files.length} Glitch Codex prompts to ${result.targetDir}\n`);
     process.stdout.write(result.files.map((file) => `- /prompts:${file.replace(/\.md$/, "")}`).join("\n"));
     process.stdout.write("\n");
+    return;
+  }
+
+  if (command === "install-cursor-prompts" || command === "cursor-prompts") {
+    const result = await installCursorPrompts(promptInstallOptions(argv));
+    printPromptInstallResult(result, "Cursor", "/");
+    return;
+  }
+
+  if (command === "install-claude-prompts" || command === "claude-prompts") {
+    const result = await installClaudePrompts(promptInstallOptions(argv));
+    printPromptInstallResult(result, "Claude Code", "/");
     return;
   }
 
@@ -103,6 +117,23 @@ function valueAfter(argv: string[], flag: string): string | undefined {
   }
 
   return argv[index + 1];
+}
+
+function promptInstallOptions(argv: string[]) {
+  const projectRoot = valueAfter(argv, "--project-root");
+  const targetDir = valueAfter(argv, "--target-dir");
+  return {
+    ...(projectRoot ? { projectRoot } : {}),
+    ...(targetDir ? { targetDir } : {}),
+    dryRun: argv.includes("--dry-run")
+  };
+}
+
+function printPromptInstallResult(result: Awaited<ReturnType<typeof installCodexPrompts>>, clientName: string, prefix: string): void {
+  const action = result.dryRun ? "Would install" : "Installed";
+  process.stdout.write(`${action} ${result.files.length} Glitch ${clientName} prompts to ${result.targetDir}\n`);
+  process.stdout.write(result.files.map((file) => `- ${prefix}${file.replace(/\.md$/, "")}`).join("\n"));
+  process.stdout.write("\n");
 }
 
 main(process.argv).catch((error) => {

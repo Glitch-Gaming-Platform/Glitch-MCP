@@ -39,7 +39,15 @@ Use Glitch MCP for game marketing, launch planning, Steam/Twitch reports, creato
 
 ## Custom Slash Commands
 
-Suggested files:
+Install Glitch's bundled Claude Code slash commands:
+
+```bash
+npx -y glitch-mcp install-claude-prompts --project-root .
+```
+
+This copies `prompts/glitch_*.md` into `.claude/commands`. Restart Claude Code or start a new session in the project, then type `/glitch` to choose a command.
+
+Suggested workflow commands include:
 
 ```text
 .claude/commands/glitch-launch-audit.md

@@ -213,6 +213,16 @@ Local development stdio proxy:
 
 Full guide: [docs/cursor.md](docs/cursor.md).
 
+### Cursor Slash Commands
+
+Cursor can use the same bundled Glitch prompt commands as project slash commands:
+
+```bash
+npx -y glitch-mcp install-cursor-prompts --project-root .
+```
+
+That command copies `prompts/glitch_*.md` into `.cursor/commands`. Open Cursor in that project, type `/glitch`, and choose the Glitch command you want. The direct command prompts map to the exact public MCP tool names, while workflow prompts cover launch audits, Steam page reviews, weekly marketing syncs, pending action reviews, and local social asset workflows.
+
 ## Claude Code
 
 Claude Code stdio proxy:
@@ -225,6 +235,16 @@ claude mcp add glitch -- npx -y glitch-mcp
 ```
 
 Full guide: [docs/claude-code.md](docs/claude-code.md).
+
+### Claude Code Slash Commands
+
+Claude Code can use the same bundled Glitch prompt commands as project slash commands:
+
+```bash
+npx -y glitch-mcp install-claude-prompts --project-root .
+```
+
+That command copies `prompts/glitch_*.md` into `.claude/commands`. Restart Claude Code or start a new session in the project, then type `/glitch` to pick a Glitch command. The approve, execute, upload, and local watcher commands include explicit confirmation guidance.
 
 ## CLI
 

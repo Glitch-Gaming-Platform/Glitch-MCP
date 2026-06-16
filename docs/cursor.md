@@ -65,6 +65,16 @@ When using Glitch MCP:
 - Never approve or execute actions without explicit user instruction.
 ```
 
+## Slash Commands
+
+Cursor supports reusable project slash commands in `.cursor/commands/[command].md`. Install Glitch's bundled commands:
+
+```bash
+npx -y glitch-mcp install-cursor-prompts --project-root .
+```
+
+This copies `prompts/glitch_*.md` into `.cursor/commands`. Open Cursor in the project, type `/glitch`, and choose a direct MCP tool command or higher-level workflow prompt.
+
 ## Rich Experience In Cursor
 
 Cursor should show:

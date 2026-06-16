@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added Cursor and Claude Code slash-command installers: `glitch-mcp install-cursor-prompts` copies Glitch prompts to `.cursor/commands`, and `glitch-mcp install-claude-prompts` copies them to `.claude/commands`.
 - Added bundled Codex slash-command prompts for every public Glitch MCP tool plus higher-level workflows. Developers can install them with `glitch-mcp install-codex-prompts` and invoke them as `/prompts:glitch...` in Codex.
 - Registered direct command-style MCP prompts for the public tool surface, so MCP clients with prompt discovery can route prompt commands to exact Glitch MCP tool names.
 - Added README and Codex docs guidance, including a screenshot of the Codex prompt menu.
