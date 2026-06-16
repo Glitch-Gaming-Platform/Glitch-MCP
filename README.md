@@ -161,6 +161,18 @@ default_tools_approval_mode = "prompt"
 
 Full guide: [docs/codex.md](docs/codex.md).
 
+### Codex Slash Prompts
+
+Glitch MCP also ships Codex slash-command prompt files so developers can type `/prompts:glitch...` from the Codex prompt box.
+
+```bash
+npx -y glitch-mcp install-codex-prompts
+```
+
+That command installs the bundled prompt files into `~/.codex/prompts`. Restart Codex or open a new chat after installing them. The package includes direct command prompts for every public Glitch MCP tool plus higher-level workflows such as launch audits, Steam page reviews, weekly marketing syncs, pending action reviews, and local social asset workflows.
+
+![Codex prompt menu showing Glitch MCP slash prompts](docs/assets/codex-prompts.jpg)
+
 ## Cursor
 
 Cursor stdio proxy:

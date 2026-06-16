@@ -31,6 +31,18 @@ The local proxy does not contain Glitch Agent logic. It only forwards MCP calls 
 
 Future hosted Streamable HTTP deployments should use the same API domain, for example `https://api.glitch.fun/mcp`.
 
+## Slash Prompts
+
+Install the bundled Codex slash prompts:
+
+```bash
+npx -y glitch-mcp install-codex-prompts
+```
+
+This copies the package's `codex/prompts/glitch_*.md` files into `~/.codex/prompts`. Restart Codex or open a new chat, then type `/prompts:glitch` to see direct prompts for every public Glitch MCP tool plus higher-level workflows such as launch audits, Steam page reviews, weekly marketing syncs, pending action reviews, and local social asset workflows.
+
+![Codex prompt menu showing Glitch MCP slash prompts](assets/codex-prompts.jpg)
+
 ## Recommended Codex Plugin Bundle
 
 The Codex distribution should eventually ship as a plugin containing:

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { installCodexPrompts } from "./codexPrompts.js";
 import { loadConfig } from "./config.js";
 import { GlitchClient } from "./glitchClient.js";
 import { runHttpServer, runStdioServer } from "./server.js";
@@ -9,6 +10,7 @@ const USAGE = `Glitch MCP ${GLITCH_MCP_VERSION}
 Usage:
   glitch-mcp [stdio]
   glitch-mcp http [--host 127.0.0.1] [--port 3333]
+  glitch-mcp install-codex-prompts [--codex-home ~/.codex] [--dry-run]
   glitch-mcp doctor
   glitch-mcp version
 
@@ -32,6 +34,19 @@ async function main(argv: string[]): Promise<void> {
 
   if (command === "version" || command === "--version" || command === "-v") {
     process.stdout.write(`${GLITCH_MCP_VERSION}\n`);
+    return;
+  }
+
+  if (command === "install-codex-prompts" || command === "codex-prompts") {
+    const codexHome = valueAfter(argv, "--codex-home");
+    const result = await installCodexPrompts({
+      ...(codexHome ? { codexHome } : {}),
+      dryRun: argv.includes("--dry-run")
+    });
+    const action = result.dryRun ? "Would install" : "Installed";
+    process.stdout.write(`${action} ${result.files.length} Glitch Codex prompts to ${result.targetDir}\n`);
+    process.stdout.write(result.files.map((file) => `- /prompts:${file.replace(/\.md$/, "")}`).join("\n"));
+    process.stdout.write("\n");
     return;
   }
 

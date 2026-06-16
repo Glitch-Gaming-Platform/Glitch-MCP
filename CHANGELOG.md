@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added bundled Codex slash-command prompts for every public Glitch MCP tool plus higher-level workflows. Developers can install them with `glitch-mcp install-codex-prompts` and invoke them as `/prompts:glitch...` in Codex.
+- Registered direct command-style MCP prompts for the public tool surface, so MCP clients with prompt discovery can route prompt commands to exact Glitch MCP tool names.
+- Added README and Codex docs guidance, including a screenshot of the Codex prompt menu.
 - Added `glitch_resolve_guidance`: the agent's stop-gate questions are now presented to the user as **interactive multiple-choice prompts via MCP elicitation** (enum + recommended option preselected) in clients that support it (e.g. Claude Code), and each answer is routed back to resume the run. Capability-gated with a readable fallback list, so `glitch_list_guidance` and `glitch_answer_guidance` keep working unchanged in clients without elicitation.
 - Rich, readable tool results: run status, final report, actions, guidance, artifacts, titles, and billing now render as a compact markdown summary in the tool's text content, so Codex/Cursor/Claude Code show a dashboard-like result instead of a generic "structured data included" line. Inline HTML widgets remain a progressive enhancement for hosts that support MCP Apps.
 - Optional **live streaming** for long runs: `glitch_wait_for_agent_run` streams events as MCP progress + log notifications (new `stream` arg, default on) via a new backend SSE endpoint (`GET /mcp/v1/titles/{title}/runs/{run}/stream`), with transparent fallback to polling.
