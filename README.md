@@ -1,6 +1,6 @@
-# Glitch MCP
+# Glitch Game Marketing MCP
 
-Glitch MCP connects AI developer tools to the hosted Glitch Agent service for game marketing, launch planning, Steam/Twitch analysis, creator outreach, social content, PR, campaign review, and approval workflows.
+Glitch Game Marketing  MCP connects AI developer tools to the hosted Glitch Agent service for game marketing, launch planning, Steam/Twitch analysis, creator outreach, social content, PR, campaign review, and approval workflows.
 
 Glitch MCP makes marketing your game feel like coding. Instead of leaving Codex, Cursor, or Claude Code to open dashboards, rebuild spreadsheets, or translate marketing requests into manual workflows, developers can ask for a concrete marketing task in plain language and get back structured reports, recommended actions, draft assets, upload links, approval steps, and deep links into the full Glitch browser experience. The goal is simple: keep developers focused on building the game while Glitch turns marketing work into reviewable, executable tasks.
 
