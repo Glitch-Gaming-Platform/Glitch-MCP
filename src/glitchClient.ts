@@ -390,6 +390,10 @@ export class GlitchClient {
     return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/saves`, body);
   }
 
+  async resolveCloudSaveConflict(titleId: string, installId: string, saveId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/saves/${segment(saveId)}/resolve`, body);
+  }
+
   // --- Progression: shared submit + leaderboards + achievements ---
   async submitProgression(titleId: string, installId: string, body: JsonObject): Promise<JsonObject> {
     return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/submit`, body);

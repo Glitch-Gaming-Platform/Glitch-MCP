@@ -5,8 +5,8 @@
 - Added **game-service tools** that operate the game associated with the current title token (title_or_jwt public API), so the MCP/agent can run live game-backend actions, not just the agent/run surface:
   - Multiplayer: `glitch_list_multiplayer_lobbies`, `glitch_create_multiplayer_lobby`, `glitch_browse_multiplayer_servers`, `glitch_list_multiplayer_realms` (MMO).
   - Installs: `glitch_create_install`, `glitch_validate_install` (the install id keys cloud save, leaderboards, and achievements).
-  - Cloud save: `glitch_list_cloud_saves`, `glitch_store_cloud_save` (with `base_version` conflict detection).
-  - Progression: `glitch_submit_progression` (drives leaderboards + achievements), `glitch_list_leaderboards`, `glitch_read_leaderboard`, `glitch_list_achievement_definitions`, `glitch_list_player_achievements`.
+  - Cloud save: `glitch_list_cloud_saves`, `glitch_store_cloud_save` (slot_index + base64 payload + auto-computed SHA-256 checksum of the decoded bytes + `base_version` conflict detection), and `glitch_resolve_cloud_save_conflict` (keep_server/use_client after a 409).
+  - Progression: `glitch_submit_progression` (nests `stats`/`scores` under `payload` with a required `idempotency_key`, matching the backend; drives leaderboards + achievements), `glitch_list_leaderboards`, `glitch_read_leaderboard`, `glitch_list_achievement_definitions`, `glitch_list_player_achievements`.
   - Deploy: `glitch_list_deployments`, `glitch_update_deployment_status`, and `glitch_deploy_game_build` — a full end-to-end build upload (initiate → pre-signed part URLs → PUT parts → complete → confirm). Accepts `file_path` over stdio (streamed part by part, up to 2 GB) or `content_base64` over HTTP (small builds); requires deploy-create rights.
   - Added `PUT`/`DELETE` verbs and a raw pre-signed `putBinary` to the HTTP client to support these routes.
 

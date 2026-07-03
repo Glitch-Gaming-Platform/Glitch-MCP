@@ -1,5 +1,6 @@
 import { open, readFile, realpath, stat } from "node:fs/promises";
 import { basename, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import { createHash } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as z from "zod/v4";
@@ -1013,13 +1014,57 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_store_cloud_save",
     "Store Cloud Save",
-    "Upload a cloud save for a player install. Send base_version for optimistic-concurrency conflict detection (409).",
-    z.object({ ...optionalTitleShape, install_id: z.string().min(1).max(191), key: z.string().min(1).max(191), data: z.string(), base_version: z.number().int().optional() }),
+    "Upload a cloud save for a player install. `payload` is the base64-encoded save bytes (<=10 MB decoded). `checksum` is the SHA-256 hex of the DECODED bytes — it is auto-computed if omitted (do not hash the base64 string). Send `base_version` (the version the client last synced from) for optimistic concurrency: a mismatch returns HTTP 409 with a conflict_id; resolve it with glitch_resolve_cloud_save_conflict.",
+    z.object({
+      ...optionalTitleShape,
+      install_id: z.string().min(1).max(191),
+      slot_index: z.number().int().min(0).max(99).describe("Save slot number (0-99)."),
+      payload: z.string().min(1).describe("Base64-encoded save bytes (<=10 MB decoded)."),
+      save_type: z.enum(["manual", "auto", "checkpoint", "quicksave"]).optional().describe("Defaults to manual."),
+      client_timestamp: z.string().optional().describe("ISO 8601 time the save was taken on the client. Defaults to now."),
+      base_version: z.number().int().min(0).optional().describe("Version the client edited from; omit for a brand-new slot."),
+      checksum: z.string().max(64).optional().describe("SHA-256 hex of the decoded bytes. Auto-computed if omitted."),
+      slot_name: z.string().max(100).optional(),
+      metadata: z.record(z.string(), z.unknown()).optional()
+    }),
     false,
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
-      const data = await client.storeCloudSave(titleId, input.install_id, omitUndefined({ key: input.key, data: input.data, base_version: input.base_version }));
-      return toolSuccess({ title: "Cloud save stored", summary: "Save uploaded (or a 409 conflict was surfaced).", data });
+      const decoded = Buffer.from(input.payload, "base64");
+      if (decoded.byteLength === 0) {
+        throw new GlitchMcpError("validation_error", "payload did not decode to any bytes; send base64-encoded save data.");
+      }
+      const checksum = input.checksum ?? createHash("sha256").update(decoded).digest("hex");
+      const data = await client.storeCloudSave(titleId, input.install_id, omitUndefined({
+        slot_index: input.slot_index,
+        payload: input.payload,
+        checksum,
+        save_type: input.save_type ?? "manual",
+        client_timestamp: input.client_timestamp ?? new Date().toISOString(),
+        base_version: input.base_version,
+        slot_name: input.slot_name,
+        metadata: input.metadata
+      }));
+      return toolSuccess({ title: "Cloud save stored", summary: "Save uploaded, or a 409 conflict was surfaced with a conflict_id to resolve.", data });
+    }
+  ),
+
+  defineTool(
+    "glitch_resolve_cloud_save_conflict",
+    "Resolve Cloud Save Conflict",
+    "After a 409 from glitch_store_cloud_save, resolve the conflict for a save slot: choice \"keep_server\" discards the client's changes, \"use_client\" overwrites the cloud with the client's data. Pass the conflict_id returned in the 409 response.",
+    z.object({
+      ...optionalTitleShape,
+      install_id: z.string().min(1).max(191),
+      save_id: z.string().min(1).max(191).describe("The save id from the 409 conflict response."),
+      conflict_id: z.string().min(1).max(191).describe("The conflict_id from the 409 conflict response."),
+      choice: z.enum(["keep_server", "use_client"])
+    }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.resolveCloudSaveConflict(titleId, input.install_id, input.save_id, { conflict_id: input.conflict_id, choice: input.choice });
+      return toolSuccess({ title: "Cloud save conflict resolved", summary: `Applied "${input.choice}" to save ${input.save_id}.`, data });
     }
   ),
 
@@ -1027,13 +1072,30 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_submit_progression",
     "Submit Progression Run",
-    "Submit a progression run (stat values) for a player install. Drives both leaderboards and achievements; use the stat/leaderboard keys defined in the dashboard.",
-    z.object({ ...optionalTitleShape, install_id: z.string().min(1).max(191), stats: z.record(z.string(), z.number()), leaderboard_keys: z.array(z.string()).optional(), mode: z.enum(["increment", "set", "max"]).optional() }),
+    "Submit a progression run for a player install. `stats` (map of stat api_key -> number) drives stats AND achievement thresholds; `scores` (map of leaderboard api_key -> number) drives leaderboards. Use the exact api keys defined in the dashboard — unknown keys 404. Provide a unique `idempotency_key` so a retried run is counted once (a repeat returns status \"duplicate\"). Provide at least one of stats or scores. Returns newly-unlocked achievements and updated stats.",
+    z.object({
+      ...optionalTitleShape,
+      install_id: z.string().min(1).max(191),
+      idempotency_key: z.string().min(1).max(191).describe("Unique per run (e.g. a UUID). A repeat is treated as a duplicate so the run counts once."),
+      stats: z.record(z.string(), z.number()).optional().describe("Map of stat api_key -> value. Drives stats and achievement unlocks."),
+      scores: z.record(z.string(), z.number()).optional().describe("Map of leaderboard api_key -> score."),
+      trust_level: z.enum(["unverified", "verified"]).optional().describe("Defaults to unverified."),
+      platform: z.string().max(50).optional().describe("Defaults to web.")
+    }),
     false,
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
-      const data = await client.submitProgression(titleId, input.install_id, omitUndefined({ stats: input.stats, leaderboard_keys: input.leaderboard_keys, mode: input.mode }));
-      return toolSuccess({ title: "Progression submitted", summary: "Stats submitted; leaderboards/achievements updated by the server.", data });
+      const payload = omitUndefined({ stats: input.stats, scores: input.scores });
+      if (Object.keys(payload).length === 0) {
+        throw new GlitchMcpError("validation_error", "Provide at least one of `stats` or `scores`.");
+      }
+      const data = await client.submitProgression(titleId, input.install_id, omitUndefined({
+        idempotency_key: input.idempotency_key,
+        payload,
+        trust_level: input.trust_level,
+        platform: input.platform
+      }));
+      return toolSuccess({ title: "Progression submitted", summary: "Run submitted; stats, leaderboards, and achievements updated by the server.", data });
     }
   ),
 

@@ -49,6 +49,7 @@ describe("Glitch MCP tools", () => {
       "glitch_validate_install",
       "glitch_list_cloud_saves",
       "glitch_store_cloud_save",
+      "glitch_resolve_cloud_save_conflict",
       "glitch_submit_progression",
       "glitch_list_leaderboards",
       "glitch_read_leaderboard",
@@ -170,33 +171,73 @@ describe("Glitch MCP tools", () => {
     expect(mock.requests[0]?.body).toMatchObject({ player_id: "p1", max_members: 4 });
   });
 
-  it("submits a progression run to the player install submit endpoint", async () => {
-    const mock = createFetchMock(() => jsonResponse({ data: { ok: true } }));
+  it("submits a progression run with the nested payload the backend expects", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { status: "success", run_id: "run_9" } }));
     const client = new GlitchClient(config, mock.fetch);
     const result = await callTool("glitch_submit_progression", client, {
       install_id: "install_1",
+      idempotency_key: "run-abc-123",
       stats: { kills: 5 },
-      leaderboard_keys: ["kills_board"]
+      scores: { kills_board: 5000 }
     });
 
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/installs/install_1/submit");
-    expect(mock.requests[0]?.body).toMatchObject({ stats: { kills: 5 }, leaderboard_keys: ["kills_board"] });
+    // The backend expects stats/scores nested under `payload`, plus idempotency_key.
+    expect(mock.requests[0]?.body).toMatchObject({
+      idempotency_key: "run-abc-123",
+      payload: { stats: { kills: 5 }, scores: { kills_board: 5000 } }
+    });
   });
 
-  it("stores a cloud save with a base version for conflict detection", async () => {
+  it("rejects a progression run with neither stats nor scores", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+    const client = new GlitchClient(config, mock.fetch);
+    await expect(
+      callTool("glitch_submit_progression", client, { install_id: "install_1", idempotency_key: "run-empty" })
+    ).rejects.toThrow(/stats.*scores/i);
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("stores a cloud save with slot_index, base64 payload, and an auto-computed sha256 checksum", async () => {
+    const { createHash } = await import("node:crypto");
     const mock = createFetchMock(() => jsonResponse({ data: { version: 3 } }));
     const client = new GlitchClient(config, mock.fetch);
+    const raw = "save-bytes-here";
+    const payloadB64 = Buffer.from(raw).toString("base64");
+    const expectedChecksum = createHash("sha256").update(Buffer.from(payloadB64, "base64")).digest("hex");
+
     const result = await callTool("glitch_store_cloud_save", client, {
       install_id: "install_1",
-      key: "slot_1",
-      data: "{\"hp\":100}",
+      slot_index: 0,
+      payload: payloadB64,
       base_version: 2
     });
 
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/installs/install_1/saves");
-    expect(mock.requests[0]?.body).toMatchObject({ key: "slot_1", base_version: 2 });
+    expect(mock.requests[0]?.body).toMatchObject({
+      slot_index: 0,
+      payload: payloadB64,
+      checksum: expectedChecksum,
+      save_type: "manual",
+      base_version: 2
+    });
+  });
+
+  it("resolves a cloud save conflict at the resolve endpoint", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { resolved: true } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_resolve_cloud_save_conflict", client, {
+      install_id: "install_1",
+      save_id: "save_1",
+      conflict_id: "conflict_1",
+      choice: "use_client"
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/installs/install_1/saves/save_1/resolve");
+    expect(mock.requests[0]?.body).toMatchObject({ conflict_id: "conflict_1", choice: "use_client" });
   });
 
   it("updates a deployment status with a PUT", async () => {
