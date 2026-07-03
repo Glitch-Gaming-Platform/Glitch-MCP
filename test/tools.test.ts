@@ -40,7 +40,23 @@ describe("Glitch MCP tools", () => {
       "glitch_upload_social_asset_candidates",
       "glitch_create_upload_url",
       "glitch_upload_file",
-      "glitch_open_dashboard"
+      "glitch_open_dashboard",
+      "glitch_list_multiplayer_lobbies",
+      "glitch_create_multiplayer_lobby",
+      "glitch_browse_multiplayer_servers",
+      "glitch_list_multiplayer_realms",
+      "glitch_create_install",
+      "glitch_validate_install",
+      "glitch_list_cloud_saves",
+      "glitch_store_cloud_save",
+      "glitch_submit_progression",
+      "glitch_list_leaderboards",
+      "glitch_read_leaderboard",
+      "glitch_list_achievement_definitions",
+      "glitch_list_player_achievements",
+      "glitch_list_deployments",
+      "glitch_update_deployment_status",
+      "glitch_deploy_game_build"
     ]);
   });
 
@@ -128,6 +144,117 @@ describe("Glitch MCP tools", () => {
       title_id: "title_default",
       url: "https://app.example.test/agents/titles/title_default?run=run_1"
     });
+  });
+
+  it("lists multiplayer lobbies for the title via the public API", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: [{ id: "lobby_1" }] }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_list_multiplayer_lobbies", client, { region: "us-central", limit: 10 });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe(
+      "https://mcp.example.test/titles/title_default/multiplayer/lobbies?region=us-central&limit=10"
+    );
+    // The HTTP client unwraps the top-level { data } envelope from the API.
+    expect(result.structuredContent?.data).toEqual([{ id: "lobby_1" }]);
+  });
+
+  it("creates a multiplayer lobby with the owner player id", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "lobby_2", owner_player_id: "p1" } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_create_multiplayer_lobby", client, { player_id: "p1", max_members: 4 });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/multiplayer/lobbies");
+    expect(mock.requests[0]?.init?.method).toBe("POST");
+    expect(mock.requests[0]?.body).toMatchObject({ player_id: "p1", max_members: 4 });
+  });
+
+  it("submits a progression run to the player install submit endpoint", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { ok: true } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_submit_progression", client, {
+      install_id: "install_1",
+      stats: { kills: 5 },
+      leaderboard_keys: ["kills_board"]
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/installs/install_1/submit");
+    expect(mock.requests[0]?.body).toMatchObject({ stats: { kills: 5 }, leaderboard_keys: ["kills_board"] });
+  });
+
+  it("stores a cloud save with a base version for conflict detection", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { version: 3 } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_store_cloud_save", client, {
+      install_id: "install_1",
+      key: "slot_1",
+      data: "{\"hp\":100}",
+      base_version: 2
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/installs/install_1/saves");
+    expect(mock.requests[0]?.body).toMatchObject({ key: "slot_1", base_version: 2 });
+  });
+
+  it("updates a deployment status with a PUT", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "build_1", status: "published" } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_update_deployment_status", client, { build_id: "build_1", status: "published" });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/deployments/build_1/status");
+    expect(mock.requests[0]?.init?.method).toBe("PUT");
+    expect(mock.requests[0]?.body).toMatchObject({ status: "published" });
+  });
+
+  it("deploys a build end to end through the multipart flow", async () => {
+    const mock = createFetchMock((req) => {
+      if (req.url.endsWith("/deployments/multipart/initiate")) {
+        return jsonResponse({ data: { upload_id: "upload_1", file_path: "pending_game_uploads/title_default/x.zip" } });
+      }
+      if (req.url.endsWith("/deployments/multipart/urls")) {
+        return jsonResponse({ data: { urls: { "1": "https://s3.example.test/part-1" } } });
+      }
+      if (req.url === "https://s3.example.test/part-1") {
+        return new Response(null, { status: 200, headers: { etag: "\"etag-1\"" } });
+      }
+      if (req.url.endsWith("/deployments/multipart/complete")) {
+        return jsonResponse({ data: { success: true } });
+      }
+      if (req.url.endsWith("/deployments/confirm")) {
+        return jsonResponse({ data: { id: "build_1", status: "processing" } });
+      }
+      return jsonResponse({ data: {} });
+    });
+
+    const client = new GlitchClient(config, mock.fetch);
+    const content_base64 = Buffer.from("PK pretend zip payload").toString("base64");
+    const result = await callTool("glitch_deploy_game_build", client, {
+      content_base64,
+      file_name: "build.zip",
+      version_string: "1.0.0",
+      build_type: "production",
+      deployment_type: "html5"
+    });
+
+    expect(result.isError).toBeUndefined();
+    const urls = mock.requests.map((r) => r.url);
+    // Full order: initiate -> part urls -> S3 part PUT -> complete -> confirm.
+    expect(urls.some((u) => u.endsWith("/deployments/multipart/initiate"))).toBe(true);
+    expect(urls.some((u) => u.endsWith("/deployments/multipart/urls"))).toBe(true);
+    expect(urls).toContain("https://s3.example.test/part-1");
+    expect(urls.some((u) => u.endsWith("/deployments/multipart/complete"))).toBe(true);
+    expect(urls.some((u) => u.endsWith("/deployments/confirm"))).toBe(true);
+    // The completed upload sends the captured ETag back for the single part.
+    const complete = mock.requests.find((r) => r.url.endsWith("/deployments/multipart/complete"));
+    expect(complete?.body).toMatchObject({ upload_id: "upload_1", parts: [{ PartNumber: 1, ETag: "\"etag-1\"" }] });
+    // The confirm step registers the build with the provided metadata.
+    const confirm = mock.requests.find((r) => r.url.endsWith("/deployments/confirm"));
+    expect(confirm?.body).toMatchObject({ version_string: "1.0.0", build_type: "production", deployment_type: "html5" });
+    expect(result.structuredContent?.data).toMatchObject({ id: "build_1", status: "processing" });
   });
 });
 

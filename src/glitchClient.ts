@@ -344,6 +344,119 @@ export class GlitchClient {
     }
     return this.http.postMultipart<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/media`, form);
   }
+
+  /*
+   * Game services (public title API, scoped by the configured title token/JWT).
+   *
+   * Unlike the /mcp/v1 agent surface above, these hit the same title-scoped
+   * routes a game client uses (title_or_jwt auth), so the MCP/agent can operate
+   * multiplayer, cloud save, progression, and deployments for the game
+   * associated with the current title token. Player-scoped calls take a
+   * player_id / install_id in the body just like the SDK.
+   */
+
+  // --- Multiplayer ---
+  async listMultiplayerLobbies(titleId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/multiplayer/lobbies`, query);
+  }
+
+  async createMultiplayerLobby(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/multiplayer/lobbies`, body);
+  }
+
+  async browseMultiplayerServers(titleId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/multiplayer/servers`, query);
+  }
+
+  async listMultiplayerRealms(titleId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/multiplayer/realms`, query);
+  }
+
+  // --- Installs (the key used by cloud save, leaderboards, achievements) ---
+  async createInstall(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs`, body);
+  }
+
+  async validateInstall(titleId: string, installId: string, body?: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/validate`, body);
+  }
+
+  // --- Cloud save ---
+  async listCloudSaves(titleId: string, installId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/saves`, query);
+  }
+
+  async storeCloudSave(titleId: string, installId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/saves`, body);
+  }
+
+  // --- Progression: shared submit + leaderboards + achievements ---
+  async submitProgression(titleId: string, installId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/submit`, body);
+  }
+
+  async listLeaderboardDefinitions(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/progression/leaderboards`);
+  }
+
+  async readLeaderboard(titleId: string, apiKey: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/leaderboards/${segment(apiKey)}`, query);
+  }
+
+  async listAchievementDefinitions(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/progression/achievements`);
+  }
+
+  async listPlayerAchievements(titleId: string, installId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/achievements`);
+  }
+
+  // --- Deployments ---
+  async listDeployments(titleId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/deployments`, query);
+  }
+
+  async updateDeploymentStatus(titleId: string, buildId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.put<JsonObject>(`/titles/${segment(titleId)}/deployments/${segment(buildId)}/status`, body);
+  }
+
+  // --- Multipart build upload (S3 pre-signed part flow) ---
+  async initiateDeploymentUpload(titleId: string, body?: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/deployments/multipart/initiate`, body ?? {});
+  }
+
+  async getDeploymentPartUrls(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/deployments/multipart/urls`, body);
+  }
+
+  async completeDeploymentUpload(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/deployments/multipart/complete`, body);
+  }
+
+  async confirmDeployment(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/deployments/confirm`, body);
+  }
+
+  /**
+   * PUT one part to its S3 pre-signed URL and return the ETag S3 assigns.
+   * The ETag (quoted) is required, in PartNumber order, to complete the upload.
+   */
+  async uploadDeploymentPart(presignedUrl: string, bytes: Uint8Array): Promise<string> {
+    const response = await this.http.putBinary(presignedUrl, bytes, "application/zip");
+    const etag = response.headers.get("etag");
+    if (!etag) {
+      throw new GlitchMcpError("upstream_error", "S3 did not return an ETag for the uploaded part.");
+    }
+    return etag;
+  }
+
+  /**
+   * PUT a whole object to a single pre-signed URL (the local/dev fallback the
+   * initiate endpoint returns as { upload_url, is_local }). No ETag is required.
+   */
+  async putDeploymentObject(presignedUrl: string, bytes: Uint8Array): Promise<void> {
+    await this.http.putBinary(presignedUrl, bytes, "application/zip");
+  }
 }
 
 /**

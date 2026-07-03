@@ -1,4 +1,4 @@
-import { readFile, realpath, stat } from "node:fs/promises";
+import { open, readFile, realpath, stat } from "node:fs/promises";
 import { basename, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -907,7 +907,297 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       data,
       links: [{ name: "Open Glitch", url: String(data.url) }]
     });
-  })
+  }),
+
+  /* ------------------------------------------------------------------ */
+  /* Game services: multiplayer, cloud save, leaderboards, achievements, */
+  /* and deployments. These operate the game associated with the current */
+  /* title token (title_or_jwt public API), so the agent can run live     */
+  /* game-backend actions, not just the agent/run surface.                */
+  /* ------------------------------------------------------------------ */
+
+  // --- Multiplayer ---
+  defineTool(
+    "glitch_list_multiplayer_lobbies",
+    "List Multiplayer Lobbies",
+    "List joinable multiplayer lobbies for the title's game, with optional region/mode/map/type filters.",
+    z.object({ ...optionalTitleShape, region: z.string().optional(), game_mode: z.string().optional(), map_name: z.string().optional(), lobby_type: z.enum(["public", "invisible", "friends_only", "private"]).optional(), limit: z.number().int().min(1).max(100).optional() }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.listMultiplayerLobbies(titleId, omitUndefined({ region: input.region, game_mode: input.game_mode, map_name: input.map_name, lobby_type: input.lobby_type, limit: input.limit }));
+      return toolSuccess({ title: "Multiplayer lobbies", summary: "Joinable lobbies for this title.", data, links: [{ name: "Open multiplayer", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_create_multiplayer_lobby",
+    "Create Multiplayer Lobby",
+    "Create a multiplayer lobby and insert the owner as the first member. player_id is required for title-token use.",
+    z.object({ ...optionalTitleShape, player_id: z.string().min(1).max(128), display_name: z.string().max(128).optional(), max_members: z.number().int().min(1).max(250).optional(), region: z.string().optional(), game_mode: z.string().optional(), map_name: z.string().optional(), lobby_type: z.enum(["public", "invisible", "friends_only", "private"]).optional(), metadata: z.record(z.string(), z.unknown()).optional() }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.createMultiplayerLobby(titleId, omitUndefined({ player_id: input.player_id, display_name: input.display_name, max_members: input.max_members, region: input.region, game_mode: input.game_mode, map_name: input.map_name, lobby_type: input.lobby_type, metadata: input.metadata }));
+      return toolSuccess({ title: "Multiplayer lobby created", summary: "The lobby was created with the owner as first member.", data, links: [{ name: "Open multiplayer", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_browse_multiplayer_servers",
+    "Browse Multiplayer Servers",
+    "Browse public, fresh, non-full dedicated servers registered to the title's game.",
+    z.object({ ...optionalTitleShape, region: z.string().optional(), build_version: z.string().optional(), secure: z.boolean().optional(), limit: z.number().int().min(1).max(100).optional() }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.browseMultiplayerServers(titleId, omitUndefined({ region: input.region, build_version: input.build_version, secure: input.secure, limit: input.limit }));
+      return toolSuccess({ title: "Multiplayer servers", summary: "Available servers in the browser.", data, links: [{ name: "Open multiplayer", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_multiplayer_realms",
+    "List MMO Realms",
+    "List MMO realms (persistent world shards) for the title's game, with optional region/status filters.",
+    z.object({ ...optionalTitleShape, region: z.string().optional(), status: z.enum(["active", "locked", "maintenance", "full", "offline"]).optional(), limit: z.number().int().min(1).max(200).optional() }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.listMultiplayerRealms(titleId, omitUndefined({ region: input.region, status: input.status, limit: input.limit }));
+      return toolSuccess({ title: "MMO realms", summary: "Realms (shards) for this title.", data, links: [{ name: "Open multiplayer", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  // --- Installs ---
+  defineTool(
+    "glitch_create_install",
+    "Create Game Install",
+    "Register a device install for the title's game. Returns the install id used by cloud save, leaderboards, and achievements.",
+    z.object({ ...optionalTitleShape, platform: z.string().max(64).optional(), device_id: z.string().max(191).optional(), version: z.string().max(64).optional() }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.createInstall(titleId, omitUndefined({ platform: input.platform, device_id: input.device_id, version: input.version }));
+      return toolSuccess({ title: "Install created", summary: "Persist the returned install id for later calls.", data, links: [{ name: "Open integration", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_validate_install",
+    "Validate Game Install",
+    "Validate an install at boot (entitlement + ownership check) for the title's game.",
+    z.object({ ...optionalTitleShape, install_id: z.string().min(1).max(191) }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.validateInstall(titleId, input.install_id);
+      return toolSuccess({ title: "Install validated", summary: "Validation result for the install.", data });
+    }
+  ),
+
+  // --- Cloud save ---
+  defineTool(
+    "glitch_list_cloud_saves",
+    "List Cloud Saves",
+    "List cloud saves for a player install of the title's game.",
+    z.object({ ...optionalTitleShape, install_id: z.string().min(1).max(191) }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.listCloudSaves(titleId, input.install_id);
+      return toolSuccess({ title: "Cloud saves", summary: "Saves for this install.", data });
+    }
+  ),
+
+  defineTool(
+    "glitch_store_cloud_save",
+    "Store Cloud Save",
+    "Upload a cloud save for a player install. Send base_version for optimistic-concurrency conflict detection (409).",
+    z.object({ ...optionalTitleShape, install_id: z.string().min(1).max(191), key: z.string().min(1).max(191), data: z.string(), base_version: z.number().int().optional() }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.storeCloudSave(titleId, input.install_id, omitUndefined({ key: input.key, data: input.data, base_version: input.base_version }));
+      return toolSuccess({ title: "Cloud save stored", summary: "Save uploaded (or a 409 conflict was surfaced).", data });
+    }
+  ),
+
+  // --- Progression: leaderboards + achievements ---
+  defineTool(
+    "glitch_submit_progression",
+    "Submit Progression Run",
+    "Submit a progression run (stat values) for a player install. Drives both leaderboards and achievements; use the stat/leaderboard keys defined in the dashboard.",
+    z.object({ ...optionalTitleShape, install_id: z.string().min(1).max(191), stats: z.record(z.string(), z.number()), leaderboard_keys: z.array(z.string()).optional(), mode: z.enum(["increment", "set", "max"]).optional() }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.submitProgression(titleId, input.install_id, omitUndefined({ stats: input.stats, leaderboard_keys: input.leaderboard_keys, mode: input.mode }));
+      return toolSuccess({ title: "Progression submitted", summary: "Stats submitted; leaderboards/achievements updated by the server.", data });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_leaderboards",
+    "List Leaderboard Definitions",
+    "List the leaderboard definitions configured for the title's game.",
+    z.object({ ...optionalTitleShape }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.listLeaderboardDefinitions(titleId);
+      return toolSuccess({ title: "Leaderboard definitions", summary: "Configured leaderboards for this title.", data, links: [{ name: "Open leaderboards", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_read_leaderboard",
+    "Read Leaderboard Standings",
+    "Read the standings for a leaderboard by its api key.",
+    z.object({ ...optionalTitleShape, api_key: z.string().min(1).max(191), limit: z.number().int().min(1).max(500).optional() }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.readLeaderboard(titleId, input.api_key, omitUndefined({ limit: input.limit }));
+      return toolSuccess({ title: "Leaderboard standings", summary: `Standings for ${input.api_key}.`, data });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_achievement_definitions",
+    "List Achievement Definitions",
+    "List the achievement definitions configured for the title's game.",
+    z.object({ ...optionalTitleShape }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.listAchievementDefinitions(titleId);
+      return toolSuccess({ title: "Achievement definitions", summary: "Configured achievements for this title.", data, links: [{ name: "Open achievements", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_player_achievements",
+    "List Player Achievements",
+    "List a player's unlocked/in-progress achievements for a given install of the title's game.",
+    z.object({ ...optionalTitleShape, install_id: z.string().min(1).max(191) }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.listPlayerAchievements(titleId, input.install_id);
+      return toolSuccess({ title: "Player achievements", summary: "Achievement state for this install.", data });
+    }
+  ),
+
+  // --- Deployments ---
+  defineTool(
+    "glitch_list_deployments",
+    "List Game Deployments",
+    "List the game build deployments for the title.",
+    z.object({ ...optionalTitleShape }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.listDeployments(titleId);
+      return toolSuccess({ title: "Game deployments", summary: "Builds/deployments for this title.", data, links: [{ name: "Open deploy", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_update_deployment_status",
+    "Update Deployment Status",
+    "Update a game build's deployment status (e.g. publish or roll back) for the title's game.",
+    z.object({ ...optionalTitleShape, build_id: z.string().min(1).max(191), status: z.string().min(1).max(64) }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.updateDeploymentStatus(titleId, input.build_id, { status: input.status });
+      return toolSuccess({ title: "Deployment status updated", summary: `Build ${input.build_id} set to ${input.status}.`, data, links: [{ name: "Open deploy", url: client.dashboardUrl("title", { titleId }) }] });
+    }
+  ),
+
+  defineTool(
+    "glitch_deploy_game_build",
+    "Deploy Game Build",
+    "Upload a packaged game build (.zip) to Glitch end to end and register the deployment: initiate the multipart upload, PUT each part to its pre-signed URL, complete it, and confirm the build. Provide file_path over the stdio transport (large builds are streamed part by part) or content_base64 over HTTP (small builds). Requires deploy-create rights (a deploy token or title-admin JWT). This creates a real deployment; ask the developer for version/build/deployment type if not given.",
+    z.object({
+      ...optionalTitleShape,
+      file_path: z.string().max(1024).optional().describe("Local path to the packaged build .zip. stdio transport only; streamed part by part."),
+      content_base64: z.string().optional().describe("Base64 of the build .zip for the HTTP transport (small builds). Requires file_name."),
+      file_name: z.string().max(255).optional(),
+      version_string: z.string().min(1).max(20).describe("Human build version, e.g. \"1.4.2\"."),
+      build_type: z.enum(["production", "playtest", "demo"]),
+      deployment_type: z.string().min(1).max(64).describe("Glitch deployment type, e.g. html5/webgl/windows/linux (must match a configured type)."),
+      entry_point: z.string().max(500).optional().describe("Entry file for web builds. Defaults to index.html server-side."),
+      ue_version: z.string().max(20).optional(),
+      custom_variables: z.record(z.string(), z.unknown()).optional(),
+      part_size_mb: z.number().int().min(5).max(100).optional().describe("Multipart chunk size in MB (S3 minimum 5). Default 10.")
+    }),
+    false,
+    async (client, input, ctx) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const partSize = (input.part_size_mb ?? 10) * 1024 * 1024;
+      const source = await openDeploySource(client, input);
+
+      try {
+        await ctx?.log?.("info", `Deploying ${source.fileName} (${(source.size / (1024 * 1024)).toFixed(1)} MB) to Glitch.`);
+        const init = await client.initiateDeploymentUpload(titleId, {});
+        const filePath = String(init.file_path || "");
+        if (!filePath) {
+          throw new GlitchMcpError("upstream_error", "The deployment initiate response did not include a file_path.");
+        }
+
+        if (init.is_local === true && typeof init.upload_url === "string") {
+          // Local/dev fallback: a single pre-signed PUT of the whole object.
+          const bytes = await source.readPart(0, source.size);
+          await client.putDeploymentObject(init.upload_url, bytes);
+        } else {
+          const uploadId = String(init.upload_id || "");
+          if (!uploadId) {
+            throw new GlitchMcpError("upstream_error", "The deployment initiate response did not include an upload_id.");
+          }
+          const totalParts = Math.max(1, Math.ceil(source.size / partSize));
+          const partNumbers = Array.from({ length: totalParts }, (_, i) => i + 1);
+          const urlsResp = await client.getDeploymentPartUrls(titleId, { upload_id: uploadId, file_path: filePath, part_numbers: partNumbers });
+          const urls = (urlsResp.urls || {}) as Record<string, string>;
+
+          const parts: Array<{ PartNumber: number; ETag: string }> = [];
+          for (let n = 1; n <= totalParts; n++) {
+            const start = (n - 1) * partSize;
+            const end = Math.min(start + partSize, source.size);
+            const chunk = await source.readPart(start, end);
+            const url = urls[String(n)];
+            if (!url) {
+              throw new GlitchMcpError("upstream_error", `The server did not return a pre-signed URL for part ${n}.`);
+            }
+            const etag = await client.uploadDeploymentPart(url, chunk);
+            parts.push({ PartNumber: n, ETag: etag });
+            await ctx?.progress?.(n, totalParts, `Uploaded part ${n}/${totalParts}`);
+          }
+          await client.completeDeploymentUpload(titleId, { upload_id: uploadId, file_path: filePath, parts });
+        }
+
+        const build = await client.confirmDeployment(titleId, omitUndefined({
+          file_path: filePath,
+          version_string: input.version_string,
+          entry_point: input.entry_point,
+          build_type: input.build_type,
+          deployment_type: input.deployment_type,
+          custom_variables: input.custom_variables,
+          ue_version: input.ue_version
+        }));
+
+        return toolSuccess({
+          title: "Game build deployed",
+          summary: `Uploaded ${source.fileName} and registered a ${input.build_type}/${input.deployment_type} deployment (v${input.version_string}). Processing runs asynchronously.`,
+          data: build,
+          links: [{ name: "Open deploy", url: client.dashboardUrl("title", { titleId }) }]
+        });
+      } finally {
+        await source.close();
+      }
+    }
+  )
 ];
 
 export function registerGlitchTools(server: McpServer, client: GlitchClient): void {
@@ -1420,6 +1710,111 @@ async function loadUploadBytes(
   }
 
   throw new GlitchMcpError("validation_error", "Provide either file_path (stdio) or content_base64.");
+}
+
+/** Upper bounds for the deploy tool: builds are bigger than social assets. */
+const MAX_DEPLOY_FILE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB via streamed file_path
+const MAX_DEPLOY_BASE64_BYTES = 96 * 1024 * 1024; // 96 MB decoded via content_base64 (held in memory)
+
+interface DeploySource {
+  readonly size: number;
+  readonly fileName: string;
+  readPart(start: number, end: number): Promise<Uint8Array>;
+  close(): Promise<void>;
+}
+
+/**
+ * Resolve a byte source for a build upload.
+ *
+ * file_path (stdio only) is opened as a FileHandle and read part-by-part so a
+ * large build never has to sit fully in memory. content_base64 (any transport)
+ * is decoded once and sliced. Transport gating and allowed-root checks mirror
+ * loadUploadBytes so the deploy tool obeys the same local-file safety rules.
+ */
+async function openDeploySource(
+  client: GlitchClient,
+  input: { file_path?: string | undefined; content_base64?: string | undefined; file_name?: string | undefined }
+): Promise<DeploySource> {
+  if (input.file_path) {
+    if (!client.canReadLocalFiles) {
+      throw new GlitchMcpError(
+        "validation_error",
+        "Local file reads are disabled for this transport (HTTP). Send the build as content_base64, or run the stdio MCP adapter on the developer machine to deploy from a path."
+      );
+    }
+    await assertUploadPathAllowed(input.file_path, client.uploadAllowedRoots);
+
+    let metadata;
+    try {
+      metadata = await stat(input.file_path);
+    } catch {
+      throw new GlitchMcpError("not_found", `Could not read a local file at "${input.file_path}".`);
+    }
+    if (!metadata.isFile()) {
+      throw new GlitchMcpError("validation_error", `Build path "${input.file_path}" is not a regular file.`);
+    }
+    if (metadata.size === 0) {
+      throw new GlitchMcpError("validation_error", "The build file is empty.");
+    }
+    if (metadata.size > MAX_DEPLOY_FILE_BYTES) {
+      throw new GlitchMcpError(
+        "validation_error",
+        `Build is ${(metadata.size / (1024 * 1024)).toFixed(0)} MB, which exceeds the ${MAX_DEPLOY_FILE_BYTES / (1024 * 1024 * 1024)} GB limit. Use the Glitch-Cli-Deploy tool for very large builds.`
+      );
+    }
+
+    const handle = await open(input.file_path, "r");
+    return {
+      size: metadata.size,
+      fileName: input.file_name || basename(input.file_path),
+      async readPart(start: number, end: number): Promise<Uint8Array> {
+        const length = end - start;
+        const buffer = Buffer.allocUnsafe(length);
+        let offset = 0;
+        while (offset < length) {
+          const { bytesRead } = await handle.read(buffer, offset, length - offset, start + offset);
+          if (bytesRead === 0) break;
+          offset += bytesRead;
+        }
+        return new Uint8Array(buffer.subarray(0, offset));
+      },
+      async close(): Promise<void> {
+        await handle.close();
+      }
+    };
+  }
+
+  if (input.content_base64) {
+    if (!input.file_name) {
+      throw new GlitchMcpError("validation_error", "file_name is required when deploying content_base64.");
+    }
+    if (!isValidBase64(input.content_base64)) {
+      throw new GlitchMcpError("validation_error", "content_base64 must be valid base64 without non-base64 characters.");
+    }
+    const buffer = Buffer.from(input.content_base64, "base64");
+    if (buffer.byteLength === 0) {
+      throw new GlitchMcpError("validation_error", "content_base64 did not decode to any bytes.");
+    }
+    if (buffer.byteLength > MAX_DEPLOY_BASE64_BYTES) {
+      throw new GlitchMcpError(
+        "validation_error",
+        `Build is ${(buffer.byteLength / (1024 * 1024)).toFixed(0)} MB. Over the HTTP transport the limit is ${MAX_DEPLOY_BASE64_BYTES / (1024 * 1024)} MB; use file_path over stdio for larger builds.`
+      );
+    }
+    const bytes = new Uint8Array(buffer);
+    return {
+      size: bytes.byteLength,
+      fileName: input.file_name,
+      async readPart(start: number, end: number): Promise<Uint8Array> {
+        return bytes.subarray(start, end);
+      },
+      async close(): Promise<void> {
+        /* nothing to release for an in-memory buffer */
+      }
+    };
+  }
+
+  throw new GlitchMcpError("validation_error", "Provide either file_path (stdio) or content_base64 to deploy a build.");
 }
 
 async function assertUploadPathAllowed(filePath: string, allowedRoots: readonly string[]): Promise<void> {

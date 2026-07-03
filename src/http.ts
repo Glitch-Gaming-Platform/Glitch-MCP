@@ -42,6 +42,51 @@ export class GlitchHttpClient {
     });
   }
 
+  async put<T>(path: string, body?: unknown, query?: Record<string, unknown>): Promise<T> {
+    return this.request<T>(path, {
+      method: "PUT",
+      ...(body === undefined ? {} : { body }),
+      ...(query ? { query } : {})
+    });
+  }
+
+  async delete<T>(path: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request<T>(path, query ? { method: "DELETE", query } : { method: "DELETE" });
+  }
+
+  /**
+   * PUT raw bytes to an absolute URL (e.g. an S3 pre-signed part URL).
+   *
+   * Unlike request(), this does NOT prepend the API base URL and does NOT attach
+   * the Glitch Authorization header — pre-signed URLs carry their own auth and
+   * must be sent without it. Returns the raw Response so callers can read the
+   * ETag header. The per-call timeout is applied via AbortController.
+   */
+  async putBinary(absoluteUrl: string, body: Uint8Array, contentType = "application/octet-stream"): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.config.timeoutMs);
+    try {
+      const init: RequestInit = {
+        method: "PUT",
+        headers: { "Content-Type": contentType },
+        // Uint8Array is a valid BodyInit (BufferSource) at runtime; the cast
+        // sidesteps the TS 5.7 Uint8Array<ArrayBufferLike> generic mismatch.
+        body: body as unknown as BodyInit,
+        signal: controller.signal
+      };
+      const response = await this.fetchFn(absoluteUrl, init);
+      if (!response.ok) {
+        throw new GlitchMcpError(
+          "upstream_error",
+          `Pre-signed upload failed with status ${response.status}.`
+        );
+      }
+      return response;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   /**
    * POST multipart/form-data (file uploads).
    *
