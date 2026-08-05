@@ -77,6 +77,7 @@ runs:read
 runs:create
 events:read
 reports:read
+reports:identity
 artifacts:read
 guidance:read
 guidance:answer
@@ -84,17 +85,31 @@ actions:read
 actions:approve
 actions:execute
 uploads:create
+social:read
+social:write
+social:publish
+social:engage
+social:message
+social:accounts
+social:sync
+social:reports
 ```
 
 Token presets:
 
 ```text
-readonly  = read/report/artifact/action/guidance inspection only
-operator  = readonly + runs:create + guidance:answer + uploads:create
-developer = all MCP abilities
+readonly  = read/report/artifact/action/guidance inspection + social:read + social:reports; identity details redacted
+operator  = readonly + runs:create + guidance:answer + uploads:create + social:write + social:sync; identity details redacted
+developer = all MCP abilities, including reports:identity
 ```
 
 `actions:approve` and `actions:execute` are deliberately separate abilities so teams can create non-executing tokens for agents that only inspect reports.
+
+`reports:read` grants aggregate and report access but recursively removes raw
+user, install, device, session, fingerprint, IP, user-agent, cookie, and similar
+identity fields. Grant `reports:identity` only to credentials that are allowed
+to inspect row-level identity details. Signed-in Glitch users and developer
+tokens receive identity detail; readonly and operator presets do not.
 
 ## Environment Variables
 

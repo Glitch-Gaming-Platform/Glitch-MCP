@@ -290,10 +290,76 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
     guidance: ["Use the selected title unless a title id is provided.", "Summarize the title context for practical agent planning."]
   },
   {
+    name: "glitch_get_analytics_capabilities",
+    title: "Glitch Get Analytics Capabilities",
+    description: "Discover canonical analytics families, report keys, filters, defaults, requirements, sources, and limits.",
+    guidance: ["Use the selected title unless a title id is provided.", "Summarize the report families and the exact report keys relevant to the user's question.", "Do not guess report keys or required filters."]
+  },
+  {
+    name: "glitch_get_analytics_report",
+    title: "Glitch Get Analytics Report",
+    description: "Run one canonical read-only Glitch analytics report.",
+    guidance: ["Treat the first analytics key as report_key.", "Call glitch_get_analytics_capabilities first when the key or filter contract is unknown.", "Preserve empty and unavailable states; do not convert missing data into zero."]
+  },
+  {
+    name: "glitch_get_session_reports",
+    title: "Glitch Get Session Reports",
+    description: "Run session, retention, active-user, geography, cohort, and behavioral-funnel reports.",
+    guidance: ["Use report_keys to narrow the bundle when the user asks a focused question.", "Map date and platform/device filters from the request.", "Summarize partial failures separately from successful metrics."]
+  },
+  {
+    name: "glitch_get_web_reports",
+    title: "Glitch Get Web Reports",
+    description: "Run website traffic, source, page, engagement, journey, device, geography, and conversion reports.",
+    guidance: ["Use report_keys to narrow the bundle when appropriate.", "Pass common date/UTM/page/device filters only when provided or clearly implied.", "Separate unavailable reports from true zero values."]
+  },
+  {
+    name: "glitch_get_storefront_reports",
+    title: "Glitch Get Storefront Reports",
+    description: "Run storefront discovery, load, trial, playtime, conversion, and readiness reports.",
+    guidance: ["Use report_keys to narrow the bundle when appropriate.", "Keep each canonical report's source and filters visible in the summary.", "Call out reports that are empty because no qualifying events exist."]
+  },
+  {
+    name: "glitch_get_wishlist_reports",
+    title: "Glitch Get Wishlist Reports",
+    description: "Run wishlist growth, intent, forecast, conversion, attribution, geography, and device reports.",
+    guidance: ["Use report_keys to narrow the bundle when appropriate.", "Preserve forecast assumptions and attribution caveats returned by Glitch.", "Do not merge unrelated acquisition sources without labeling them."]
+  },
+  {
+    name: "glitch_get_earnings_reports",
+    title: "Glitch Get Earnings Reports",
+    description: "Run earnings, payout, purchase, revenue, LTV, currency, item, install, and ad-revenue reports.",
+    guidance: ["Use report_keys to narrow the bundle when appropriate.", "Preserve currency and payout status fields.", "Do not treat pending, refunded, unavailable, or empty values as paid revenue."]
+  },
+  {
+    name: "glitch_get_attribution_reports",
+    title: "Glitch Get Attribution Reports",
+    description: "Run title, UTM, campaign, conversion-event, install-journey, social, influencer, and ad attribution reports.",
+    guidance: ["Use report_keys to narrow the bundle when appropriate.", "Pass scheduler_id only for ad reports that advertise it as required.", "Keep correlation, observed attribution, and missing tracking coverage distinct."]
+  },
+  {
+    name: "glitch_get_cross_device_reports",
+    title: "Glitch Get Cross-Device Reports",
+    description: "Run identity, device, journey, geography, fraud, pixel, and conversion-correlation reports.",
+    guidance: ["Use report_keys to narrow the bundle when appropriate.", "Preserve confidence, suspicious-device, VPN/proxy, and fraud caveats.", "Do not present probabilistic matches as verified identity."]
+  },
+  {
     name: "glitch_get_billing_status",
     title: "Glitch Get Billing Status",
     description: "Check subscription, trial, plan, and credit state for a title.",
     guidance: ["Use the selected title unless a title id is provided.", "Summarize whether paid agent runs are available and include returned billing links."]
+  },
+  {
+    name: "glitch_get_social_capabilities",
+    title: "Glitch Get Social Capabilities",
+    description: "Discover the title's social platforms, connections, permissions, and operation catalog.",
+    guidance: ["Use the selected title unless a title id is provided.", "Summarize connected platforms and the exact operations relevant to the user's intended workflow.", "Do not request or display OAuth credentials."]
+  },
+  {
+    name: "glitch_social_operation",
+    title: "Glitch Social Operation",
+    description: "Run one deterministic operation from the hosted social operation catalog.",
+    guidance: ["Call glitch_get_social_capabilities first when the exact operation or required arguments are not already known.", "Map the user's arguments to the operation's required_arguments.", "Set confirm=true only when the user explicitly asked for the mutation, publish, engagement, message, sync, disconnect, or destructive action.", "Never pass OAuth tokens, passwords, API keys, or credentials."]
   },
   {
     name: "glitch_start_agent_run",

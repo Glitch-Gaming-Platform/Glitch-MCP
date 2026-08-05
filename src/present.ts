@@ -257,6 +257,41 @@ export function presentBilling(data: JsonObject): string {
   return lines.join("\n");
 }
 
+export function presentAnalytics(data: JsonObject): string {
+  const analytics = asRecord(data.analytics);
+  if (analytics) {
+    const families = asRecord(analytics.families) || {};
+    const reports = asRecord(analytics.reports) || {};
+    const identityIncluded = analytics.identity_details_included === true;
+    const lines = [
+      `**Analytics catalog:** ${Object.keys(reports).length} report(s) across ${Object.keys(families).length} families.`,
+      `**Identity detail:** ${identityIncluded ? "included for this credential" : "redacted; requires reports:identity"}.`,
+      ""
+    ];
+    for (const [key, value] of Object.entries(families)) {
+      const family = asRecord(value) || {};
+      lines.push(`- **${key}** — ${str(family.label) || "Analytics reports"} (${str(family.report_count) || asArray(family.reports).length})`);
+    }
+    return lines.join("\n");
+  }
+
+  const summary = asRecord(data.summary) || {};
+  const reports = asArray(data.reports);
+  const family = str(data.family);
+  const lines = [
+    `**${family ? `${family} ` : ""}analytics:** ${str(summary.succeeded) || 0} succeeded, ${str(summary.failed) || 0} unavailable.`,
+    ""
+  ];
+  for (const value of reports.slice(0, 20)) {
+    const report = asRecord(value) || {};
+    const ok = report.ok === true;
+    const empty = report.empty === true ? " · empty" : "";
+    const error = str(asRecord(report.error)?.message);
+    lines.push(`- ${ok ? "✓" : "✗"} **${str(report.label) || str(report.key) || "Report"}**${empty}${error ? ` — ${truncate(error, 180)}` : ""}`);
+  }
+  return lines.join("\n");
+}
+
 function appendList(lines: string[], heading: string, value: unknown): void {
   const items = asArray(value)
     .map((entry) => str(entry) || str(asRecord(entry)?.text) || str(asRecord(entry)?.label))

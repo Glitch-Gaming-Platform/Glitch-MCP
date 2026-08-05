@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   presentActions,
+  presentAnalytics,
   presentArtifacts,
   presentBilling,
   presentFinalReport,
@@ -74,6 +75,29 @@ describe("presenters", () => {
       .toContain("My Game");
     expect(presentBilling({ has_access: true, agents: [{ name: "Marketer", billing_plan: "pro", billing_status: "active", has_billing_access: true }] }))
       .toContain("active");
+  });
+
+  it("renders analytics catalogs and partial bundles without flattening unavailable reports", () => {
+    const catalog = presentAnalytics({
+      analytics: {
+        identity_details_included: false,
+        families: { sessions: { label: "Sessions", report_count: 4 } },
+        reports: { "retention.d7": {} }
+      }
+    });
+    expect(catalog).toContain("1 report(s) across 1 families");
+    expect(catalog).toContain("redacted; requires reports:identity");
+
+    const bundle = presentAnalytics({
+      family: "sessions",
+      summary: { succeeded: 1, failed: 1 },
+      reports: [
+        { key: "retention.d7", label: "Day 7 retention", ok: true },
+        { key: "behavioral_funnels.report", ok: false, empty: true, error: { message: "No observed journey is available yet." } }
+      ]
+    });
+    expect(bundle).toContain("1 succeeded, 1 unavailable");
+    expect(bundle).toContain("No observed journey is available yet");
   });
 
   it("renders empty states without throwing", () => {

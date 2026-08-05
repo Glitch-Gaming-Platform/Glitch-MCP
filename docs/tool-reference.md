@@ -71,6 +71,140 @@ Input:
 }
 ```
 
+### glitch_get_analytics_capabilities
+
+Returns the authoritative title-scoped analytics contract: all families,
+canonical report keys, accepted/default filters, source dashboard routes,
+required context, and query limits. Call it when the exact report key or filter
+shape is not already known.
+
+Input:
+
+```json
+{
+  "title_id": "title_123"
+}
+```
+
+### glitch_get_analytics_report
+
+Runs one canonical dashboard report without starting or billing an Agent run.
+
+Input:
+
+```json
+{
+  "title_id": "title_123",
+  "report_key": "retention.d7",
+  "filters": {
+    "start_date": "2026-07-01",
+    "end_date": "2026-08-01",
+    "platform": ["steam", "pc"]
+  },
+  "fail_fast": false
+}
+```
+
+### Analytics family tools
+
+- `glitch_get_session_reports`
+- `glitch_get_web_reports`
+- `glitch_get_storefront_reports`
+- `glitch_get_wishlist_reports`
+- `glitch_get_earnings_reports`
+- `glitch_get_attribution_reports`
+- `glitch_get_cross_device_reports`
+
+Each family tool accepts the same bundle shape:
+
+```json
+{
+  "title_id": "title_123",
+  "report_keys": ["retention.d7", "behavioral_funnels.report"],
+  "filters": {
+    "start_date": "2026-07-01",
+    "end_date": "2026-08-01",
+    "per_page": 50
+  },
+  "report_filters": {
+    "behavioral_funnels.report": {
+      "funnel_id": "auto-observed-journey"
+    }
+  },
+  "fail_fast": false
+}
+```
+
+Analytics rules:
+
+- All operations are read-only and require the existing `reports:read` title
+  MCP ability.
+- Raw identity-level fields are recursively redacted unless the credential also
+  has `reports:identity`. Capabilities expose whether identity detail is included
+  and mark reports that can contain identity-level rows.
+- The hosted backend reuses the same controllers and calculations as the
+  Glitch dashboard instead of maintaining a second analytics implementation.
+- A request may include at most 25 reports, a date range may cover at most 365
+  days, and page/row limits are capped at 100.
+- Common `filters` apply only where a report advertises that filter. The result
+  records ignored filters so a client can identify mismatches. Applied filters
+  contain only values actually forwarded to the canonical controller; identity
+  filter values are shown as `[redacted]` without `reports:identity`.
+- `report_filters` overrides common filters for one report.
+- Bundles return partial results by default. Every report includes `ok`,
+  `status`, `empty`, applied `filters`, ignored filters, source information,
+  `data`, and a sanitized `error` when unavailable.
+- Optional-context reports can be unavailable without making the whole bundle
+  fail. Do not interpret unavailable or empty reports as numeric zero.
+- Attribution ad reports that advertise `scheduler_id` require it explicitly;
+  they are not part of the default attribution bundle.
+- The default attribution and cross-device bundles reproduce the corresponding
+  Glitch report pages, including their supporting session, earnings, retention,
+  landing-page, attribution-summary, environment, geography, fraud, install-
+  journey, and campaign-performance sections.
+
+### glitch_get_social_capabilities
+
+Returns the authoritative title-scoped social contract. The result includes platform publishing, comment, reply, messaging, engagement, history, and metrics capabilities; safe connected-scheduler summaries; and every supported operation with its category, required ability, confirmation requirement, destructive flag, and required arguments.
+
+Input:
+
+```json
+{
+  "title_id": "title_123"
+}
+```
+
+Call this before `glitch_social_operation` instead of guessing operation names or platform support.
+
+### glitch_social_operation
+
+Executes one deterministic operation from `glitch_get_social_capabilities`.
+
+Input:
+
+```json
+{
+  "title_id": "title_123",
+  "operation": "posts.reschedule",
+  "arguments": {
+    "post_id": "post_123",
+    "scheduled_at": "2026-08-03T15:00:00Z"
+  },
+  "confirm": true
+}
+```
+
+Rules:
+
+- Read operations run without confirmation.
+- Mutations, publishing, engagement, messaging, syncing, account disconnects, and destructive operations require `confirm=true`.
+- The title MCP token must have the operation's advertised granular ability.
+- Resource identifiers are checked against the selected title before existing Glitch social controllers or facades run.
+- OAuth tokens, refresh tokens, passwords, API keys, authorization headers, and credential-shaped fields are rejected as input and recursively removed from output.
+- OAuth account connection remains a browser consent flow. Use the returned dashboard links to connect or reauthenticate accounts.
+- Results use `{ "operation": "...", "result": ... }`; asynchronous platform jobs retain their existing Glitch job/status fields.
+
 ### glitch_start_agent_run
 
 Starts a Glitch Agent run.

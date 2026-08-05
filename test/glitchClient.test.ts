@@ -36,6 +36,40 @@ describe("GlitchClient", () => {
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_1/context");
   });
 
+  it("encodes social operation names and forwards the operation envelope", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { operation: "comments.reply", result: { sent: true } } }));
+    const client = new GlitchClient({ ...config, defaultTitleId: "title_default" }, mock.fetch);
+
+    const result = await client.socialOperation(
+      "title_default",
+      "comments.reply",
+      { comment_id: "comment_1", content: "Thanks!" },
+      true
+    );
+
+    expect(result).toEqual({ operation: "comments.reply", result: { sent: true } });
+    expect(mock.requests[0]?.url).toBe(
+      "https://mcp.example.test/mcp/v1/titles/title_default/social/operations/comments.reply"
+    );
+    expect(mock.requests[0]?.body).toEqual({
+      arguments: { comment_id: "comment_1", content: "Thanks!" },
+      confirm: true
+    });
+  });
+
+  it("queries title analytics through the hosted MCP facade", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { summary: { succeeded: 1 }, reports: [] } }));
+    const client = new GlitchClient({ ...config, defaultTitleId: "title_default" }, mock.fetch);
+
+    const result = await client.analyticsQuery("title_default", {
+      reports: [{ key: "web.overview", filters: { start_date: "2026-07-01", end_date: "2026-08-01" } }]
+    });
+
+    expect(result).toEqual({ summary: { succeeded: 1 }, reports: [] });
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/analytics/query");
+    expect(mock.requests[0]?.init?.method).toBe("POST");
+  });
+
   it("polls runs until a settled status is returned", async () => {
     vi.useFakeTimers();
     const mock = createFetchMock((_request, index) =>

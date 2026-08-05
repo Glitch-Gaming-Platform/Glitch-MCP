@@ -21,10 +21,17 @@ export function registerGlitchResources(server: McpServer): void {
               version: GLITCH_MCP_VERSION,
               auth: ["oauth_remote_mcp", "title_mcp_access_key", "stdio_proxy_env_token"],
               rich_experience: ["structured_results", "dashboard_deep_links", "mcp_apps_progressive_enhancement"],
+              analytics: ["canonical_dashboard_reports", "dynamic_report_catalog", "family_bundles", "partial_results", "agent_shared_contract"],
+              social: ["dynamic_operation_catalog", "title_scoped_primitives", "agent_shared_registry", "platform_capability_matrix"],
               safety: [
                 "subscription_checked_server_side",
                 "title_scoped_tokens",
+                "read_only_analytics_reports",
+                "bounded_analytics_queries",
+                "analytics_secrets_redacted",
                 "confirm_true_for_approval_and_execution",
+                "granular_social_abilities",
+                "social_credentials_rejected_and_redacted",
                 "no_private_planner_or_prompt_export"
               ]
             },
@@ -56,6 +63,8 @@ export function registerGlitchResources(server: McpServer): void {
             "- Tokens identify users, workspaces, titles, scopes, and subscription state.",
             "- Every hosted call re-checks subscription, credits, title permissions, and action risk.",
             "- Public clients receive reports, cards, links, and artifacts, not private prompts or database access.",
+            "- Analytics tools are read-only, title-scoped, bounded by report/date/page limits, and reuse the canonical dashboard calculations.",
+            "- Social operations validate every resource against the selected title, reject credential-shaped input, and redact secrets recursively.",
             "- Mutating tools require explicit confirmation and remain guarded by Glitch server policies."
           ].join("\n")
         }

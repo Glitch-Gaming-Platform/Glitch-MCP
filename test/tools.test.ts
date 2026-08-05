@@ -19,7 +19,18 @@ describe("Glitch MCP tools", () => {
       "glitch_list_titles",
       "glitch_select_title",
       "glitch_get_title_context",
+      "glitch_get_analytics_capabilities",
+      "glitch_get_analytics_report",
+      "glitch_get_session_reports",
+      "glitch_get_web_reports",
+      "glitch_get_storefront_reports",
+      "glitch_get_wishlist_reports",
+      "glitch_get_earnings_reports",
+      "glitch_get_attribution_reports",
+      "glitch_get_cross_device_reports",
       "glitch_get_billing_status",
+      "glitch_get_social_capabilities",
+      "glitch_social_operation",
       "glitch_start_agent_run",
       "glitch_get_agent_run",
       "glitch_wait_for_agent_run",
@@ -75,6 +86,91 @@ describe("Glitch MCP tools", () => {
       background: true
     });
     expect(result.structuredContent?.data).toEqual({ id: "run_1", status: "queued" });
+  });
+
+  it("retrieves the authoritative social capability catalog", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { operation_count: 108, platforms: {} } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_get_social_capabilities", client, {});
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/social/capabilities");
+    expect(result.structuredContent?.data).toEqual({ operation_count: 108, platforms: {} });
+  });
+
+  it("retrieves the authoritative analytics capability catalog", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { analytics: { families: {}, reports: {} } } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_get_analytics_capabilities", client, {});
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/analytics/capabilities");
+    expect(result.structuredContent?.data).toEqual({ analytics: { families: {}, reports: {} } });
+  });
+
+  it("runs one canonical analytics report with typed filters", async () => {
+    const mock = createFetchMock(() =>
+      jsonResponse({ data: { summary: { succeeded: 1, failed: 0 }, reports: [{ key: "retention.d7", ok: true }] } })
+    );
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_get_analytics_report", client, {
+      report_key: "retention.d7",
+      filters: { start_date: "2026-07-01", end_date: "2026-08-01", platform: ["steam", "pc"] }
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/analytics/query");
+    expect(mock.requests[0]?.body).toEqual({
+      reports: [
+        {
+          key: "retention.d7",
+          filters: { start_date: "2026-07-01", end_date: "2026-08-01", platform: ["steam", "pc"] }
+        }
+      ],
+      fail_fast: false
+    });
+  });
+
+  it("runs a family analytics bundle with common and per-report filters", async () => {
+    const mock = createFetchMock(() =>
+      jsonResponse({ data: { family: "sessions", summary: { succeeded: 2, failed: 0 }, reports: [] } })
+    );
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_get_session_reports", client, {
+      report_keys: ["sessions.average", "behavioral_funnels.report"],
+      filters: { start_date: "2026-07-01", end_date: "2026-08-01" },
+      report_filters: { "behavioral_funnels.report": { funnel_id: "auto-observed-journey" } }
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.body).toEqual({
+      family: "sessions",
+      report_keys: ["sessions.average", "behavioral_funnels.report"],
+      filters: { start_date: "2026-07-01", end_date: "2026-08-01" },
+      report_filters: { "behavioral_funnels.report": { funnel_id: "auto-observed-journey" } },
+      fail_fast: false
+    });
+  });
+
+  it("runs a social operation with arguments and explicit confirmation", async () => {
+    const mock = createFetchMock(() =>
+      jsonResponse({ data: { operation: "posts.reschedule", result: { id: "post_1", status: "scheduled" } } })
+    );
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_social_operation", client, {
+      operation: "posts.reschedule",
+      arguments: { post_id: "post_1", scheduled_at: "2026-08-03T15:00:00Z" },
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe(
+      "https://mcp.example.test/mcp/v1/titles/title_default/social/operations/posts.reschedule"
+    );
+    expect(mock.requests[0]?.body).toEqual({
+      arguments: { post_id: "post_1", scheduled_at: "2026-08-03T15:00:00Z" },
+      confirm: true
+    });
   });
 
   it("can wait for a started run when requested", async () => {

@@ -76,6 +76,8 @@ This repository is the public adapter. It does not contain the private Glitch Ag
 
 - MCP tools for starting and monitoring Glitch Agent runs.
 - Structured reports, pending actions, guidance requests, and artifact links.
+- Direct read-only access to the canonical Glitch analytics catalog and 70+
+  dashboard reports without starting a paid Agent run.
 - Deep links into the rich Glitch browser experience.
 - Optional local stdio proxy for MCP clients that do not yet support remote auth cleanly.
 - Client setup docs for Codex, Cursor, and Claude Code.
@@ -263,13 +265,25 @@ glitch-mcp version
 
 ## Tool Surface
 
-The adapter exposes a deliberately narrow tool surface:
+The adapter exposes a guarded tool surface. Social primitives are discovered dynamically from the hosted backend so MCP clients and Glitch Agent use the same title-scoped capability contract:
 
 - `glitch_auth_status`
 - `glitch_list_titles`
 - `glitch_select_title`
 - `glitch_get_title_context`
+- `glitch_get_analytics_capabilities` — discover canonical report families,
+  report keys, filters, source routes, requirements, and limits
+- `glitch_get_analytics_report` — run one canonical dashboard report directly
+- `glitch_get_session_reports`
+- `glitch_get_web_reports`
+- `glitch_get_storefront_reports`
+- `glitch_get_wishlist_reports`
+- `glitch_get_earnings_reports`
+- `glitch_get_attribution_reports`
+- `glitch_get_cross_device_reports`
 - `glitch_get_billing_status`
+- `glitch_get_social_capabilities` — list the authoritative platform matrix, connected schedulers, granular abilities, and every supported social operation
+- `glitch_social_operation` — execute a deterministic social read or explicitly confirmed mutation using an operation returned by the capability catalog
 - `glitch_start_agent_run`
 - `glitch_get_agent_run`
 - `glitch_wait_for_agent_run`
@@ -321,7 +335,15 @@ Full UX map: [docs/rich-ui.md](docs/rich-ui.md).
 ## Safety Defaults
 
 - All paid checks happen on the hosted Glitch service.
+- Analytics tools are read-only, title-scoped to `reports:read`, bounded to 25
+  reports and 365 days per query, and preserve empty/partial states instead of
+  inventing zero values.
+- `reports:read` returns aggregate-safe reports; raw identity-level fields and
+  identity filter values stay redacted unless the credential also has the
+  narrowly scoped `reports:identity` ability.
 - Mutating tools require explicit confirmation.
+- Social operations are title-scoped, reject credential-shaped input, and recursively remove OAuth tokens, secrets, passwords, API keys, and authorization data from responses.
+- Read-only, operator, and developer MCP tokens receive different social abilities; publishing, engagement, messaging, account changes, and destructive operations require the developer abilities.
 - Approval and execution are separate.
 - Uploaded files are reference material, not trusted instructions.
 - `glitch_upload_file` supports images, videos, and documents up to 50 MB; shared HTTP mode rejects local `file_path`s and stdio can be constrained with `GLITCH_MCP_UPLOAD_ALLOWED_ROOTS`.

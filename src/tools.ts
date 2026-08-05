@@ -20,6 +20,7 @@ import {
 } from "./localAssets.js";
 import {
   presentActions,
+  presentAnalytics,
   presentArtifacts,
   presentBilling,
   presentFinalReport,
@@ -162,8 +163,54 @@ const titleContextInput = z.object({
   ...optionalTitleShape
 });
 
+const analyticsFilterScalar = z.union([z.string().max(500), z.number(), z.boolean(), z.null()]);
+const analyticsFilterValue = z.union([analyticsFilterScalar, z.array(analyticsFilterScalar).max(100)]);
+const analyticsFiltersSchema = z.record(z.string().max(120), analyticsFilterValue);
+const analyticsFamilySchema = z.enum(["sessions", "web", "storefront", "wishlist", "earnings", "attribution", "cross_device"]);
+
+const analyticsCapabilitiesInput = z.object({
+  ...optionalTitleShape
+});
+
+const analyticsReportInput = z.object({
+  ...optionalTitleShape,
+  report_key: z.string().trim().min(1).max(120).regex(/^[a-z0-9_.-]+$/),
+  filters: analyticsFiltersSchema.default({}).describe("Report filters from glitch_get_analytics_capabilities."),
+  fail_fast: z.boolean().default(false)
+});
+
+const analyticsFamilyInput = z.object({
+  ...optionalTitleShape,
+  report_keys: z.array(z.string().trim().min(1).max(120)).max(25).optional().describe("Optional subset from the selected family's report catalog."),
+  filters: analyticsFiltersSchema.default({}).describe("Common filters applied where supported, such as dates, platform, device, country, UTM, campaign, or scheduler."),
+  report_filters: z.record(z.string().max(120), analyticsFiltersSchema).default({}).describe("Per-report filter overrides keyed by report key."),
+  fail_fast: z.boolean().default(false).describe("Stop after the first unavailable report instead of returning partial results.")
+});
+
 const billingInput = z.object({
   ...optionalTitleShape
+});
+
+const socialCapabilitiesInput = z.object({
+  ...optionalTitleShape
+});
+
+const socialOperationInput = z.object({
+  ...optionalTitleShape,
+  operation: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .regex(/^[A-Za-z0-9._-]+$/, "Use an operation name returned by glitch_get_social_capabilities."),
+  arguments: z
+    .record(z.string(), z.unknown())
+    .default({})
+    .describe("Operation-specific arguments. Read required_arguments from glitch_get_social_capabilities."),
+  confirm: z
+    .boolean()
+    .default(false)
+    .describe("Must be true for mutations, publishing, engagement, messaging, syncing, disconnects, and destructive operations.")
 });
 
 const startRunInput = z.object({
@@ -393,6 +440,41 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
+  defineTool("glitch_get_analytics_capabilities", "Get Analytics Capabilities", "List every canonical read-only Glitch analytics family, report key, filter, source route, default, requirement, and safety limit.", analyticsCapabilitiesInput, true, async (client, input) => {
+    const titleId = client.resolveTitleId(input.title_id);
+    const data = await client.analyticsCapabilities(titleId);
+    return toolSuccess({
+      title: "Glitch analytics capabilities",
+      summary: "The hosted service returned the authoritative analytics report catalog.",
+      data,
+      bodyMarkdown: presentAnalytics(data),
+      links: [{ name: "Open title analytics", url: client.dashboardUrl("title", { titleId }) }]
+    });
+  }),
+
+  defineTool("glitch_get_analytics_report", "Get Analytics Report", "Run one canonical dashboard analytics report without starting or billing an Agent run. Call glitch_get_analytics_capabilities for valid keys and filters.", analyticsReportInput, true, async (client, input) => {
+    const titleId = client.resolveTitleId(input.title_id);
+    const data = await client.analyticsQuery(titleId, {
+      reports: [{ key: input.report_key, filters: input.filters }],
+      fail_fast: input.fail_fast
+    });
+    return toolSuccess({
+      title: "Glitch analytics report",
+      summary: `Generated ${input.report_key} from the canonical Glitch dashboard report path.`,
+      data,
+      bodyMarkdown: presentAnalytics(data),
+      links: [{ name: "Open title analytics", url: client.dashboardUrl("title", { titleId }) }]
+    });
+  }),
+
+  analyticsFamilyTool("glitch_get_session_reports", "Get Session Reports", "sessions", "Get session details, duration, retention, DAU/WAU/MAU, cohorts, geography, and behavioral-funnel reports."),
+  analyticsFamilyTool("glitch_get_web_reports", "Get Web Analytics Reports", "web", "Get website traffic, page, event, engagement, source, UTM, device, geography, journey, and landing-page reports."),
+  analyticsFamilyTool("glitch_get_storefront_reports", "Get Storefront Analytics Reports", "storefront", "Get the canonical report bundle behind storefront, discovery, load, playtime, conversion, and readiness analytics."),
+  analyticsFamilyTool("glitch_get_wishlist_reports", "Get Wishlist Reports", "wishlist", "Get wishlist growth, intent, forecast, conversion, influencer, ad, UTM, geography, and device reports."),
+  analyticsFamilyTool("glitch_get_earnings_reports", "Get Earnings Reports", "earnings", "Get developer earnings, payouts, purchases, revenue trends, LTV, currency, item, install, and ad-revenue reports."),
+  analyticsFamilyTool("glitch_get_attribution_reports", "Get Attribution Reports", "attribution", "Get title, ad, UTM, influencer, social-post, conversion-event, install-journey, and paid-media attribution reports."),
+  analyticsFamilyTool("glitch_get_cross_device_reports", "Get Cross-Device Reports", "cross_device", "Get identity, journey, attribution-funnel, device-environment, geography, fraud, pixel, and conversion-correlation reports."),
+
   defineTool("glitch_get_billing_status", "Get Billing Status", "Check subscription, trial, plan, and credit state for a title.", billingInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.billingStatus(titleId);
@@ -404,6 +486,42 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       links: [{ name: "Open billing", url: client.dashboardUrl("billing", { titleId }) }]
     });
   }),
+
+  defineTool(
+    "glitch_get_social_capabilities",
+    "Get Social Capabilities",
+    "List every title-scoped social operation, required argument, platform capability, connected scheduler, and permission category available through Glitch.",
+    socialCapabilitiesInput,
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.socialCapabilities(titleId);
+      return toolSuccess({
+        title: "Glitch social capabilities",
+        summary: "The hosted service returned the authoritative social platform and operation catalog for this title.",
+        data,
+        links: [{ name: "Open social workspace", url: client.dashboardUrl("title", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_social_operation",
+    "Run Social Operation",
+    "Run a deterministic title-scoped Glitch social operation. Call glitch_get_social_capabilities first to discover operation names, permissions, confirmation requirements, platform support, and required arguments. OAuth credentials are never accepted or returned.",
+    socialOperationInput,
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.socialOperation(titleId, input.operation, input.arguments, input.confirm);
+      return toolSuccess({
+        title: "Glitch social operation",
+        summary: `Glitch completed social operation ${input.operation}.`,
+        data,
+        links: [{ name: "Open social workspace", url: client.dashboardUrl("title", { titleId }) }]
+      });
+    }
+  ),
 
   defineTool("glitch_start_agent_run", "Start Agent Run", "Start a paid Glitch Agent run for a title. Subscription and title permissions are enforced by Glitch.", startRunInput, false, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
@@ -1361,6 +1479,31 @@ function defineTool<Input extends RawShape>(
     idempotentHint: readOnlyHint,
     handler: async (client, rawInput, ctx) => handler(client, schema.parse(rawInput), ctx)
   };
+}
+
+function analyticsFamilyTool(
+  name: string,
+  title: string,
+  family: z.infer<typeof analyticsFamilySchema>,
+  description: string
+): GlitchToolDefinition {
+  return defineTool(name, title, description, analyticsFamilyInput, true, async (client, input) => {
+    const titleId = client.resolveTitleId(input.title_id);
+    const data = await client.analyticsQuery(titleId, omitUndefined({
+      family,
+      report_keys: input.report_keys,
+      filters: input.filters,
+      report_filters: input.report_filters,
+      fail_fast: input.fail_fast
+    }));
+    return toolSuccess({
+      title,
+      summary: `Generated the ${family} analytics bundle from canonical Glitch report paths.`,
+      data,
+      bodyMarkdown: presentAnalytics(data),
+      links: [{ name: "Open title analytics", url: client.dashboardUrl("title", { titleId }) }]
+    });
+  });
 }
 
 function requireConfirmation(confirmed: boolean, action: string): void {

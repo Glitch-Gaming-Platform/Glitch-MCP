@@ -53,6 +53,8 @@ GET  /mcp/v1/auth/status
 GET  /mcp/v1/titles
 GET  /mcp/v1/titles/{title_id}/context
 GET  /mcp/v1/titles/{title_id}/billing
+GET  /mcp/v1/titles/{title_id}/analytics/capabilities
+POST /mcp/v1/titles/{title_id}/analytics/query
 POST /mcp/v1/titles/{title_id}/runs
 GET  /mcp/v1/titles/{title_id}/runs/{run_id}
 GET  /mcp/v1/titles/{title_id}/runs/{run_id}/events
@@ -68,6 +70,8 @@ POST /mcp/v1/titles/{title_id}/guidance/{guidance_id}/answer
 POST /mcp/v1/titles/{title_id}/uploads
 POST /mcp/v1/titles/{title_id}/files
 POST /mcp/v1/titles/{title_id}/media
+GET  /mcp/v1/titles/{title_id}/social/capabilities
+POST /mcp/v1/titles/{title_id}/social/operations/{operation}
 GET  /mcp/v1/titles/{title_id}/tokens
 POST /mcp/v1/titles/{title_id}/tokens
 DELETE /mcp/v1/titles/{title_id}/tokens/{token_id}
@@ -85,6 +89,48 @@ POST /api/mcp/v1/titles/{title_id}/media
 The backend stores uploaded images, videos, and documents with the same attachment model used by the browser agent UI. Files are capped at 50 MB, validated by extension/mime type, and marked as reference material behind the prompt-injection boundary. The facade hides internal route catalog details and only returns safe MCP-facing payloads.
 
 `/media` is for reviewed developer social assets. It accepts multipart field `media`, creates a `Media` record, queues the existing image/video AI processing jobs, and stores MCP scheduler metadata. If `create_title_update` is true, callers must provide `title_promotion_schedule_id`; the backend returns a conflict with dashboard/scheduler links instead of guessing a calendar. Repeated uploads are deduped by SHA-256 source hash for the same title. Non-MP4 videos are converted through the same media upload conversion path so downstream AI receives MP4 media. When AI processing completes, Glitch can promote the processed media into a scheduler-owned `TitleUpdate` library item and use the existing `OpenAIApiService` social copy system to write platform-specific text for later scheduling jobs.
+
+The social capability route returns the current platform matrix, safe connected-scheduler summaries, granular ability requirements, confirmation requirements, and the complete operation catalog. The operation route accepts:
+
+```json
+{
+  "arguments": {},
+  "confirm": false
+}
+```
+
+The backend validates every scheduler, post, comment, conversation, update, destination, media, and statistics record against the title before delegating to the existing social controllers and facades. It rejects credential-shaped input and recursively redacts credentials from successful and failed responses. Mutating operations require `confirm=true`; read operations do not.
+
+The analytics capability route returns the canonical report registry shared by
+MCP and the Title Agent. The query route accepts either a family bundle or an
+explicit `reports` array:
+
+```json
+{
+  "family": "sessions",
+  "report_keys": ["sessions.average", "retention.d7"],
+  "filters": {
+    "start_date": "2026-07-01",
+    "end_date": "2026-08-01"
+  },
+  "report_filters": {
+    "retention.d7": {
+      "platform": "steam"
+    }
+  },
+  "fail_fast": false
+}
+```
+
+The backend authorizes the title and `reports:read` ability, bounds report
+count/date/page sizes, and invokes the existing dashboard controllers under the
+authorized title administrator. Responses are recursively normalized and
+secret-redacted. Without the separate `reports:identity` ability, raw user,
+install, device, session, fingerprint, IP, user-agent, cookie, and related
+identity fields are also removed; identity-valued applied filters are returned
+as `[redacted]`. Each report keeps its own status, applied filters, ignored
+filters, and error so missing optional context or empty data produces a partial
+bundle instead of an opaque server failure.
 
 The optional SSE route streams user-visible run progress as `text/event-stream`:
 

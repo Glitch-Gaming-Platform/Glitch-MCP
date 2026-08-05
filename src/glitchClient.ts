@@ -127,8 +127,27 @@ export class GlitchClient {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/context`);
   }
 
+  async analyticsCapabilities(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/analytics/capabilities`);
+  }
+
+  async analyticsQuery(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/analytics/query`, body);
+  }
+
   async billingStatus(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/billing`);
+  }
+
+  async socialCapabilities(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/social/capabilities`);
+  }
+
+  async socialOperation(titleId: string, operation: string, args: JsonObject, confirm = false): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/social/operations/${segment(operation)}`,
+      { arguments: args, confirm }
+    );
   }
 
   async startRun(titleId: string, body: JsonObject): Promise<JsonObject> {
