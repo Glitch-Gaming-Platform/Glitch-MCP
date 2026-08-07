@@ -81,7 +81,7 @@ export class GlitchClient {
     return this.titles.get() || this.config.defaultTitleId;
   }
 
-  dashboardUrl(kind: "title" | "run" | "action" | "billing", input: { titleId: string; runId?: string; actionId?: string }): string {
+  dashboardUrl(kind: "title" | "run" | "action" | "billing" | "hosting", input: { titleId: string; runId?: string; actionId?: string }): string {
     const base = this.config.dashboardBaseUrl.replace(/\/+$/, "");
     const titlePath = `${base}/agents/titles/${encodeURIComponent(input.titleId)}`;
 
@@ -92,6 +92,8 @@ export class GlitchClient {
         return input.actionId ? `${titlePath}?action=${encodeURIComponent(input.actionId)}` : titlePath;
       case "billing":
         return `${titlePath}/billing`;
+      case "hosting":
+        return `${base}/games/admin/${encodeURIComponent(input.titleId)}/hosting`;
       case "title":
       default:
         return titlePath;
@@ -137,6 +139,181 @@ export class GlitchClient {
 
   async billingStatus(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/billing`);
+  }
+
+  // --- Azure game website hosting ---
+  async hostingDashboard(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/hosting`);
+  }
+
+  async hostingChannelAnalytics(titleId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/hosting/analytics/channels`, query);
+  }
+
+  async createHostingSite(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/hosting/sites`, body);
+  }
+
+  async updateHostingSite(titleId: string, siteId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.put<JsonObject>(`/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}`, body);
+  }
+
+  async hostingReleases(titleId: string, siteId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(
+      `/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/releases`,
+      query
+    );
+  }
+
+  async createHostingRelease(titleId: string, siteId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/releases`,
+      body
+    );
+  }
+
+  async promoteHostingRelease(titleId: string, siteId: string, releaseId: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/releases/${segment(releaseId)}/promote`,
+      {}
+    );
+  }
+
+  async connectHostingDomain(titleId: string, siteId: string, hostname: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/domains`, { hostname });
+  }
+
+  async verifyHostingDomain(titleId: string, siteId: string, domainId: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/domains/${segment(domainId)}/verify`,
+      {}
+    );
+  }
+
+  async hostingAiInstructions(titleId: string, siteId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/ai-instructions`,
+      body
+    );
+  }
+
+  async checkHostingDomainAvailability(titleId: string, hostname: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/hosting/domains/check`, { hostname });
+  }
+
+  async purchaseHostingDomain(titleId: string, siteId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/domains/purchase`,
+      body
+    );
+  }
+
+  async changeHostingPlan(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/hosting/billing/checkout`, body);
+  }
+
+  async confirmHostingCheckout(titleId: string, checkoutSessionId: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/hosting/billing/confirm`, {
+      checkout_session_id: checkoutSessionId,
+      confirm: true
+    });
+  }
+
+  async listHostingDatabases(titleId: string, siteId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/databases`,
+      query
+    );
+  }
+
+  async getHostingDatabase(titleId: string, siteId: string, databaseId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/databases/${segment(databaseId)}`
+    );
+  }
+
+  async createHostingDatabase(titleId: string, siteId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/databases`,
+      body
+    );
+  }
+
+  async updateHostingDatabase(titleId: string, siteId: string, databaseId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.put<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/databases/${segment(databaseId)}`,
+      body
+    );
+  }
+
+  async retryHostingDatabase(titleId: string, siteId: string, databaseId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/databases/${segment(databaseId)}/retry`,
+      body
+    );
+  }
+
+  async deleteHostingDatabase(titleId: string, siteId: string, databaseId: string, confirmation: string): Promise<JsonObject> {
+    return this.http.deleteWithBody<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/databases/${segment(databaseId)}`,
+      { confirmation, confirm: true }
+    );
+  }
+
+  async waitForDeploymentReady(titleId: string, buildId: string, timeoutMs: number, pollIntervalMs: number): Promise<JsonObject> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt <= timeoutMs) {
+      const deployments = await this.listDeployments(titleId, { per_page: 100 });
+      const build = collectionItems(deployments).find((item) => String(item.id || "") === buildId);
+      if (build) {
+        const status = String(build.status || "").toLowerCase();
+        if (status === "ready") {
+          return build;
+        }
+        if (status === "failed") {
+          throw new GlitchMcpError(
+            "upstream_error",
+            String(build.error_message || build.error || `Game build ${buildId} failed during deployment.`)
+          );
+        }
+      }
+
+      await sleep(pollIntervalMs);
+    }
+
+    throw new GlitchMcpError("upstream_timeout", `Timed out waiting for game build ${buildId} to become ready.`, { status: 408 });
+  }
+
+  async waitForHostingReleaseReady(
+    titleId: string,
+    siteId: string,
+    releaseId: string,
+    timeoutMs: number,
+    pollIntervalMs: number
+  ): Promise<JsonObject> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt <= timeoutMs) {
+      const releases = await this.hostingReleases(titleId, siteId, { per_page: 100 });
+      const release = collectionItems(releases).find((item) => String(item.id || "") === releaseId);
+      if (release) {
+        const status = String(release.status || "").toLowerCase();
+        if (["ready", "active", "inactive"].includes(status)) {
+          return release;
+        }
+        if (status === "failed") {
+          throw new GlitchMcpError(
+            "upstream_error",
+            String(release.error_message || `Hosting release ${releaseId} failed during processing.`)
+          );
+        }
+      }
+
+      await sleep(pollIntervalMs);
+    }
+
+    throw new GlitchMcpError("upstream_timeout", `Timed out waiting for hosting release ${releaseId} to become ready.`, { status: 408 });
   }
 
   async socialCapabilities(titleId: string): Promise<JsonObject> {
@@ -527,6 +704,19 @@ export function runIsSettled(run: JsonObject): boolean {
 
 export function segment(value: string): string {
   return encodeURIComponent(value);
+}
+
+function collectionItems(payload: unknown): JsonObject[] {
+  if (Array.isArray(payload)) {
+    return payload.filter((item): item is JsonObject => typeof item === "object" && item !== null && !Array.isArray(item));
+  }
+  if (typeof payload === "object" && payload !== null) {
+    const items = (payload as JsonObject).data;
+    if (Array.isArray(items)) {
+      return items.filter((item): item is JsonObject => typeof item === "object" && item !== null && !Array.isArray(item));
+    }
+  }
+  return [];
 }
 
 function sleep(ms: number): Promise<void> {

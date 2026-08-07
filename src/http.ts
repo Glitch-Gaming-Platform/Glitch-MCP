@@ -54,6 +54,10 @@ export class GlitchHttpClient {
     return this.request<T>(path, query ? { method: "DELETE", query } : { method: "DELETE" });
   }
 
+  async deleteWithBody<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, { method: "DELETE", body });
+  }
+
   /**
    * PUT raw bytes to an absolute URL (e.g. an S3 pre-signed part URL).
    *

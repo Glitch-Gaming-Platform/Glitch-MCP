@@ -85,6 +85,15 @@ actions:read
 actions:approve
 actions:execute
 uploads:create
+deployments:read
+deployments:create
+deployments:activate
+hosting:read
+hosting:deploy
+hosting:promote
+hosting:databases:read
+hosting:databases:write
+hosting:billing
 social:read
 social:write
 social:publish
@@ -98,12 +107,25 @@ social:reports
 Token presets:
 
 ```text
-readonly  = read/report/artifact/action/guidance inspection + social:read + social:reports; identity details redacted
-operator  = readonly + runs:create + guidance:answer + uploads:create + social:write + social:sync; identity details redacted
+readonly  = read/report/artifact/action/guidance inspection + deployment/hosting/database inspection + social:read + social:reports; identity details redacted
+operator  = readonly + runs:create + guidance:answer + uploads:create + build/site deployment + social:write + social:sync; no paid Hosting changes; identity details redacted
 developer = all MCP abilities, including reports:identity
 ```
 
 `actions:approve` and `actions:execute` are deliberately separate abilities so teams can create non-executing tokens for agents that only inspect reports.
+
+Hosting abilities are deliberately split:
+
+- `hosting:read` — account, site, release, domain, analytics, catalog, and AI-instruction reads.
+- `hosting:deploy` — create/update sites and create releases.
+- `hosting:promote` — publish/rollback releases and connect/verify owned domains.
+- `hosting:databases:read` — safe database metadata only; never passwords or full connection strings.
+- `hosting:databases:write` — create, resize, retry, and delete first-party Azure databases. Community billing permission and explicit confirmations are still required.
+- `hosting:billing` — change Hosting plans, purchase managed domains, and confirm Stripe Checkout. Community billing permission, current-price confirmation, and proration acknowledgement remain mandatory.
+
+The `operator` preset cannot purchase domains, change subscriptions, create paid
+databases, or activate releases. Use a custom least-privilege token when an
+automation needs only one of those capabilities.
 
 `reports:read` grants aggregate and report access but recursively removes raw
 user, install, device, session, fingerprint, IP, user-agent, cookie, and similar

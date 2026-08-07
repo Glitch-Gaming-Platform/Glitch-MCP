@@ -8,6 +8,7 @@ All tools are exposed by the public MCP adapter and fulfilled by the hosted Glit
 - All paid and permission checks happen server-side.
 - Mutating tools return sanitized errors when subscription, scope, billing, approval, or account connection checks fail.
 - `glitch_approve_action` and `glitch_execute_action` require `confirm=true`.
+- Hosting creation, deployment, publishing, and rollback require `confirm=true`.
 
 ## Tools
 
@@ -70,6 +71,102 @@ Input:
   "title_id": "title_123"
 }
 ```
+
+### Game website hosting
+
+`glitch_get_hosting` returns the Azure hosting account, pooled bandwidth usage,
+sites, releases, domains, databases, and current plan catalog.
+
+`glitch_get_hosting_analytics` returns website Hosting and Glitch Store channels
+separately, plus a combined title view. Optional dates use `YYYY-MM-DD`.
+
+`glitch_create_hosting_site` creates a static or server/SSR site with a free
+`game.business.glitch.fun` address.
+
+`glitch_update_hosting_site` changes the name, mode, Azure region, or ordinary
+runtime configuration. MCP rejects secret-shaped keys and values; use managed
+Glitch/Azure bindings for credentials.
+
+`glitch_list_hosting_releases` lists immutable releases and their processing
+state. Use a ready release id with `glitch_promote_hosting_release` to publish or
+roll back.
+
+`glitch_deploy_hosting_build` deploys a ready Glitch game build to Hosting. When
+the title has one site it selects it automatically. When no site exists, pass
+`site_name` and `site_slug`; Node builds default to server mode and other builds
+default to static mode. The tool waits for both build and hosting release
+processing and publishes unless `publish=false`.
+
+```json
+{
+  "title_id": "title_123",
+  "game_build_id": "build_123",
+  "site_name": "Neon Drift",
+  "site_slug": "neon-drift",
+  "version": "1.4.0",
+  "entry_point": "index.html",
+  "publish": true,
+  "confirm": true
+}
+```
+
+Use `glitch_deploy_game_build` first when starting from a local ZIP. Use
+`glitch_promote_hosting_release` with a previous release id to roll back. Hosting
+and Store distribution remain separate.
+
+#### Domains
+
+- `glitch_connect_hosting_domain` connects a domain already owned by the developer and returns Route 53 DNS instructions.
+- `glitch_verify_hosting_domain` rechecks public DNS and activates the domain.
+- `glitch_check_hosting_domain` returns Azure availability, live annual price, and current agreement keys without buying anything.
+- `glitch_purchase_hosting_domain` requires `accepted_legal_terms=true`, every current agreement key, registrant contact details, `confirm=true`, the exact annual price, and `PURCHASE DOMAIN <hostname> AT <cents> CENTS PER YEAR`.
+
+The purchase tool returns Stripe Checkout. Domain registration does not begin
+until `glitch_confirm_hosting_checkout` verifies paid Checkout directly with
+Stripe. If Azure changes the price before Checkout is created, Glitch returns a
+conflict and requires a fresh confirmation.
+
+#### Azure database add-ons
+
+The MCP supports only Glitch's first-party Azure choices: PostgreSQL, MySQL,
+Azure SQL Database, and Cosmos DB for NoSQL. Marketplace database products are
+not accepted.
+
+- `glitch_list_hosting_databases` and `glitch_get_hosting_database` return safe status, endpoint, port, storage, and binding metadata.
+- `glitch_create_hosting_database` creates paid Checkout for a self-service database size.
+- `glitch_update_hosting_database` changes size or safeguards; a size change requires `accept_proration=true`.
+- `glitch_retry_hosting_database` retries failed provisioning or returns a new Checkout for an unpaid database.
+- `glitch_delete_hosting_database` requires `confirm=true` and the exact database name.
+
+Creation confirmation format:
+
+```text
+CREATE DATABASE <NAME> ON <PLAN> AT <CENTS> CENTS PER MONTH
+```
+
+Update and retry confirmation formats are returned by the server when the
+current database name, plan, or price must be reviewed. Database credentials,
+secret references, and full connection strings are never returned by MCP.
+
+#### Hosting plan billing
+
+`glitch_change_hosting_plan` manages the bandwidth-based Hosting subscription,
+separate from Store distribution. It requires:
+
+```text
+CHANGE HOSTING PLAN TO <PLAN> AT <CENTS> CENTS PER MONTH
+```
+
+Changing an active paid plan requires `accept_proration=true`. New paid plans
+return Stripe Checkout. `glitch_confirm_hosting_checkout` accepts only a Stripe
+Checkout session id and `confirm=true`; payment credentials never pass through
+MCP.
+
+#### AI deployment guide
+
+`glitch_generate_hosting_ai_instructions` creates short copy-and-paste setup
+instructions for a chosen framework, domain, and database add-ons. The guide
+uses binding names and approval steps, not passwords.
 
 ### glitch_get_analytics_capabilities
 

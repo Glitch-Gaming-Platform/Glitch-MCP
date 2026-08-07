@@ -70,11 +70,38 @@ POST /mcp/v1/titles/{title_id}/guidance/{guidance_id}/answer
 POST /mcp/v1/titles/{title_id}/uploads
 POST /mcp/v1/titles/{title_id}/files
 POST /mcp/v1/titles/{title_id}/media
+POST /mcp/v1/titles/{title_id}/hosting/domains/check
+POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/domains/purchase
+POST /mcp/v1/titles/{title_id}/hosting/billing/checkout
+POST /mcp/v1/titles/{title_id}/hosting/billing/confirm
+GET  /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases
+POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases
+GET  /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}
+PUT  /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}
+POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}/retry
+DELETE /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}
 GET  /mcp/v1/titles/{title_id}/social/capabilities
 POST /mcp/v1/titles/{title_id}/social/operations/{operation}
 GET  /mcp/v1/titles/{title_id}/tokens
 POST /mcp/v1/titles/{title_id}/tokens
 DELETE /mcp/v1/titles/{title_id}/tokens/{token_id}
+```
+
+The adapter also uses existing title-scoped Hosting routes for non-billing
+operations. Those routes accept a matching MCP title token and enforce
+`hosting:read`, `hosting:deploy`, or `hosting:promote`:
+
+```text
+GET  /titles/{title_id}/hosting
+GET  /titles/{title_id}/hosting/analytics/channels
+POST /titles/{title_id}/hosting/sites
+PUT  /titles/{title_id}/hosting/sites/{site_id}
+GET  /titles/{title_id}/hosting/sites/{site_id}/releases
+POST /titles/{title_id}/hosting/sites/{site_id}/releases
+POST /titles/{title_id}/hosting/sites/{site_id}/releases/{release_id}/promote
+POST /titles/{title_id}/hosting/sites/{site_id}/domains
+POST /titles/{title_id}/hosting/sites/{site_id}/domains/{domain_id}/verify
+POST /titles/{title_id}/hosting/sites/{site_id}/ai-instructions
 ```
 
 ## Route Mapping
@@ -131,6 +158,30 @@ identity fields are also removed; identity-valued applied filters are returned
 as `[redacted]`. Each report keeps its own status, applied filters, ignored
 filters, and error so missing optional context or empty data produces a partial
 bundle instead of an opaque server failure.
+
+## Hosting Payment And Provisioning Boundary
+
+MCP never accepts card numbers, Stripe secret keys, Azure credentials, database
+passwords, or Route 53 credentials. Paid Hosting calls use the audited user who
+created the title token, require title administration plus community billing
+permission, and require `confirm=true`.
+
+Plan, database, and domain requests include the price the developer reviewed
+and a case-sensitive confirmation phrase. The backend compares both against its
+current catalog or Azure availability response. Active subscription changes
+also require `accept_proration=true`. A mismatch returns `409` before Stripe or
+Azure is changed.
+
+New paid resources return a Stripe Checkout URL. The confirm endpoint retrieves
+the session from Stripe's API, verifies that the checkout order belongs to the
+selected title/community and audited creator, and provisions Azure only after
+Stripe reports completed payment. Managed-domain price is rechecked in the
+same request that creates Checkout to prevent a price-change race.
+
+Database resources expose only safe metadata: status, engine, plan, storage,
+endpoint, port, and binding name. Encrypted connection configuration, secret
+references, passwords, and complete connection strings are not serialized.
+Deletion requires both `confirm=true` and an exact database-name match.
 
 The optional SSE route streams user-visible run progress as `text/event-stream`:
 

@@ -20,7 +20,9 @@ describe("installCodexPrompts", () => {
 
     expect(result.files).toContain("glitch_launch_audit.md");
     expect(result.files).toContain("glitch_open_dashboard.md");
-    expect(result.files.length).toBeGreaterThanOrEqual(34);
+    expect(result.files).toContain("glitch_deploy_hosting_build.md");
+    expect(result.files).toContain("glitch_manage_hosting.md");
+    expect(result.files.length).toBeGreaterThanOrEqual(35);
 
     const prompt = await readFile(join(codexHome, "prompts", "glitch_launch_audit.md"), "utf8");
     expect(prompt).toContain("description: Run a Glitch launch readiness audit.");

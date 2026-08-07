@@ -52,6 +52,26 @@ describe("Glitch MCP tools", () => {
       "glitch_create_upload_url",
       "glitch_upload_file",
       "glitch_open_dashboard",
+      "glitch_get_hosting",
+      "glitch_get_hosting_analytics",
+      "glitch_create_hosting_site",
+      "glitch_update_hosting_site",
+      "glitch_list_hosting_releases",
+      "glitch_deploy_hosting_build",
+      "glitch_promote_hosting_release",
+      "glitch_connect_hosting_domain",
+      "glitch_verify_hosting_domain",
+      "glitch_check_hosting_domain",
+      "glitch_purchase_hosting_domain",
+      "glitch_generate_hosting_ai_instructions",
+      "glitch_list_hosting_databases",
+      "glitch_get_hosting_database",
+      "glitch_create_hosting_database",
+      "glitch_update_hosting_database",
+      "glitch_retry_hosting_database",
+      "glitch_delete_hosting_database",
+      "glitch_change_hosting_plan",
+      "glitch_confirm_hosting_checkout",
       "glitch_list_multiplayer_lobbies",
       "glitch_create_multiplayer_lobby",
       "glitch_browse_multiplayer_servers",
@@ -241,6 +261,192 @@ describe("Glitch MCP tools", () => {
       title_id: "title_default",
       url: "https://app.example.test/agents/titles/title_default?run=run_1"
     });
+  });
+
+  it("deploys a ready game build to the only hosting site and publishes it", async () => {
+    const mock = createFetchMock((request) => {
+      if (request.url.includes("/deployments?")) {
+        return jsonResponse({ data: [{ id: "build_1", status: "ready", deployment_type: "wasm" }] });
+      }
+      if (request.url.endsWith("/hosting")) {
+        return jsonResponse({ data: { sites: [{ id: "site_1", generated_hostname: "neon.pixel.glitch.fun" }] } });
+      }
+      if (request.url.endsWith("/hosting/sites/site_1/releases") && request.init?.method === "POST") {
+        return jsonResponse({ data: { id: "release_1", status: "processing" } }, 202);
+      }
+      if (request.url.includes("/hosting/sites/site_1/releases?") && request.init?.method === "GET") {
+        return jsonResponse({ data: [{ id: "release_1", status: "ready" }] });
+      }
+      if (request.url.endsWith("/hosting/sites/site_1/releases/release_1/promote")) {
+        return jsonResponse({ data: { id: "site_1", status: "live", url: "https://neon.pixel.glitch.fun" } });
+      }
+      return jsonResponse({ message: "Unexpected request" }, 500);
+    });
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_deploy_hosting_build", client, {
+      game_build_id: "build_1",
+      version: "1.0.0",
+      confirm: true,
+      poll_interval_ms: 1,
+      timeout_ms: 1000
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent?.data).toMatchObject({
+      site: { id: "site_1", status: "live" },
+      release: { id: "release_1", status: "ready" }
+    });
+    expect(mock.requests.some((request) => request.url.endsWith("/hosting/sites/site_1/releases/release_1/promote"))).toBe(true);
+  });
+
+  it("does not create a hosting release without explicit confirmation", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await safeTool(() => callTool("glitch_deploy_hosting_build", client, {
+      game_build_id: "build_1",
+      version: "1.0.0"
+    }));
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({ status: "error", code: "confirmation_required" });
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("changes a Hosting plan only with an exact price phrase and explicit confirmation", async () => {
+    const mock = createFetchMock(() => jsonResponse({ action: "checkout", checkout_url: "https://checkout.stripe.test/session" }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_change_hosting_plan", client, {
+      plan: "growth",
+      expected_monthly_price_cents: 8900,
+      billing_confirmation: "CHANGE HOSTING PLAN TO GROWTH AT 8900 CENTS PER MONTH",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/hosting/billing/checkout");
+    expect(mock.requests[0]?.body).toEqual({
+      plan: "growth",
+      expected_monthly_price_cents: 8900,
+      billing_confirmation: "CHANGE HOSTING PLAN TO GROWTH AT 8900 CENTS PER MONTH",
+      accept_proration: false,
+      confirm: true
+    });
+  });
+
+  it("does not call billing when a Hosting plan confirmation phrase is wrong", async () => {
+    const mock = createFetchMock(() => jsonResponse({ action: "checkout" }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await safeTool(() => callTool("glitch_change_hosting_plan", client, {
+      plan: "growth",
+      expected_monthly_price_cents: 8900,
+      billing_confirmation: "CHANGE PLAN",
+      confirm: true
+    }));
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({ status: "error", code: "validation_error" });
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("rejects secret-shaped Hosting configuration before it reaches Glitch", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "site_1" } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await safeTool(() => callTool("glitch_update_hosting_site", client, {
+      site_id: "site_1",
+      configuration: { DATABASE_URL: "postgresql://player:password@example.test/game" },
+      confirm: true
+    }));
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({ status: "error", code: "validation_error" });
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("connects a developer-owned domain through the title-scoped Hosting route", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "domain_1", status: "pending_verification" } }, 201));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_connect_hosting_domain", client, {
+      site_id: "site_1",
+      hostname: "play.example.com",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/hosting/sites/site_1/domains");
+    expect(mock.requests[0]?.body).toEqual({ hostname: "play.example.com" });
+  });
+
+  it("creates a first-party Azure database checkout with exact price confirmation", async () => {
+    const mock = createFetchMock(() => jsonResponse({ checkout_url: "https://checkout.stripe.test/database", checkout_session_id: "cs_test_db" }, 202));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_create_hosting_database", client, {
+      site_id: "site_1",
+      name: "player-data",
+      engine: "postgresql",
+      plan: "launch",
+      azure_region: "eastus",
+      expected_monthly_price_cents: 1500,
+      billing_confirmation: "CREATE DATABASE PLAYER-DATA ON LAUNCH AT 1500 CENTS PER MONTH",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/hosting/sites/site_1/databases");
+    expect(mock.requests[0]?.body).toMatchObject({
+      name: "player-data",
+      engine: "postgresql",
+      plan: "launch",
+      azure_region: "eastus",
+      auto_grow_enabled: false,
+      high_availability_enabled: false,
+      expected_monthly_price_cents: 1500,
+      confirm: true
+    });
+  });
+
+  it("sends database deletion as a confirmed DELETE body with the exact name", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "db_1", status: "deleting" } }, 202));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_delete_hosting_database", client, {
+      site_id: "site_1",
+      database_id: "db_1",
+      confirmation: "player-data",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/hosting/sites/site_1/databases/db_1");
+    expect(mock.requests[0]?.init?.method).toBe("DELETE");
+    expect(mock.requests[0]?.body).toEqual({ confirmation: "player-data", confirm: true });
+  });
+
+  it("requires confirmation before Stripe Checkout can start for a managed domain", async () => {
+    const mock = createFetchMock(() => jsonResponse({ checkout_url: "https://checkout.stripe.test/domain" }, 202));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await safeTool(() => callTool("glitch_purchase_hosting_domain", client, {
+      site_id: "site_1",
+      hostname: "neondrift.example",
+      auto_renew: true,
+      accepted_legal_terms: true,
+      agreement_keys: ["agreement_1"],
+      contact: {
+        first_name: "Dev",
+        last_name: "Studio",
+        email: "dev@example.com",
+        phone: "+1-555-0100",
+        address_line_1: "1 Main Street",
+        city: "Chicago",
+        state: "IL",
+        country: "US",
+        postal_code: "60601"
+      },
+      expected_annual_price_cents: 2000,
+      billing_confirmation: "PURCHASE DOMAIN neondrift.example AT 2000 CENTS PER YEAR"
+    }));
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({ status: "error", code: "confirmation_required" });
+    expect(mock.requests).toHaveLength(0);
   });
 
   it("lists multiplayer lobbies for the title via the public API", async () => {
