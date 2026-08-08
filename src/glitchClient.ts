@@ -141,7 +141,7 @@ export class GlitchClient {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/billing`);
   }
 
-  // --- Azure game website hosting ---
+  // --- Managed game website hosting ---
   async hostingDashboard(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/titles/${segment(titleId)}/hosting`);
   }

@@ -307,17 +307,17 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_open_dashboard`
 - `glitch_get_hosting` — inspect bandwidth, websites, releases, domains, databases, and plans
 - `glitch_get_hosting_analytics` — compare hosted-site, Store, and combined title performance
-- `glitch_create_hosting_site` — create a free Glitch address backed by Azure
+- `glitch_create_hosting_site` — create a managed website with a free Glitch address
 - `glitch_update_hosting_site` — change name, static/server mode, region, and non-secret settings
 - `glitch_list_hosting_releases` — inspect deployment history and rollback targets
 - `glitch_deploy_hosting_build` — turn a ready game build into a hosted release and optionally publish it
 - `glitch_promote_hosting_release` — publish or roll back an immutable hosted release
-- `glitch_connect_hosting_domain` / `glitch_verify_hosting_domain` — connect a Route 53-managed domain
-- `glitch_check_hosting_domain` / `glitch_purchase_hosting_domain` — check live Azure pricing, accept agreements, and start Stripe Checkout
+- `glitch_connect_hosting_domain` / `glitch_verify_hosting_domain` — connect and verify a domain the developer owns
+- `glitch_check_hosting_domain` / `glitch_purchase_hosting_domain` — check live pricing, accept agreements, and start secure checkout
 - `glitch_generate_hosting_ai_instructions` — create a copy-and-paste deployment/add-on guide without credentials
-- `glitch_list_hosting_databases` / `glitch_get_hosting_database` — inspect safe Azure database metadata
+- `glitch_list_hosting_databases` / `glitch_get_hosting_database` — inspect safe managed database metadata
 - `glitch_create_hosting_database` / `glitch_update_hosting_database` / `glitch_retry_hosting_database` / `glitch_delete_hosting_database`
-- `glitch_change_hosting_plan` / `glitch_confirm_hosting_checkout` — manage bandwidth plans and confirm paid Hosting checkouts
+- `glitch_change_hosting_plan` / `glitch_confirm_hosting_checkout` — manage direct or Microsoft Marketplace bandwidth plans and confirm direct paid Hosting checkouts
 
 Full contract: [docs/tool-reference.md](docs/tool-reference.md).
 
@@ -327,23 +327,24 @@ Hosted facade contract: [docs/hosted-api-contract.md](docs/hosted-api-contract.m
 
 Glitch MCP can handle the complete website deployment flow with one scoped MCP token:
 
-1. Use `glitch_deploy_game_build` to upload a local packaged build when it is not already in Glitch.
-2. Use `glitch_deploy_hosting_build` with the returned build id. It waits for Azure processing, selects or creates the hosting site, creates an immutable release, and publishes it when `publish=true`.
-3. Use `glitch_promote_hosting_release` to roll back to an earlier release.
+1. Use `glitch_list_deployments` and select a compatible ready game build already uploaded on Deploy Game.
+2. Only when no compatible build exists, use `glitch_deploy_game_build` to upload the local packaged build once.
+3. Use `glitch_deploy_hosting_build` with the selected build id. It waits for processing, selects or creates the hosting site, creates an immutable release, and publishes it when `publish=true`.
+4. Use `glitch_promote_hosting_release` to roll back to an earlier release.
 
 All mutations require `confirm=true`. Hosting remains independent from the Glitch Store distribution fee and release state.
 
 ## Manage Hosting From MCP
 
-The `developer` token preset can manage the full lifecycle of a title's hosted website: settings, releases, domains, analytics, first-party Azure databases, and bandwidth plans.
+The `developer` token preset can manage the full lifecycle of a title's hosted website: settings, releases, domains, analytics, managed databases, and bandwidth plans.
 
 Paid operations use a two-step safety flow:
 
 1. Read the current Hosting catalog or domain availability response.
 2. Show the developer the exact price and confirmation phrase.
 3. Call the paid tool with `confirm=true`, the expected price, and that exact phrase.
-4. Open the returned Stripe Checkout URL. Glitch never accepts card details through MCP.
-5. After payment, call `glitch_confirm_hosting_checkout`. Glitch verifies the session with Stripe before Azure provisioning begins.
+4. Open the returned secure-checkout URL. Glitch never accepts card details through MCP.
+5. After payment, call `glitch_confirm_hosting_checkout`. Glitch verifies the session with the payment provider before database setup begins.
 
 Database responses contain an endpoint, port, and binding name only. Passwords, secret references, and full connection strings are never returned. `glitch_update_hosting_site` also rejects password-, token-, key-, and connection-string-shaped configuration before it leaves the local adapter.
 

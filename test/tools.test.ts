@@ -333,6 +333,25 @@ describe("Glitch MCP tools", () => {
     });
   });
 
+  it("supports a Microsoft Marketplace Hosting plan operation without returning Stripe Checkout", async () => {
+    const mock = createFetchMock(() => jsonResponse({
+      action: "marketplace_plan_change_requested",
+      billing_provider: "microsoft_marketplace",
+      pending_plan: "growth"
+    }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_change_hosting_plan", client, {
+      plan: "growth",
+      expected_monthly_price_cents: 10900,
+      billing_confirmation: "CHANGE HOSTING PLAN TO GROWTH AT 10900 CENTS PER MONTH",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0]?.text).toContain("Microsoft Marketplace is processing");
+    expect(mock.requests[0]?.body).toMatchObject({ expected_monthly_price_cents: 10900 });
+  });
+
   it("does not call billing when a Hosting plan confirmation phrase is wrong", async () => {
     const mock = createFetchMock(() => jsonResponse({ action: "checkout" }));
     const client = new GlitchClient(config, mock.fetch);
@@ -376,7 +395,7 @@ describe("Glitch MCP tools", () => {
     expect(mock.requests[0]?.body).toEqual({ hostname: "play.example.com" });
   });
 
-  it("creates a first-party Azure database checkout with exact price confirmation", async () => {
+  it("creates a managed database checkout with exact price confirmation", async () => {
     const mock = createFetchMock(() => jsonResponse({ checkout_url: "https://checkout.stripe.test/database", checkout_session_id: "cs_test_db" }, 202));
     const client = new GlitchClient(config, mock.fetch);
     const result = await callTool("glitch_create_hosting_database", client, {

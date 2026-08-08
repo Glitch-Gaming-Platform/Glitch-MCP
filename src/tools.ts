@@ -445,7 +445,7 @@ const connectHostingDomainInput = z.object({
   ...optionalTitleShape,
   site_id: idSchema,
   hostname: hostnameSchema,
-  confirm: z.boolean().default(false).describe("Must be true. Begins Azure Front Door and Route 53 DNS verification for a domain you own.")
+  confirm: z.boolean().default(false).describe("Must be true. Begins managed DNS verification and secure routing for a domain you own.")
 });
 
 const verifyHostingDomainInput = z.object({
@@ -479,12 +479,12 @@ const purchaseHostingDomainInput = z.object({
   site_id: idSchema,
   hostname: hostnameSchema,
   auto_renew: z.boolean(),
-  accepted_legal_terms: z.boolean().default(false).describe("Must be true after the registrant has reviewed Azure's current agreements."),
+  accepted_legal_terms: z.boolean().default(false).describe("Must be true after the registrant has reviewed the current registration agreements."),
   agreement_keys: z.array(z.string().trim().min(1).max(255)).min(1).max(25).describe("Agreement keys returned by glitch_check_hosting_domain."),
   contact: domainContactSchema,
   expected_annual_price_cents: z.number().int().positive(),
   billing_confirmation: z.string().trim().min(1).max(255).describe("Exact phrase returned by the availability check, for example PURCHASE DOMAIN example.com AT 2000 CENTS PER YEAR."),
-  confirm: z.boolean().default(false).describe("Must be true. Creates a real Stripe Checkout session for domain registration.")
+  confirm: z.boolean().default(false).describe("Must be true. Creates a real secure-checkout session for domain registration.")
 });
 
 const hostingAiDatabaseSchema = z.object({
@@ -526,7 +526,7 @@ const createHostingDatabaseInput = z.object({
   high_availability_enabled: z.boolean().default(false),
   expected_monthly_price_cents: z.number().int().positive(),
   billing_confirmation: z.string().trim().min(1).max(255),
-  confirm: z.boolean().default(false).describe("Must be true. Creates a real monthly Stripe Checkout session; Azure provisioning starts only after payment.")
+  confirm: z.boolean().default(false).describe("Must be true. Direct accounts receive secure Checkout; Microsoft Marketplace accounts start metered setup under their existing entitlement.")
 });
 
 const updateHostingDatabaseInput = z.object({
@@ -538,8 +538,8 @@ const updateHostingDatabaseInput = z.object({
   high_availability_enabled: z.boolean().optional(),
   expected_monthly_price_cents: z.number().int().positive(),
   billing_confirmation: z.string().trim().min(1).max(255),
-  accept_proration: z.boolean().default(false).describe("Must be true when changing database size because Stripe may invoice a prorated amount immediately."),
-  confirm: z.boolean().default(false).describe("Must be true. Applies a paid database change and may queue an Azure resize.")
+  accept_proration: z.boolean().default(false).describe("Must be true when changing database size because the active billing provider may apply a prorated amount."),
+  confirm: z.boolean().default(false).describe("Must be true. Applies a paid database change and may queue a managed resize.")
 });
 
 const retryHostingDatabaseInput = z.object({
@@ -548,7 +548,7 @@ const retryHostingDatabaseInput = z.object({
   database_id: idSchema,
   expected_monthly_price_cents: z.number().int().positive(),
   billing_confirmation: z.string().trim().min(1).max(255),
-  confirm: z.boolean().default(false).describe("Must be true. Retries provisioning or creates a replacement Stripe Checkout for an unpaid database.")
+  confirm: z.boolean().default(false).describe("Must be true. Retries provisioning or creates a replacement secure checkout for an unpaid database.")
 });
 
 const deleteHostingDatabaseInput = z.object({
@@ -556,7 +556,7 @@ const deleteHostingDatabaseInput = z.object({
   site_id: idSchema,
   database_id: idSchema,
   confirmation: z.string().trim().min(1).max(80).describe("Exact database name. Deletion is rejected if it does not match."),
-  confirm: z.boolean().default(false).describe("Must be true. Permanently deletes the Azure database and finalizes billing.")
+  confirm: z.boolean().default(false).describe("Must be true. Permanently deletes the database and finalizes billing.")
 });
 
 const changeHostingPlanInput = z.object({
@@ -564,19 +564,19 @@ const changeHostingPlanInput = z.object({
   plan: z.enum(["free", "launch", "growth", "scale", "studio"]),
   expected_monthly_price_cents: z.number().int().nonnegative(),
   billing_confirmation: z.string().trim().min(1).max(255),
-  accept_proration: z.boolean().default(false).describe("Must be true when changing an active paid plan because Stripe may invoice a prorated amount immediately."),
+  accept_proration: z.boolean().default(false).describe("Must be true when changing an active paid plan because billing may apply a prorated amount immediately."),
   confirm: z.boolean().default(false).describe("Must be true. Starts Checkout or changes the active Hosting subscription.")
 });
 
 const confirmHostingCheckoutInput = z.object({
   ...optionalTitleShape,
   checkout_session_id: z.string().trim().min(1).max(255).regex(/^cs_(?:test_|live_)?[A-Za-z0-9_]+$/),
-  confirm: z.boolean().default(false).describe("Must be true. Confirms payment with Stripe and may begin Azure provisioning.")
+  confirm: z.boolean().default(false).describe("Must be true. Confirms secure-checkout payment and may begin hosting or database setup.")
 });
 
 const deployHostingBuildInput = z.object({
   ...optionalTitleShape,
-  game_build_id: idSchema.describe("Ready Glitch game build id. Use glitch_deploy_game_build first when starting from a local ZIP."),
+  game_build_id: idSchema.describe("Ready Glitch game build id. Call glitch_list_deployments first; upload a local ZIP only when no compatible build exists."),
   site_id: idSchema.optional().describe("Hosting site id. When omitted, the only existing site is used, or a new site is created from site_name/site_slug."),
   site_name: z.string().trim().min(1).max(120).optional(),
   site_slug: z.string().trim().min(1).max(63).regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/).optional(),
@@ -1226,7 +1226,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_get_hosting", "Get Game Hosting", "Get the title's Azure hosting account, bandwidth usage, sites, releases, domains, databases, and current pricing catalog.", hostingDashboardInput, true, async (client, input) => {
+  defineTool("glitch_get_hosting", "Get Game Hosting", "Get the title's hosting account, bandwidth usage, sites, releases, domains, databases, and current pricing catalog.", hostingDashboardInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.hostingDashboard(titleId);
     return toolSuccess({
@@ -1251,7 +1251,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_create_hosting_site", "Create Hosting Site", "Create an Azure-backed game website with a free Glitch address. This is separate from Store distribution.", createHostingSiteInput, false, async (client, input) => {
+  defineTool("glitch_create_hosting_site", "Create Hosting Site", "Create a managed game website with a free Glitch address. This is separate from Store distribution.", createHostingSiteInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Creating a Glitch-hosted game website");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.createHostingSite(titleId, omitUndefined({
@@ -1268,7 +1268,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_update_hosting_site", "Update Hosting Site", "Update a hosting site's name, static/server mode, Azure region, or non-secret runtime settings. Secret-shaped settings are blocked from MCP.", updateHostingSiteInput, false, async (client, input) => {
+  defineTool("glitch_update_hosting_site", "Update Hosting Site", "Update a hosting site's name, static/server mode, player region, or non-secret runtime settings. Secret-shaped settings are blocked from MCP.", updateHostingSiteInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Updating the hosted game website");
     if (input.configuration) {
       assertSafeHostingConfiguration(input.configuration);
@@ -1288,7 +1288,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_list_hosting_releases", "List Hosting Releases", "List immutable Azure Hosting releases for a website so a developer can inspect deployment state or choose a rollback target.", listHostingReleasesInput, true, async (client, input) => {
+  defineTool("glitch_list_hosting_releases", "List Hosting Releases", "List immutable Hosting releases for a website so a developer can inspect deployment state or choose a rollback target.", listHostingReleasesInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.hostingReleases(titleId, input.site_id, { per_page: input.per_page });
     return toolSuccess({
@@ -1299,7 +1299,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn a ready Glitch game build into an independent Azure-hosted website release. It can select the only existing site, create a site when none exists, wait for build and release processing, and publish the result. Use glitch_deploy_game_build first when starting from a local ZIP.", deployHostingBuildInput, false, async (client, input, ctx) => {
+  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn a ready Glitch game build into an independent hosted website release. It can select the only existing site, create a site when none exists, wait for build and release processing, and publish the result. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists.", deployHostingBuildInput, false, async (client, input, ctx) => {
     requireConfirmation(input.confirm, input.publish ? "Deploying and publishing a hosted game website" : "Creating a hosted game website release");
     const titleId = client.resolveTitleId(input.title_id);
 
@@ -1391,7 +1391,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_connect_hosting_domain", "Connect Hosting Domain", "Connect a domain the developer already owns. Glitch returns the Route 53 DNS records needed for Azure Front Door verification.", connectHostingDomainInput, false, async (client, input) => {
+  defineTool("glitch_connect_hosting_domain", "Connect Hosting Domain", "Connect a domain the developer already owns. Glitch returns the public DNS records needed for ownership verification.", connectHostingDomainInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Connecting a custom domain to the hosted game website");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.connectHostingDomain(titleId, input.site_id, input.hostname);
@@ -1403,7 +1403,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_verify_hosting_domain", "Verify Hosting Domain", "Check Route 53 DNS and activate a connected custom domain when Azure's verification and routing records are present.", verifyHostingDomainInput, false, async (client, input) => {
+  defineTool("glitch_verify_hosting_domain", "Verify Hosting Domain", "Check public DNS and activate a connected custom domain when the verification and routing records are present.", verifyHostingDomainInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Verifying and activating a custom Hosting domain");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.verifyHostingDomain(titleId, input.site_id, input.domain_id);
@@ -1415,7 +1415,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_check_hosting_domain", "Check Domain Availability", "Check whether Azure can register a domain and return the live annual price and legal agreement keys. This does not purchase anything.", checkHostingDomainInput, true, async (client, input) => {
+  defineTool("glitch_check_hosting_domain", "Check Domain Availability", "Check whether Glitch can register a domain and return the live annual price and legal agreement keys. This does not purchase anything.", checkHostingDomainInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.checkHostingDomainAvailability(titleId, input.hostname);
     return toolSuccess({
@@ -1426,10 +1426,10 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_purchase_hosting_domain", "Purchase Hosting Domain", "Create Stripe Checkout for an Azure-managed domain only after the registrant accepts current agreements and confirms the exact annual price. Registration begins after paid Checkout confirmation.", purchaseHostingDomainInput, false, async (client, input) => {
+  defineTool("glitch_purchase_hosting_domain", "Purchase Hosting Domain", "Create secure checkout for a Glitch-managed domain only after the registrant accepts current agreements and confirms the exact annual price. Registration begins after paid checkout confirmation.", purchaseHostingDomainInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Starting paid domain registration Checkout");
     if (!input.accepted_legal_terms) {
-      throw confirmationRequiredError("Accepting the current Azure domain registration agreements");
+      throw confirmationRequiredError("Accepting the current domain registration agreements");
     }
     requireExactConfirmation(
       input.billing_confirmation,
@@ -1450,16 +1450,16 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     const checkoutUrl = readString(data.checkout_url);
     return toolSuccess({
       title: "Domain Checkout ready",
-      summary: "The domain is not registered yet. Complete Stripe Checkout, then confirm that Checkout through Glitch.",
+      summary: "The domain is not registered yet. Complete secure checkout, then confirm that checkout through Glitch.",
       data,
       links: [
-        ...(checkoutUrl ? [{ name: "Open Stripe Checkout", url: checkoutUrl }] : []),
+        ...(checkoutUrl ? [{ name: "Open secure checkout", url: checkoutUrl }] : []),
         { name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }
       ]
     });
   }),
 
-  defineTool("glitch_generate_hosting_ai_instructions", "Generate Hosting AI Instructions", "Create a safe copy-and-paste deployment guide for ChatGPT, Claude, Cursor, or Codex, including selected first-party Azure database add-ons without embedding credentials.", hostingAiInstructionsInput, true, async (client, input) => {
+  defineTool("glitch_generate_hosting_ai_instructions", "Generate Hosting AI Instructions", "Create a safe copy-and-paste deployment guide for ChatGPT, Claude, Cursor, or Codex, including selected managed database add-ons without embedding credentials.", hostingAiInstructionsInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.hostingAiInstructions(titleId, input.site_id, omitUndefined({
       framework: input.framework,
@@ -1476,18 +1476,18 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_list_hosting_databases", "List Hosting Databases", "List safe status, size, endpoint, port, and binding metadata for the title's first-party Azure databases. Passwords and connection strings are never returned.", listHostingDatabasesInput, true, async (client, input) => {
+  defineTool("glitch_list_hosting_databases", "List Hosting Databases", "List safe status, size, endpoint, port, and binding metadata for the title's managed databases. Passwords and connection strings are never returned.", listHostingDatabasesInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.listHostingDatabases(titleId, input.site_id, { per_page: input.per_page });
     return toolSuccess({
       title: "Hosting databases",
-      summary: `Azure database add-ons for hosting site ${input.site_id}.`,
+      summary: `Database add-ons for hosting site ${input.site_id}.`,
       data,
       links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
     });
   }),
 
-  defineTool("glitch_get_hosting_database", "Get Hosting Database", "Get one Azure database's safe status and connection metadata without returning its password, secret reference, or full connection string.", getHostingDatabaseInput, true, async (client, input) => {
+  defineTool("glitch_get_hosting_database", "Get Hosting Database", "Get one database's safe status and connection metadata without returning its password, secret reference, or full connection string.", getHostingDatabaseInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.getHostingDatabase(titleId, input.site_id, input.database_id);
     return toolSuccess({
@@ -1498,8 +1498,8 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_create_hosting_database", "Create Hosting Database", "Create Stripe Checkout for a first-party Azure PostgreSQL, MySQL, SQL Database, or Cosmos DB add-on. Marketplace databases are not supported and provisioning waits for payment.", createHostingDatabaseInput, false, async (client, input) => {
-    requireConfirmation(input.confirm, "Starting paid Azure database Checkout");
+  defineTool("glitch_create_hosting_database", "Create Hosting Database", "Create secure checkout for a managed PostgreSQL, MySQL, SQL, or NoSQL add-on. Marketplace databases are not supported and setup waits for payment.", createHostingDatabaseInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Starting paid database Checkout");
     requireExactConfirmation(
       input.billing_confirmation,
       `CREATE DATABASE ${input.name.toUpperCase()} ON ${input.plan.toUpperCase()} AT ${input.expected_monthly_price_cents} CENTS PER MONTH`,
@@ -1520,17 +1520,17 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     const checkoutUrl = readString(data.checkout_url);
     return toolSuccess({
       title: "Database Checkout ready",
-      summary: "The Azure database has not been provisioned yet. Complete Stripe Checkout, then confirm the Checkout through Glitch.",
+      summary: "The database has not been created yet. Complete secure checkout, then confirm the checkout through Glitch.",
       data,
       links: [
-        ...(checkoutUrl ? [{ name: "Open Stripe Checkout", url: checkoutUrl }] : []),
+        ...(checkoutUrl ? [{ name: "Open secure checkout", url: checkoutUrl }] : []),
         { name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }
       ]
     });
   }),
 
-  defineTool("glitch_update_hosting_database", "Update Hosting Database", "Resize or change safeguards for an existing first-party Azure database. Exact current pricing is required, and size changes require explicit proration acceptance.", updateHostingDatabaseInput, false, async (client, input) => {
-    requireConfirmation(input.confirm, "Changing a paid Azure database");
+  defineTool("glitch_update_hosting_database", "Update Hosting Database", "Resize or change safeguards for an existing managed database. Exact current pricing is required, and size changes require explicit proration acceptance.", updateHostingDatabaseInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Changing a paid database");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.updateHostingDatabase(titleId, input.site_id, input.database_id, omitUndefined({
       plan: input.plan,
@@ -1543,14 +1543,14 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     }));
     return toolSuccess({
       title: "Hosting database update accepted",
-      summary: "Glitch applied the billing guardrails and returned the database's current Azure operation state.",
+      summary: "Glitch applied the billing guardrails and returned the database's current operation state.",
       data,
       links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
     });
   }),
 
-  defineTool("glitch_retry_hosting_database", "Retry Hosting Database", "Retry a failed Azure database operation. If payment was never completed, Glitch returns a new Stripe Checkout instead of provisioning unpaid infrastructure.", retryHostingDatabaseInput, false, async (client, input) => {
-    requireConfirmation(input.confirm, "Retrying a paid Azure database operation");
+  defineTool("glitch_retry_hosting_database", "Retry Hosting Database", "Retry a failed database operation. If payment was never completed, Glitch returns a new secure checkout instead of creating an unpaid database.", retryHostingDatabaseInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Retrying a paid database operation");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.retryHostingDatabase(titleId, input.site_id, input.database_id, {
       expected_monthly_price_cents: input.expected_monthly_price_cents,
@@ -1560,17 +1560,17 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     const checkoutUrl = readString(data.checkout_url);
     return toolSuccess({
       title: "Hosting database retry accepted",
-      summary: checkoutUrl ? "Complete the replacement Stripe Checkout before Azure provisioning can resume." : "Azure database provisioning was queued again.",
+      summary: checkoutUrl ? "Complete the replacement secure checkout before database setup can resume." : "Database setup was queued again.",
       data,
       links: [
-        ...(checkoutUrl ? [{ name: "Open Stripe Checkout", url: checkoutUrl }] : []),
+        ...(checkoutUrl ? [{ name: "Open secure checkout", url: checkoutUrl }] : []),
         { name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }
       ]
     });
   }),
 
-  defineTool("glitch_delete_hosting_database", "Delete Hosting Database", "Permanently delete a first-party Azure database and finalize its billing. Requires both confirm=true and the exact database name.", deleteHostingDatabaseInput, false, async (client, input) => {
-    requireConfirmation(input.confirm, "Permanently deleting the Azure database");
+  defineTool("glitch_delete_hosting_database", "Delete Hosting Database", "Permanently delete a managed database and finalize its billing. Requires both confirm=true and the exact database name.", deleteHostingDatabaseInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Permanently deleting the database");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.deleteHostingDatabase(titleId, input.site_id, input.database_id, input.confirmation);
     return toolSuccess({
@@ -1581,7 +1581,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_change_hosting_plan", "Change Hosting Plan", "Start Stripe Checkout or change the title's bandwidth-based Hosting subscription. This is separate from the one-time Store distribution charge.", changeHostingPlanInput, false, async (client, input) => {
+  defineTool("glitch_change_hosting_plan", "Change Hosting Plan", "Start direct Checkout or request a Microsoft Marketplace plan change for the title's bandwidth-based Hosting subscription. This is separate from Store distribution.", changeHostingPlanInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Changing the paid Glitch Hosting plan");
     requireExactConfirmation(
       input.billing_confirmation,
@@ -1599,22 +1599,22 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     const checkoutUrl = readString(data.checkout_url);
     return toolSuccess({
       title: checkoutUrl ? "Hosting plan Checkout ready" : "Hosting plan updated",
-      summary: checkoutUrl ? "Complete Stripe Checkout, then confirm it through Glitch." : "Glitch applied the Hosting plan change.",
+      summary: checkoutUrl ? "Complete secure Checkout, then confirm it through Glitch." : readString(data.billing_provider) === "microsoft_marketplace" ? "Microsoft Marketplace is processing the Hosting plan change." : "Glitch applied the Hosting plan change.",
       data,
       links: [
-        ...(checkoutUrl ? [{ name: "Open Stripe Checkout", url: checkoutUrl }] : []),
+        ...(checkoutUrl ? [{ name: "Open secure Checkout", url: checkoutUrl }] : []),
         { name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }
       ]
     });
   }),
 
-  defineTool("glitch_confirm_hosting_checkout", "Confirm Hosting Checkout", "Ask Glitch to verify a completed Stripe Hosting, database, or domain Checkout. Azure provisioning starts only after Stripe reports paid or no payment required.", confirmHostingCheckoutInput, false, async (client, input) => {
-    requireConfirmation(input.confirm, "Confirming Stripe payment and starting Azure provisioning");
+  defineTool("glitch_confirm_hosting_checkout", "Confirm Hosting Checkout", "Ask Glitch to verify a completed Hosting, database, or domain checkout. Setup starts only after the payment provider reports paid or no payment required.", confirmHostingCheckoutInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Confirming checkout payment and starting setup");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.confirmHostingCheckout(titleId, input.checkout_session_id);
     return toolSuccess({
       title: "Hosting Checkout confirmed",
-      summary: "Glitch verified the Checkout directly with Stripe and returned the resulting Hosting operation.",
+      summary: "Glitch verified the checkout with the payment provider and returned the resulting Hosting operation.",
       data,
       links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
     });
@@ -2135,7 +2135,7 @@ const HOSTING_SECRET_VALUE_PATTERN = /-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:post
 /**
  * Hosting configuration is visible to deployment automation and must contain
  * references or ordinary settings, never raw credentials. The backend also
- * keeps database secrets in Azure; this client-side guard prevents an MCP
+ * keeps database secrets in managed bindings; this client-side guard prevents an MCP
  * model from accidentally copying a secret into a general configuration map.
  */
 function assertSafeHostingConfiguration(configuration: JsonObject): void {
@@ -2156,7 +2156,7 @@ function assertSafeHostingConfiguration(configuration: JsonObject): void {
       if (HOSTING_SECRET_VALUE_PATTERN.test(value)) {
         throw new GlitchMcpError(
           "validation_error",
-          `Hosting configuration ${path} appears to contain a credential. Store secrets through Glitch/Azure bindings instead of MCP.`
+          `Hosting configuration ${path} appears to contain a credential. Store secrets through Glitch managed bindings instead of MCP.`
         );
       }
       return;
@@ -2177,7 +2177,7 @@ function assertSafeHostingConfiguration(configuration: JsonObject): void {
       if (HOSTING_SECRET_KEY_PARTS.some((part) => normalizedKey.includes(part))) {
         throw new GlitchMcpError(
           "validation_error",
-          `Hosting configuration key ${path}.${key} looks secret-bearing. Use an Azure/Glitch binding reference instead.`
+          `Hosting configuration key ${path}.${key} looks secret-bearing. Use a Glitch managed binding reference instead.`
         );
       }
       visit(entry, `${path}.${key}`, depth + 1);

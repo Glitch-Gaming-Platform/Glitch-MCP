@@ -10,7 +10,7 @@ export function registerGlitchPrompts(server: McpServer): void {
     "glitch_manage_hosting",
     {
       title: "Glitch Manage Hosting",
-      description: "Manage a title's hosted website, domains, Azure databases, releases, analytics, and plan with explicit payment safeguards.",
+      description: "Manage a title's hosted website, domains, managed databases, releases, analytics, and plan with explicit payment safeguards.",
       argsSchema: {
         ...optionalTitleArgs,
         request: z.string().optional().describe("Optional Hosting task, such as deploy, connect a domain, add a database, or change the bandwidth plan.")
@@ -27,6 +27,7 @@ export function registerGlitchPrompts(server: McpServer): void {
               title_id ? `Title id: ${title_id}` : "If no title is selected, list titles and ask me which title to use.",
               request ? `Requested Hosting task: ${request}` : "Start by showing the current Hosting state and ask what I want to change.",
               "Use plain language. Keep Hosting and Store distribution separate.",
+              "For deployment, list existing game deployments first and reuse a compatible ready build. Upload a new local ZIP only when no compatible build exists.",
               "Show the exact effect and current price before any paid, public, destructive, legal, or prorated operation. Set confirm=true only after my explicit approval.",
               "Never request payment credentials or put passwords, tokens, private keys, or connection strings in configuration. Use managed bindings and generate safe AI setup instructions when code changes are needed."
             ].join("\n")
@@ -514,7 +515,7 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
     name: "glitch_deploy_hosting_build",
     title: "Glitch Deploy Hosting Build",
     description: "Deploy a ready game build as an independent hosted website.",
-    guidance: ["Use glitch_deploy_game_build first when the build only exists locally.", "Use the only existing hosting site automatically; ask for site_id when multiple sites exist, or site_name and site_slug when none exist.", "Set confirm=true only after explicit approval and publish=false when the user did not ask to go live."]
+    guidance: ["Call glitch_list_deployments first and reuse a compatible ready build. Use glitch_deploy_game_build only when no compatible build exists and the build is local.", "Use the only existing hosting site automatically; ask for site_id when multiple sites exist, or site_name and site_slug when none exist.", "Set confirm=true only after explicit approval and publish=false when the user did not ask to go live."]
   },
   {
     name: "glitch_open_dashboard",

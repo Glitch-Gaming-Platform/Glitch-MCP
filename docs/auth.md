@@ -120,8 +120,8 @@ Hosting abilities are deliberately split:
 - `hosting:deploy` — create/update sites and create releases.
 - `hosting:promote` — publish/rollback releases and connect/verify owned domains.
 - `hosting:databases:read` — safe database metadata only; never passwords or full connection strings.
-- `hosting:databases:write` — create, resize, retry, and delete first-party Azure databases. Community billing permission and explicit confirmations are still required.
-- `hosting:billing` — change Hosting plans, purchase managed domains, and confirm Stripe Checkout. Community billing permission, current-price confirmation, and proration acknowledgement remain mandatory.
+- `hosting:databases:write` — create, resize, retry, and delete managed databases. Community billing permission and explicit confirmations are still required.
+- `hosting:billing` — change Hosting plans, purchase managed domains, and confirm secure checkout. Community billing permission, current-price confirmation, and proration acknowledgement remain mandatory.
 
 The `operator` preset cannot purchase domains, change subscriptions, create paid
 databases, or activate releases. Use a custom least-privilege token when an

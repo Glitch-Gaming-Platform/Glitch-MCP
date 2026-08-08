@@ -4,7 +4,7 @@ description: Deploy a game build to Glitch Hosting.
 
 Use Glitch MCP tool `glitch_deploy_hosting_build` to deploy this game as an independent hosted website.
 
-If the build is only available locally, call `glitch_deploy_game_build` first and use the returned build id.
+Call `glitch_list_deployments` first and reuse a compatible ready build. If no compatible build exists and the build is only available locally, call `glitch_deploy_game_build` and use the returned build id.
 
 Use an existing hosting site when I identify one. If no site exists, ask me for a short website name and address slug. Never guess when multiple sites exist.
 

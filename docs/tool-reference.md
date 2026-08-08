@@ -74,7 +74,7 @@ Input:
 
 ### Game website hosting
 
-`glitch_get_hosting` returns the Azure hosting account, pooled bandwidth usage,
+`glitch_get_hosting` returns the hosting account, pooled bandwidth usage,
 sites, releases, domains, databases, and current plan catalog.
 
 `glitch_get_hosting_analytics` returns website Hosting and Glitch Store channels
@@ -83,15 +83,16 @@ separately, plus a combined title view. Optional dates use `YYYY-MM-DD`.
 `glitch_create_hosting_site` creates a static or server/SSR site with a free
 `game.business.glitch.fun` address.
 
-`glitch_update_hosting_site` changes the name, mode, Azure region, or ordinary
+`glitch_update_hosting_site` changes the name, mode, player region, or ordinary
 runtime configuration. MCP rejects secret-shaped keys and values; use managed
-Glitch/Azure bindings for credentials.
+Glitch bindings for credentials.
 
 `glitch_list_hosting_releases` lists immutable releases and their processing
 state. Use a ready release id with `glitch_promote_hosting_release` to publish or
 roll back.
 
-`glitch_deploy_hosting_build` deploys a ready Glitch game build to Hosting. When
+`glitch_deploy_hosting_build` deploys a ready Glitch game build to Hosting. Call
+`glitch_list_deployments` first and reuse a compatible ready build. When
 the title has one site it selects it automatically. When no site exists, pass
 `site_name` and `site_slug`; Node builds default to server mode and other builds
 default to static mode. The tool waits for both build and hosting release
@@ -110,26 +111,27 @@ processing and publishes unless `publish=false`.
 }
 ```
 
-Use `glitch_deploy_game_build` first when starting from a local ZIP. Use
+Use `glitch_deploy_game_build` only when no compatible existing build is ready and
+the artifact exists only as a local ZIP. Use
 `glitch_promote_hosting_release` with a previous release id to roll back. Hosting
 and Store distribution remain separate.
 
 #### Domains
 
-- `glitch_connect_hosting_domain` connects a domain already owned by the developer and returns Route 53 DNS instructions.
+- `glitch_connect_hosting_domain` connects a domain already owned by the developer and returns public DNS instructions.
 - `glitch_verify_hosting_domain` rechecks public DNS and activates the domain.
-- `glitch_check_hosting_domain` returns Azure availability, live annual price, and current agreement keys without buying anything.
+- `glitch_check_hosting_domain` returns Glitch-supported availability, live annual price, and current agreement keys without buying anything.
 - `glitch_purchase_hosting_domain` requires `accepted_legal_terms=true`, every current agreement key, registrant contact details, `confirm=true`, the exact annual price, and `PURCHASE DOMAIN <hostname> AT <cents> CENTS PER YEAR`.
 
-The purchase tool returns Stripe Checkout. Domain registration does not begin
-until `glitch_confirm_hosting_checkout` verifies paid Checkout directly with
-Stripe. If Azure changes the price before Checkout is created, Glitch returns a
+The purchase tool returns secure checkout. Domain registration does not begin
+until `glitch_confirm_hosting_checkout` verifies paid checkout with the payment
+provider. If the live price changes before checkout is created, Glitch returns a
 conflict and requires a fresh confirmation.
 
-#### Azure database add-ons
+#### Managed database add-ons
 
-The MCP supports only Glitch's first-party Azure choices: PostgreSQL, MySQL,
-Azure SQL Database, and Cosmos DB for NoSQL. Marketplace database products are
+The MCP supports only Glitch-managed choices: PostgreSQL, MySQL, SQL, and
+NoSQL. Marketplace database products are
 not accepted.
 
 - `glitch_list_hosting_databases` and `glitch_get_hosting_database` return safe status, endpoint, port, storage, and binding metadata.
@@ -157,16 +159,25 @@ separate from Store distribution. It requires:
 CHANGE HOSTING PLAN TO <PLAN> AT <CENTS> CENTS PER MONTH
 ```
 
-Changing an active paid plan requires `accept_proration=true`. New paid plans
-return Stripe Checkout. `glitch_confirm_hosting_checkout` accepts only a Stripe
-Checkout session id and `confirm=true`; payment credentials never pass through
-MCP.
+Changing an active paid plan requires `accept_proration=true`. Direct accounts
+return secure checkout. Microsoft Marketplace accounts return a pending
+Marketplace operation and remain on the customer's Microsoft invoice.
+`glitch_confirm_hosting_checkout` is used only when Glitch returned a direct
+Checkout session id; payment credentials never pass through MCP.
+
+The Hosting dashboard returns `account.billing_provider`. Use
+`monthly_price_cents` for `direct` accounts and
+`marketplace_monthly_price_cents` for `microsoft_marketplace` accounts when
+preparing exact confirmation phrases. Marketplace recurring prices include the
+20% adjustment and ending-in-9 rounding.
 
 #### AI deployment guide
 
-`glitch_generate_hosting_ai_instructions` creates short copy-and-paste setup
-instructions for a chosen framework, domain, and database add-ons. The guide
-uses binding names and approval steps, not passwords.
+`glitch_generate_hosting_ai_instructions` creates a complete, copy-and-paste
+deployment runbook for a chosen framework, domain, and database add-ons. It
+covers NPX, installed and project-local CLI, CI, TypeScript SDK, MCP, all CLI
+options, response/status contracts, retries, rollback, verification, managed
+bindings, and approval boundaries without passwords or private infrastructure.
 
 ### glitch_get_analytics_capabilities
 

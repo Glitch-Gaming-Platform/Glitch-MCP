@@ -9,9 +9,9 @@ Optional arguments I provided: $ARGUMENTS
 
 Start with `glitch_get_hosting`. Explain choices in plain language and keep the response short.
 
-For deployments, domains, database add-ons, or plan changes, show me the exact effect and price before any confirmed call. Never set `confirm=true`, accept legal terms, accept proration, purchase anything, publish a release, or delete a database unless I explicitly approve that action.
+For deployments, first call `glitch_list_deployments` and reuse a compatible ready build. Upload a local ZIP with `glitch_deploy_game_build` only when no compatible build exists. For domains, database add-ons, or plan changes, show me the exact effect and price before any confirmed call. Never set `confirm=true`, accept legal terms, accept proration, purchase anything, publish a release, or delete a database unless I explicitly approve that action.
 
-For paid changes, use the current price and exact confirmation phrase returned or required by Glitch. Send me to Stripe Checkout; never ask me for payment credentials.
+For paid changes, use the current price and exact confirmation phrase returned or required by Glitch. Send me to secure checkout; never ask me for payment credentials.
 
 Never place passwords, tokens, private keys, or connection strings in Hosting configuration or chat. Use the safe database binding name and `glitch_generate_hosting_ai_instructions` when code changes are needed.
 

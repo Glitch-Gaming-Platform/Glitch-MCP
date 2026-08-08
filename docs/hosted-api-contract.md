@@ -161,21 +161,21 @@ bundle instead of an opaque server failure.
 
 ## Hosting Payment And Provisioning Boundary
 
-MCP never accepts card numbers, Stripe secret keys, Azure credentials, database
-passwords, or Route 53 credentials. Paid Hosting calls use the audited user who
+MCP never accepts card numbers, payment-provider secret keys, hosting-provider
+credentials, database passwords, or DNS-provider credentials. Paid Hosting calls use the audited user who
 created the title token, require title administration plus community billing
 permission, and require `confirm=true`.
 
 Plan, database, and domain requests include the price the developer reviewed
 and a case-sensitive confirmation phrase. The backend compares both against its
-current catalog or Azure availability response. Active subscription changes
-also require `accept_proration=true`. A mismatch returns `409` before Stripe or
-Azure is changed.
+current catalog or live availability response. Active subscription changes
+also require `accept_proration=true`. A mismatch returns `409` before billing or
+hosting state is changed.
 
-New paid resources return a Stripe Checkout URL. The confirm endpoint retrieves
-the session from Stripe's API, verifies that the checkout order belongs to the
-selected title/community and audited creator, and provisions Azure only after
-Stripe reports completed payment. Managed-domain price is rechecked in the
+New paid resources return a secure-checkout URL. The confirm endpoint retrieves
+the session from the payment provider, verifies that the checkout order belongs to the
+selected title/community and audited creator, and begins setup only after
+the provider reports completed payment. Managed-domain price is rechecked in the
 same request that creates Checkout to prevent a price-change race.
 
 Database resources expose only safe metadata: status, engine, plan, storage,
