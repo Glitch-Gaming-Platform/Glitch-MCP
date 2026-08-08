@@ -61,7 +61,7 @@ export interface GlitchMcpConfig {
 }
 
 const DEFAULT_API_BASE_URL = "https://api.glitch.fun/api";
-const DEFAULT_DASHBOARD_BASE_URL = "https://app.glitch.fun";
+const DEFAULT_DASHBOARD_BASE_URL = "https://www.glitch.fun";
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GlitchMcpConfig {

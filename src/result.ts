@@ -63,20 +63,43 @@ export function toolSuccess(options: ToolSuccessOptions): CallToolResult {
 
 export function toolError(error: unknown): CallToolResult {
   const normalized = normalizeError(error);
+  const links: ToolLink[] = [
+    ...(normalized.details.billingUrl
+      ? [{ name: "Open agent billing", url: normalized.details.billingUrl }]
+      : []),
+    ...(normalized.details.dashboardUrl
+      ? [{ name: "Open Glitch dashboard", url: normalized.details.dashboardUrl }]
+      : [])
+  ];
+  const text = [
+    `Glitch MCP error: ${normalized.message}`,
+    `Code: ${normalized.code}`,
+    ...(links.length
+      ? ["", "Links:", ...links.map((link) => `- ${link.name}: ${link.url}`)]
+      : [])
+  ].join("\n");
 
   return {
     isError: true,
     content: [
       {
         type: "text",
-        text: `Glitch MCP error: ${normalized.message}\n\nCode: ${normalized.code}`
-      }
+        text
+      },
+      ...links.map((link) => ({
+        type: "resource_link" as const,
+        uri: link.url,
+        name: link.name,
+        title: link.name,
+        mimeType: "text/html"
+      }))
     ],
     structuredContent: {
       status: "error",
       code: normalized.code,
       message: normalized.message,
-      details: normalized.details
+      details: normalized.details,
+      ...(links.length ? { links } : {})
     }
   };
 }

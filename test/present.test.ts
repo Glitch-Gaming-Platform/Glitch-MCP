@@ -50,14 +50,14 @@ describe("presenters", () => {
         next_steps: ["Schedule the trailer"],
         problems: [],
         links: [{ label: "Steam page", url: "https://store.steampowered.com/app/1" }],
-        downloads: [{ name: "report.csv", download_url: "https://app.glitch.fun/d/1" }]
+        downloads: [{ name: "report.csv", download_url: "https://www.glitch.fun/d/1" }]
       }
     });
     expect(md).toContain("### Launch readiness");
     expect(md).toContain("80% ready");
     expect(md).toContain("Next steps");
     expect(md).toContain("[Steam page](https://store.steampowered.com/app/1)");
-    expect(md).toContain("[report.csv](https://app.glitch.fun/d/1)");
+    expect(md).toContain("[report.csv](https://www.glitch.fun/d/1)");
   });
 
   it("handles a missing report gracefully", () => {

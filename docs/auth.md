@@ -139,7 +139,7 @@ tokens receive identity detail; readonly and operator presets do not.
 export GLITCH_API_BASE_URL="https://api.glitch.fun/api"
 export GLITCH_API_TOKEN="gl_mcp_..."
 export GLITCH_TITLE_ID="title_..."
-export GLITCH_DASHBOARD_URL="https://app.glitch.fun"
+export GLITCH_DASHBOARD_URL="https://www.glitch.fun"
 ```
 
 `GLITCH_TITLE_ID` is a convenience only. Tools still accept explicit `title_id`. The adapter also supports legacy aliases `GLITCH_MCP_URL`, `GLITCH_MCP_TOKEN`, and `GLITCH_MCP_DEFAULT_TITLE_ID`.
@@ -169,7 +169,7 @@ The hosted service should return clear, structured errors:
 ```json
 {
   "message": "This title needs an active Glitch Agent subscription.",
-  "billing_url": "https://app.glitch.fun/agents/titles/title_123/billing"
+  "billing_url": "https://www.glitch.fun/agents/titles/title_123/billing"
 }
 ```
 

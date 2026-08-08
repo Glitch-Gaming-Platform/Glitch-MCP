@@ -29,7 +29,7 @@ export function registerGlitchPrompts(server: McpServer): void {
               "Use plain language. Keep Hosting and Store distribution separate.",
               "For deployment, list existing game deployments first and reuse a compatible ready build. Upload a new local ZIP only when no compatible build exists.",
               "Show the exact effect and current price before any paid, public, destructive, legal, or prorated operation. Set confirm=true only after my explicit approval.",
-              "Never request payment credentials or put passwords, tokens, private keys, or connection strings in configuration. Use managed bindings and generate safe AI setup instructions when code changes are needed."
+              "Never request payment credentials or put passwords, tokens, private keys, or connection strings in configuration. Use managed bindings and generate safe AI setup instructions when code changes are needed. If an owner needs database credentials for local server development, direct them to View credentials in the signed-in Hosting dashboard; never ask them to paste the value into the MCP conversation."
             ].join("\n")
           }
         }

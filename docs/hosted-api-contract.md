@@ -40,8 +40,8 @@ Preferred error envelope:
 ```json
 {
   "message": "Subscription required.",
-  "billing_url": "https://app.glitch.fun/agents/titles/title_123/billing",
-  "dashboard_url": "https://app.glitch.fun/agents/titles/title_123",
+  "billing_url": "https://www.glitch.fun/agents/titles/title_123/billing",
+  "dashboard_url": "https://www.glitch.fun/agents/titles/title_123",
   "errors": {}
 }
 ```
@@ -166,6 +166,13 @@ credentials, database passwords, or DNS-provider credentials. Paid Hosting calls
 created the title token, require title administration plus community billing
 permission, and require `confirm=true`.
 
+Database owners may reveal their own ready database credentials only through
+the signed-in Hosting dashboard. The user route requires business billing
+permission and exact-name confirmation, is rate-limited and non-cacheable, and
+writes a secret-free audit record. No MCP tool proxies that response, which
+keeps database passwords and connection strings out of model context and MCP
+client logs.
+
 Plan, database, and domain requests include the price the developer reviewed
 and a case-sensitive confirmation phrase. The backend compares both against its
 current catalog or live availability response. Active subscription changes
@@ -208,7 +215,7 @@ Each response should include stable IDs and links where possible:
     "is_terminal": true,
     "is_paused": false,
     "is_settled": true,
-    "dashboard_url": "https://app.glitch.fun/agents/titles/title_123?run=run_123"
+    "dashboard_url": "https://www.glitch.fun/agents/titles/title_123?run=run_123"
   }
 }
 ```

@@ -1476,7 +1476,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_list_hosting_databases", "List Hosting Databases", "List safe status, size, endpoint, port, and binding metadata for the title's managed databases. Passwords and connection strings are never returned.", listHostingDatabasesInput, true, async (client, input) => {
+  defineTool("glitch_list_hosting_databases", "List Hosting Databases", "List safe status, size, endpoint, port, and binding metadata for the title's managed databases. Passwords and connection strings are never returned; an authorized business owner may reveal them manually on the Hosting page.", listHostingDatabasesInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.listHostingDatabases(titleId, input.site_id, { per_page: input.per_page });
     return toolSuccess({
@@ -1487,7 +1487,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_get_hosting_database", "Get Hosting Database", "Get one database's safe status and connection metadata without returning its password, secret reference, or full connection string.", getHostingDatabaseInput, true, async (client, input) => {
+  defineTool("glitch_get_hosting_database", "Get Hosting Database", "Get one database's safe status and connection metadata without returning its password, secret reference, or full connection string. Credential reveal is intentionally limited to the signed-in Hosting dashboard so secrets never enter model context.", getHostingDatabaseInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.getHostingDatabase(titleId, input.site_id, input.database_id);
     return toolSuccess({
@@ -1581,7 +1581,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_change_hosting_plan", "Change Hosting Plan", "Start direct Checkout or request a Microsoft Marketplace plan change for the title's bandwidth-based Hosting subscription. This is separate from Store distribution.", changeHostingPlanInput, false, async (client, input) => {
+  defineTool("glitch_change_hosting_plan", "Change Hosting Plan", "Start direct Checkout, request a Microsoft Marketplace change, or open the required AWS Marketplace subscription change for the title's bandwidth-based Hosting plan. AWS Marketplace has paid plans only. Hosting is separate from Store distribution.", changeHostingPlanInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Changing the paid Glitch Hosting plan");
     requireExactConfirmation(
       input.billing_confirmation,
@@ -1597,12 +1597,21 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       confirm: true
     });
     const checkoutUrl = readString(data.checkout_url);
+    const manageUrl = readString(data.manage_url);
+    const provider = readString(data.billing_provider);
     return toolSuccess({
-      title: checkoutUrl ? "Hosting plan Checkout ready" : "Hosting plan updated",
-      summary: checkoutUrl ? "Complete secure Checkout, then confirm it through Glitch." : readString(data.billing_provider) === "microsoft_marketplace" ? "Microsoft Marketplace is processing the Hosting plan change." : "Glitch applied the Hosting plan change.",
+      title: checkoutUrl ? "Hosting plan Checkout ready" : manageUrl ? "AWS Marketplace plan change ready" : "Hosting plan updated",
+      summary: checkoutUrl
+        ? "Complete secure Checkout, then confirm it through Glitch."
+        : provider === "microsoft_marketplace"
+          ? "Microsoft Marketplace is processing the Hosting plan change."
+          : provider === "aws_marketplace"
+            ? "Finish the paid plan change in AWS Marketplace. Glitch will apply it after AWS confirms the entitlement."
+            : "Glitch applied the Hosting plan change.",
       data,
       links: [
         ...(checkoutUrl ? [{ name: "Open secure Checkout", url: checkoutUrl }] : []),
+        ...(manageUrl ? [{ name: "Manage AWS Marketplace subscription", url: manageUrl }] : []),
         { name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }
       ]
     });

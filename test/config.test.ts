@@ -7,7 +7,7 @@ describe("loadConfig", () => {
     const config = loadConfig({});
 
     expect(config.apiBaseUrl).toBe("https://api.glitch.fun/api");
-    expect(config.dashboardBaseUrl).toBe("https://app.glitch.fun");
+    expect(config.dashboardBaseUrl).toBe("https://www.glitch.fun");
     expect(config.timeoutMs).toBe(30_000);
     expect(config.clientName).toBe("glitch-mcp");
     expect(config.token).toBeUndefined();

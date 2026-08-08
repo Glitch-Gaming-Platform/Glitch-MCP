@@ -148,7 +148,11 @@ CREATE DATABASE <NAME> ON <PLAN> AT <CENTS> CENTS PER MONTH
 
 Update and retry confirmation formats are returned by the server when the
 current database name, plan, or price must be reviewed. Database credentials,
-secret references, and full connection strings are never returned by MCP.
+secret references, and full connection strings are never returned by MCP. A
+signed-in business billing administrator can use **View credentials** on the
+game's Hosting page after typing the exact database name. That reveal is
+rate-limited, non-cacheable, audit-logged, and automatically hidden by the UI;
+do not ask the developer to paste it into an MCP or AI conversation.
 
 #### Hosting plan billing
 
@@ -161,15 +165,20 @@ CHANGE HOSTING PLAN TO <PLAN> AT <CENTS> CENTS PER MONTH
 
 Changing an active paid plan requires `accept_proration=true`. Direct accounts
 return secure checkout. Microsoft Marketplace accounts return a pending
-Marketplace operation and remain on the customer's Microsoft invoice.
+Marketplace operation and remain on the customer's Microsoft invoice. AWS
+Marketplace accounts return the AWS subscription-management URL; the customer
+finishes the paid plan change there and Glitch applies it after the signed AWS
+license entitlement event arrives. AWS Marketplace does not expose the Free
+Hosting plan.
 `glitch_confirm_hosting_checkout` is used only when Glitch returned a direct
 Checkout session id; payment credentials never pass through MCP.
 
 The Hosting dashboard returns `account.billing_provider`. Use
 `monthly_price_cents` for `direct` accounts and
 `marketplace_monthly_price_cents` for `microsoft_marketplace` accounts when
-preparing exact confirmation phrases. Marketplace recurring prices include the
-20% adjustment and ending-in-9 rounding.
+preparing exact confirmation phrases. Use
+`aws_marketplace_monthly_price_cents` for `aws_marketplace` accounts. Both
+Marketplace channels include the 20% adjustment and ending-in-9 rounding.
 
 #### AI deployment guide
 

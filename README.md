@@ -315,9 +315,9 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_connect_hosting_domain` / `glitch_verify_hosting_domain` — connect and verify a domain the developer owns
 - `glitch_check_hosting_domain` / `glitch_purchase_hosting_domain` — check live pricing, accept agreements, and start secure checkout
 - `glitch_generate_hosting_ai_instructions` — create a copy-and-paste deployment/add-on guide without credentials
-- `glitch_list_hosting_databases` / `glitch_get_hosting_database` — inspect safe managed database metadata
+- `glitch_list_hosting_databases` / `glitch_get_hosting_database` — inspect safe managed database metadata; owners reveal credentials manually in the Hosting dashboard, never through MCP
 - `glitch_create_hosting_database` / `glitch_update_hosting_database` / `glitch_retry_hosting_database` / `glitch_delete_hosting_database`
-- `glitch_change_hosting_plan` / `glitch_confirm_hosting_checkout` — manage direct or Microsoft Marketplace bandwidth plans and confirm direct paid Hosting checkouts
+- `glitch_change_hosting_plan` / `glitch_confirm_hosting_checkout` — manage direct, Microsoft Marketplace, or paid AWS Marketplace bandwidth plans and confirm direct paid Hosting checkouts
 
 Full contract: [docs/tool-reference.md](docs/tool-reference.md).
 

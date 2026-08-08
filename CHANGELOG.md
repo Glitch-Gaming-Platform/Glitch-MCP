@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9
+
+- Added secure game-hosting management tools and complete hosting deployment guidance.
+- Synchronized the runtime MCP version with the public package version.
+
 ## Unreleased
 
 - Added **game-service tools** that operate the game associated with the current title token (title_or_jwt public API), so the MCP/agent can run live game-backend actions, not just the agent/run surface:

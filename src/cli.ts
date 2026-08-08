@@ -20,7 +20,7 @@ Environment:
   GLITCH_API_BASE_URL         Hosted Glitch API MCP facade. Default: https://api.glitch.fun/api
   GLITCH_API_TOKEN            Title-scoped MCP token from Glitch.
   GLITCH_TITLE_ID             Optional default title id for title-scoped tools.
-  GLITCH_DASHBOARD_URL        Human dashboard base URL. Default: https://app.glitch.fun
+  GLITCH_DASHBOARD_URL        Human dashboard base URL. Default: https://www.glitch.fun
   GLITCH_MCP_TIMEOUT_MS       Hosted API timeout in milliseconds. Default: 30000
   GLITCH_MCP_UPLOAD_ALLOWED_ROOTS
                               Optional comma-separated roots for local file uploads

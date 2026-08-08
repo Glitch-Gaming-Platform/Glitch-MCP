@@ -108,6 +108,36 @@ describe("Glitch MCP tools", () => {
     expect(result.structuredContent?.data).toEqual({ id: "run_1", status: "queued" });
   });
 
+  it("returns the title-scoped billing page as a visible link when a run is payment blocked", async () => {
+    const billingUrl = "https://app.example.test/agents/titles/title_default/billing";
+    const dashboardUrl = "https://app.example.test/agents/titles/title_default";
+    const mock = createFetchMock(() => jsonResponse({
+      data: { id: "run_blocked", status: "blocked", error: "subscription_required" },
+      message: "A Glitch Agent subscription is required before this run can execute.",
+      billing_url: billingUrl,
+      dashboard_url: dashboardUrl
+    }, 402));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await safeTool(() => callTool("glitch_start_agent_run", client, { prompt: "Post the approved image to X" }));
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain(`Open agent billing: ${billingUrl}`);
+    expect(result.content).toContainEqual(expect.objectContaining({
+      type: "resource_link",
+      uri: billingUrl,
+      name: "Open agent billing"
+    }));
+    expect(result.structuredContent).toMatchObject({
+      status: "error",
+      code: "subscription_required",
+      details: { billingUrl, dashboardUrl },
+      links: [
+        { name: "Open agent billing", url: billingUrl },
+        { name: "Open Glitch dashboard", url: dashboardUrl }
+      ]
+    });
+  });
+
   it("retrieves the authoritative social capability catalog", async () => {
     const mock = createFetchMock(() => jsonResponse({ data: { operation_count: 108, platforms: {} } }));
     const client = new GlitchClient(config, mock.fetch);
@@ -350,6 +380,29 @@ describe("Glitch MCP tools", () => {
     expect(result.isError).toBeUndefined();
     expect(result.content[0]?.text).toContain("Microsoft Marketplace is processing");
     expect(mock.requests[0]?.body).toMatchObject({ expected_monthly_price_cents: 10900 });
+  });
+
+  it("returns the AWS Marketplace management link for a paid Hosting plan change", async () => {
+    const mock = createFetchMock(() => jsonResponse({
+      action: "aws_marketplace_plan_change_required",
+      billing_provider: "aws_marketplace",
+      requested_plan: "scale",
+      manage_url: "https://console.aws.amazon.com/marketplace/home#/subscriptions"
+    }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_change_hosting_plan", client, {
+      plan: "scale",
+      expected_monthly_price_cents: 21900,
+      billing_confirmation: "CHANGE HOSTING PLAN TO SCALE AT 21900 CENTS PER MONTH",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0]?.text).toContain("Finish the paid plan change in AWS Marketplace");
+    expect(result.structuredContent?.links).toContainEqual({
+      name: "Manage AWS Marketplace subscription",
+      url: "https://console.aws.amazon.com/marketplace/home#/subscriptions"
+    });
   });
 
   it("does not call billing when a Hosting plan confirmation phrase is wrong", async () => {

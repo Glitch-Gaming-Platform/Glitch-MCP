@@ -120,7 +120,7 @@ Inputs:
 {
   "title_id": "title_123",
   "subscription_status": "required",
-  "billing_url": "https://app.glitch.fun/..."
+  "billing_url": "https://www.glitch.fun/..."
 }
 ```
 
