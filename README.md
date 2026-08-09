@@ -1,10 +1,21 @@
-# Glitch Game Marketing MCP
+# Glitch MCP
 
-Glitch Game Marketing  MCP connects AI developer tools to the hosted Glitch Agent service for game marketing, launch planning, Steam/Twitch analysis, creator outreach, social content, PR, campaign review, and approval workflows.
+Glitch MCP connects AI developer tools to Glitch's public game-development prompt library, mechanics and core-loop generator, live genre taxonomy, analytics and hosting tools, and the hosted Glitch Agent service for marketing and launch workflows.
 
 Glitch MCP makes marketing your game feel like coding. Instead of leaving Codex, Cursor, or Claude Code to open dashboards, rebuild spreadsheets, or translate marketing requests into manual workflows, developers can ask for a concrete marketing task in plain language and get back structured reports, recommended actions, draft assets, upload links, approval steps, and deep links into the full Glitch browser experience. The goal is simple: keep developers focused on building the game while Glitch turns marketing work into reviewable, executable tasks.
 
 More Info Here: https://www.glitch.fun/publishers/agents
+
+## AI Game Development Workflows
+
+The MCP bundles the same 23 public prompts shown on the [AI Game Development Prompts page](https://www.glitch.fun/publishers/tools/ai-game-development-prompts). Prompt ids and deep links stay stable, and every prompt requires the developer or agent to create or update the game's documentation.
+
+- Use `glitch_list_game_development_prompts` to search by situation or category.
+- Use `glitch_get_game_development_prompt` to retrieve the complete Markdown.
+- Use `glitch_list_game_genres` for the live Glitch taxonomy; genre selection is multi-select.
+- Use `glitch_generate_game_design_blueprint` to turn an early idea into a descriptor, mechanics, core verbs, design pillars, moment-to-moment core loop, session loop, and playtest question. It prefers Glitch's OpenAI service and automatically uses the same deterministic fallback as the website when that route is unavailable. AI generation can take about a minute, so the tool emits MCP progress notifications and uses a longer request timeout.
+
+The MCP also registers every library item as a native prompt such as `glitch_game_dev_remote_game_automation`, plus `glitch_ai_game_development_prompt` for guided selection and `glitch_game_design_blueprint` for guided mechanics/core-loop generation.
 
 ## Example Game Marketing Workflows
 
@@ -74,6 +85,8 @@ This repository is the public adapter. It does not contain the private Glitch Ag
 
 ## What Developers Get
 
+- The complete public AI game-development prompt library as MCP tools, prompts, and resources.
+- A multi-genre mechanics and core-loop generator that prefers Glitch's OpenAI service and includes a documentation-ready local fallback.
 - MCP tools for starting and monitoring Glitch Agent runs.
 - Structured reports, pending actions, guidance requests, and artifact links.
 - Direct read-only access to the canonical Glitch analytics catalog and 70+
@@ -84,7 +97,7 @@ This repository is the public adapter. It does not contain the private Glitch Ag
 
 ## What Stays Private
 
-- Core planning prompts.
+- Private Glitch Agent planning prompts. The separate AI Game Development Prompt library is intentionally public.
 - Internal route resolution.
 - Database queries.
 - Billing enforcement.
@@ -97,7 +110,8 @@ This repository is the public adapter. It does not contain the private Glitch Ag
 ```text
 Codex / Cursor / Claude Code
   -> Glitch MCP adapter
-  -> https://api.glitch.fun/api/mcp/v1
+  -> https://api.glitch.fun/api
+  -> public prompt/design routes or /mcp/v1 title-scoped routes
   -> Glitch auth, subscription, title, scope, and rate-limit checks
   -> Glitch Agent SaaS backend
   -> Glitch hosted UI for reports, approvals, billing, and integrations
@@ -271,6 +285,10 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_list_titles`
 - `glitch_select_title`
 - `glitch_get_title_context`
+- `glitch_list_game_development_prompts` — search the public prompt library by category or situation
+- `glitch_get_game_development_prompt` — retrieve complete Markdown and a stable web/resource link
+- `glitch_list_game_genres` — fetch the live alphabetized genre taxonomy for multi-select inputs
+- `glitch_generate_game_design_blueprint` — generate a documentation-ready descriptor, mechanics, core verbs, core loop, session loop, and playtest question
 - `glitch_get_analytics_capabilities` — discover canonical report families,
   report keys, filters, source routes, requirements, and limits
 - `glitch_get_analytics_report` — run one canonical dashboard report directly

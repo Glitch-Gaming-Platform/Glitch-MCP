@@ -14,6 +14,8 @@ Glitch MCP is a public adapter for a paid hosted service. The security model dep
 - Private agent memory dumps.
 - Internal executor source.
 
+The bundled AI Game Development Prompts are intentionally public editorial guidance from the Glitch website. They must remain clearly separated from private Glitch Agent planner prompts, internal tool-routing instructions, model credentials, and executor logic.
+
 ## Supported Auth
 
 Preferred:

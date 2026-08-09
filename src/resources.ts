@@ -1,4 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  GAME_DEVELOPMENT_PROMPT_CATEGORIES,
+  GAME_DEVELOPMENT_PROMPTS,
+  GAME_DEVELOPMENT_PROMPT_PAGE_URL,
+  gameDevelopmentPromptResourceUri,
+  gameDevelopmentPromptUrl
+} from "./gameDevelopmentPrompts.js";
 import { GLITCH_MCP_VERSION } from "./version.js";
 
 export function registerGlitchResources(server: McpServer): void {
@@ -20,7 +27,8 @@ export function registerGlitchResources(server: McpServer): void {
               name: "Glitch MCP",
               version: GLITCH_MCP_VERSION,
               auth: ["oauth_remote_mcp", "title_mcp_access_key", "stdio_proxy_env_token"],
-              rich_experience: ["structured_results", "dashboard_deep_links", "mcp_apps_progressive_enhancement"],
+              rich_experience: ["structured_results", "dashboard_deep_links", "mcp_apps_progressive_enhancement", "long_running_generation_progress"],
+              game_development: ["public_prompt_library", "live_genre_taxonomy", "multi_genre_mechanics_and_core_loop_blueprints", "documentation_required"],
               analytics: ["canonical_dashboard_reports", "dynamic_report_catalog", "family_bundles", "partial_results", "agent_shared_contract"],
               social: ["dynamic_operation_catalog", "title_scoped_primitives", "agent_shared_registry", "platform_capability_matrix"],
               safety: [
@@ -32,7 +40,8 @@ export function registerGlitchResources(server: McpServer): void {
                 "confirm_true_for_approval_and_execution",
                 "granular_social_abilities",
                 "social_credentials_rejected_and_redacted",
-                "no_private_planner_or_prompt_export"
+                "no_private_planner_or_prompt_export",
+                "public_editorial_game_development_prompts_only"
               ]
             },
             null,
@@ -63,6 +72,7 @@ export function registerGlitchResources(server: McpServer): void {
             "- Tokens identify users, workspaces, titles, scopes, and subscription state.",
             "- Every hosted call re-checks subscription, credits, title permissions, and action risk.",
             "- Public clients receive reports, cards, links, and artifacts, not private prompts or database access.",
+            "- The AI Game Development Prompt library is intentionally public editorial guidance. It is separate from private Glitch Agent planner prompts and internal execution logic.",
             "- Analytics tools are read-only, title-scoped, bounded by report/date/page limits, and reuse the canonical dashboard calculations.",
             "- Social operations validate every resource against the selected title, reject credential-shaped input, and redact secrets recursively.",
             "- Mutating tools require explicit confirmation and remain guarded by Glitch server policies."
@@ -71,6 +81,69 @@ export function registerGlitchResources(server: McpServer): void {
       ]
     })
   );
+
+  server.registerResource(
+    "glitch-game-development-prompt-catalog",
+    "glitch://game-development/prompts",
+    {
+      title: "Glitch AI Game Development Prompt Catalog",
+      description: "Metadata and stable resource links for every public Glitch AI game-development prompt.",
+      mimeType: "application/json"
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify(
+            {
+              page_url: GAME_DEVELOPMENT_PROMPT_PAGE_URL,
+              categories: GAME_DEVELOPMENT_PROMPT_CATEGORIES,
+              prompts: GAME_DEVELOPMENT_PROMPTS.map((prompt) => ({
+                id: prompt.id,
+                category: prompt.category,
+                eyebrow: prompt.eyebrow,
+                title: prompt.title,
+                description: prompt.description,
+                best_for: prompt.bestFor,
+                resource_uri: gameDevelopmentPromptResourceUri(prompt.id),
+                url: gameDevelopmentPromptUrl(prompt.id)
+              }))
+            },
+            null,
+            2
+          )
+        }
+      ]
+    })
+  );
+
+  for (const prompt of GAME_DEVELOPMENT_PROMPTS) {
+    server.registerResource(
+      `glitch-game-development-prompt-${prompt.id}`,
+      gameDevelopmentPromptResourceUri(prompt.id),
+      {
+        title: `AI Game Development Prompt: ${prompt.title}`,
+        description: prompt.description,
+        mimeType: "text/markdown"
+      },
+      async (uri) => ({
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/markdown",
+            text: [
+              `<!-- Glitch prompt id: ${prompt.id} -->`,
+              `<!-- Category: ${prompt.category}; Best for: ${prompt.bestFor} -->`,
+              `<!-- Web: ${gameDevelopmentPromptUrl(prompt.id)} -->`,
+              "",
+              prompt.prompt
+            ].join("\n")
+          }
+        ]
+      })
+    );
+  }
 
   for (const widget of widgetResources()) {
     server.registerResource(

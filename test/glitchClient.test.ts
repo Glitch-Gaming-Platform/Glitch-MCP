@@ -70,6 +70,43 @@ describe("GlitchClient", () => {
     expect(mock.requests[0]?.init?.method).toBe("POST");
   });
 
+  it("uses the public genre and long-running game-design routes", async () => {
+    const mock = createFetchMock((request) => {
+      if (request.url.endsWith("/util/genres")) {
+        return jsonResponse({ data: [{ id: 1, name: "Action" }, { id: 2, name: "Puzzle" }] });
+      }
+      return jsonResponse({ data: { gameName: "Clockwork Garden", ai_used: true } });
+    });
+    const client = new GlitchClient(config, mock.fetch);
+
+    await expect(client.listGameGenres()).resolves.toEqual([
+      { id: 1, name: "Action" },
+      { id: 2, name: "Puzzle" }
+    ]);
+
+    await expect(client.generateGameDesignBlueprint({
+      genre: "action",
+      genres: ["Action", "Puzzle"],
+      playMode: "single-player",
+      sessionLength: "15–30 minute",
+      playerFantasy: "an inventor repairing a living clockwork garden",
+      setting: "a city-sized mechanical greenhouse",
+      primaryGoal: "restart the central seasonal engine",
+      mainPressure: "every repaired district destabilizes another one",
+      signatureTwist: "changing time in one room changes nearby ecosystems"
+    })).resolves.toEqual({ gameName: "Clockwork Garden", ai_used: true });
+
+    expect(mock.requests.map((request) => request.url)).toEqual([
+      "https://mcp.example.test/util/genres",
+      "https://mcp.example.test/tools/game-design/blueprint"
+    ]);
+    expect(mock.requests[1]?.init?.method).toBe("POST");
+    expect(mock.requests[1]?.body).toMatchObject({
+      genres: ["Action", "Puzzle"],
+      signatureTwist: "changing time in one room changes nearby ecosystems"
+    });
+  });
+
   it("polls runs until a settled status is returned", async () => {
     vi.useFakeTimers();
     const mock = createFetchMock((_request, index) =>

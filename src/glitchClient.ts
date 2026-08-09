@@ -129,6 +129,26 @@ export class GlitchClient {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/context`);
   }
 
+  /** Public genre taxonomy used by the game-design blueprint generator. */
+  async listGameGenres(): Promise<unknown[]> {
+    return this.http.get<unknown[]>("/util/genres");
+  }
+
+  /**
+   * Generate a public mechanics/core-loop blueprint.
+   *
+   * OpenAI-backed generation can take longer than ordinary API requests, so
+   * this call receives at least two minutes while preserving a larger caller
+   * configured timeout.
+   */
+  async generateGameDesignBlueprint(body: JsonObject): Promise<JsonObject> {
+    return this.http.postWithTimeout<JsonObject>(
+      "/tools/game-design/blueprint",
+      body,
+      Math.max(this.config.timeoutMs, 120_000)
+    );
+  }
+
   async analyticsCapabilities(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/analytics/capabilities`);
   }

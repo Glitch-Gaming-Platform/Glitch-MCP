@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { GlitchClient } from "../src/glitchClient.js";
 import { safeTool } from "../src/result.js";
-import { glitchToolDefinitions } from "../src/tools.js";
+import { glitchToolDefinitions, type ToolRuntimeContext } from "../src/tools.js";
 import { createFetchMock, jsonResponse } from "./helpers.js";
 
 const config = {
@@ -19,6 +19,10 @@ describe("Glitch MCP tools", () => {
       "glitch_list_titles",
       "glitch_select_title",
       "glitch_get_title_context",
+      "glitch_list_game_development_prompts",
+      "glitch_get_game_development_prompt",
+      "glitch_list_game_genres",
+      "glitch_generate_game_design_blueprint",
       "glitch_get_analytics_capabilities",
       "glitch_get_analytics_report",
       "glitch_get_session_reports",
@@ -93,6 +97,130 @@ describe("Glitch MCP tools", () => {
       "glitch_update_deployment_status",
       "glitch_deploy_game_build"
     ]);
+  });
+
+  it("lists and retrieves complete public game-development prompts", async () => {
+    const client = new GlitchClient(config, createFetchMock(() => jsonResponse({ data: {} })).fetch);
+    const listed = await callTool("glitch_list_game_development_prompts", client, {
+      category: "foundation",
+      search: "automation"
+    });
+
+    expect(listed.structuredContent?.data).toMatchObject({
+      count: 1,
+      prompts: [
+        expect.objectContaining({
+          id: "remote-game-automation",
+          resource_uri: "glitch://game-development/prompts/remote-game-automation"
+        })
+      ]
+    });
+
+    const retrieved = await callTool("glitch_get_game_development_prompt", client, {
+      prompt_id: "visual-quality-rubric"
+    });
+    expect(retrieved.content[0]).toMatchObject({
+      type: "text",
+      text: expect.stringContaining("Before rating my current game, ask me to upload representative artwork and gameplay")
+    });
+    expect(retrieved.content[0]).toMatchObject({
+      text: expect.stringContaining("## Required game documentation")
+    });
+    expect(retrieved.structuredContent?.data).toMatchObject({
+      id: "visual-quality-rubric",
+      url: "https://www.glitch.fun/publishers/tools/ai-game-development-prompts?prompt=visual-quality-rubric#prompt-picker"
+    });
+  });
+
+  it("fetches live genres and generates a multi-genre blueprint with progress", async () => {
+    const mock = createFetchMock((request) => {
+      if (request.url.endsWith("/util/genres")) {
+        return jsonResponse({ data: [{ id: 1, name: "Cozy" }, { id: 2, name: "Puzzle" }] });
+      }
+      return jsonResponse({
+        data: {
+          gameName: "Signal Garden",
+          descriptor: "A cooperative cozy puzzle game about rebuilding living radio gardens.",
+          coreFantasy: "Feel like signal gardeners reconnecting isolated communities.",
+          coreVerbs: ["Listen", "Tune", "Plant", "Connect"],
+          pillars: [{ title: "Readable signals", description: "Every signal has a clear need." }],
+          mechanics: [{ title: "Signal tuning", description: "Tuning changes nearby plants." }],
+          coreLoop: [{ title: "Listen", description: "Read the current signal." }],
+          sessionLoop: ["Prepare", "Tune", "Restore"],
+          coreTest: "Is tuning a changing signal fun?",
+          scopeRules: ["Test one garden first."],
+          documentationInstruction: "Save or update docs/game-design/mechanics-and-core-loop.md.",
+          ai_used: true
+        }
+      });
+    });
+    const client = new GlitchClient(config, mock.fetch);
+
+    const genres = await callTool("glitch_list_game_genres", client, {});
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/util/genres");
+    expect(genres.structuredContent?.data).toEqual({ genres: [{ id: 1, name: "Cozy" }, { id: 2, name: "Puzzle" }] });
+
+    const progress = vi.fn(async () => {});
+    const log = vi.fn(async () => {});
+    const context: ToolRuntimeContext = {
+      streamingEnabled: true,
+      canElicit: false,
+      progress,
+      log,
+      async elicit() {
+        return { action: "unsupported" };
+      }
+    };
+    const result = await callTool("glitch_generate_game_design_blueprint", client, {
+      game_name: "Signal Garden",
+      genres: ["Cozy", "Puzzle"],
+      play_mode: "cooperative",
+      session_length: "15–30 minute",
+      player_fantasy: "two signal gardeners reconnecting isolated communities",
+      setting: "floating islands where radio signals grow as plants",
+      primary_goal: "restore the shared broadcast before the seasonal storm",
+      main_pressure: "signals decay while each island asks for different help",
+      signature_twist: "tuning one signal changes every nearby plant",
+      progression: "unlock new instruments and signal seeds",
+      preferred_activities: "listen, tune, plant, connect"
+    }, context);
+
+    expect(mock.requests[1]?.url).toBe("https://mcp.example.test/tools/game-design/blueprint");
+    expect(mock.requests[1]?.body).toMatchObject({
+      gameName: "Signal Garden",
+      genre: "cozy",
+      genres: ["Cozy", "Puzzle"],
+      playMode: "cooperative",
+      sessionLength: "15–30 minute"
+    });
+    expect(progress).toHaveBeenNthCalledWith(1, 1, 2, "Generating mechanics and core loop…");
+    expect(progress).toHaveBeenNthCalledWith(2, 2, 2, "Game-design blueprint ready");
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(result.content[0]).toMatchObject({ text: expect.stringContaining("## Documentation update") });
+  });
+
+  it("generates the documentation-ready local blueprint when the hosted AI route is unavailable", async () => {
+    const mock = createFetchMock(() => jsonResponse({ message: "Not found" }, 404));
+    const client = new GlitchClient(config, mock.fetch);
+
+    const result = await callTool("glitch_generate_game_design_blueprint", client, {
+      genres: ["Action", "Puzzle"],
+      play_mode: "single-player",
+      session_length: "5–10 minute",
+      player_fantasy: "an inventor repairing a living clockwork garden",
+      setting: "a city-sized mechanical greenhouse",
+      primary_goal: "restart the central seasonal engine",
+      main_pressure: "every repaired district destabilizes another one",
+      signature_twist: "changing time in one room changes nearby ecosystems"
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent?.summary).toContain("deterministic fallback");
+    expect(result.structuredContent?.data).toMatchObject({
+      ai_used: false,
+      documentationInstruction: expect.stringContaining("docs/game-design/mechanics-and-core-loop.md")
+    });
+    expect(result.content[0]).toMatchObject({ text: expect.stringContaining("## Moment-to-moment core loop") });
   });
 
   it("starts a run using the default title and maps prompt to hosted API initial_message", async () => {
@@ -730,11 +858,11 @@ describe("Glitch MCP tools", () => {
   });
 });
 
-async function callTool(name: string, client: GlitchClient, input: Record<string, unknown>) {
+async function callTool(name: string, client: GlitchClient, input: Record<string, unknown>, ctx?: ToolRuntimeContext) {
   const definition = glitchToolDefinitions.find((tool) => tool.name === name);
   if (!definition) {
     throw new Error(`Missing tool ${name}`);
   }
 
-  return definition.handler(client, input);
+  return definition.handler(client, input, ctx);
 }

@@ -60,6 +60,77 @@ Input:
 }
 ```
 
+### AI game-development prompts and design tools
+
+These public tools do not require `title_id`. They expose the same stable prompt
+ids and wording as the Glitch AI Game Development Prompts website. The bundled
+prompt catalog is public editorial guidance and is separate from private Glitch
+Agent planner prompts.
+
+#### glitch_list_game_development_prompts
+
+Searches prompt metadata. `category` may be `all`, `foundation`, `visuals`,
+`media`, `feedback`, or `launch`.
+
+```json
+{
+  "category": "foundation",
+  "search": "automation"
+}
+```
+
+Each result includes a stable `id`, an MCP `resource_uri`, and a Glitch web URL.
+
+#### glitch_get_game_development_prompt
+
+Returns the complete Markdown for one prompt. Every bundled prompt ends with the
+required game-documentation section.
+
+```json
+{
+  "prompt_id": "remote-game-automation"
+}
+```
+
+#### glitch_list_game_genres
+
+Fetches the live, alphabetized Glitch genre taxonomy from `GET /util/genres`.
+Games may select one to eight exact genre names for blueprint generation.
+
+```json
+{}
+```
+
+#### glitch_generate_game_design_blueprint
+
+Generates a game descriptor, core fantasy, core verbs, design pillars,
+mechanics, moment-to-moment core loop, session loop, core playtest question,
+scope rules, and a `documentationInstruction`. The OpenAI-backed request may
+take about a minute; the MCP emits progress/log notifications and allows at
+least two minutes for the hosted response. If the hosted route is unavailable,
+the tool returns the same deterministic documentation-ready fallback used by
+the public website instead of failing the workflow.
+
+```json
+{
+  "game_name": "Signal Garden",
+  "genres": ["Cozy", "Puzzle"],
+  "play_mode": "cooperative",
+  "session_length": "15–30 minute",
+  "player_fantasy": "two signal gardeners reconnecting isolated communities",
+  "setting": "floating islands where radio signals grow as plants",
+  "primary_goal": "restore the shared broadcast before the seasonal storm",
+  "main_pressure": "signals decay while each island asks for different help",
+  "signature_twist": "tuning one signal changes every nearby plant",
+  "progression": "unlock new instruments and signal seeds",
+  "preferred_activities": "listen, tune, plant, connect"
+}
+```
+
+Do not submit a duplicate generation call while the first request is still
+running. When repository access is available, save or update the generated
+blueprint at the path specified by `documentationInstruction`.
+
 ### glitch_get_billing_status
 
 Fetches subscription, trial, credits, plan, and entitlement status.

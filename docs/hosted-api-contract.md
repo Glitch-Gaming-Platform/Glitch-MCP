@@ -50,6 +50,8 @@ Preferred error envelope:
 
 ```text
 GET  /mcp/v1/auth/status
+GET  /util/genres
+POST /tools/game-design/blueprint
 GET  /mcp/v1/titles
 GET  /mcp/v1/titles/{title_id}/context
 GET  /mcp/v1/titles/{title_id}/billing
@@ -89,6 +91,52 @@ GET  /mcp/v1/titles/{title_id}/tokens
 POST /mcp/v1/titles/{title_id}/tokens
 DELETE /mcp/v1/titles/{title_id}/tokens/{token_id}
 ```
+
+## Public Game-Development Routes
+
+The prompt catalog itself is bundled in the public MCP package so prompt
+discovery and retrieval do not require a backend call. The generator uses two
+existing public Glitch API routes and does not require `title_id`:
+
+```text
+GET  /util/genres
+POST /tools/game-design/blueprint
+```
+
+`GET /util/genres` returns the complete alphabetized platform genre collection.
+The MCP preserves each genre object and presents its `name` for multi-select use.
+
+`POST /tools/game-design/blueprint` accepts:
+
+```json
+{
+  "gameName": "Signal Garden",
+  "genre": "cozy",
+  "genres": ["Cozy", "Puzzle"],
+  "playMode": "cooperative",
+  "sessionLength": "15–30 minute",
+  "playerFantasy": "two signal gardeners reconnecting isolated communities",
+  "setting": "floating islands where radio signals grow as plants",
+  "primaryGoal": "restore the shared broadcast before the seasonal storm",
+  "mainPressure": "signals decay while each island asks for different help",
+  "signatureTwist": "tuning one signal changes every nearby plant",
+  "progression": "unlock new instruments and signal seeds",
+  "preferredActivities": "listen, tune, plant, connect"
+}
+```
+
+`genres` accepts one to eight exact genre names. `genre` is the deterministic
+fallback profile derived from the first selected genre for compatibility with
+older clients. The response includes `descriptor`, `coreFantasy`, `coreVerbs`,
+`pillars`, `mechanics`, `coreLoop`, `sessionLoop`, `coreTest`, `scopeRules`,
+`documentationInstruction`, and `ai_used`.
+
+OpenAI-backed generation can take about a minute. The adapter uses a minimum
+two-minute HTTP timeout for this route and emits MCP progress/log notifications
+so compatible clients can keep a visible running state. Until the route is
+available in a target environment, or whenever it fails, the public MCP package
+uses its bundled deterministic generator and returns `ai_used: false` with the
+same required documentation destination.
 
 The adapter also uses existing title-scoped Hosting routes for non-billing
 operations. Those routes accept a matching MCP title token and enforce

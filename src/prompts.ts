@@ -1,5 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
+import {
+  GAME_DEVELOPMENT_PROMPTS,
+  gameDevelopmentPromptCommandName
+} from "./gameDevelopmentPrompts.js";
 
 const optionalTitleArgs = {
   title_id: z.string().optional().describe("Optional Glitch title id if one has not already been selected.")
@@ -286,7 +290,100 @@ export function registerGlitchPrompts(server: McpServer): void {
     })
   );
 
+  registerGameDevelopmentWorkflowPrompts(server);
   registerGlitchToolCommandPrompts(server);
+}
+
+function registerGameDevelopmentWorkflowPrompts(server: McpServer): void {
+  server.registerPrompt(
+    "glitch_ai_game_development_prompt",
+    {
+      title: "Glitch AI Game Development Prompt",
+      description: "Discover and apply one public Glitch prompt for building, testing, optimizing, or releasing a game.",
+      argsSchema: {
+        prompt_id: z.string().optional().describe("Stable prompt id. Omit it when you want the assistant to recommend the closest situation."),
+        context: z.string().optional().describe("Optional engine, platform, game, repository, constraints, and desired outcome.")
+      }
+    },
+    async ({ prompt_id, context }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: [
+              "Use Glitch's public AI Game Development Prompt library for this task.",
+              prompt_id
+                ? `Retrieve prompt \`${prompt_id}\` with glitch_get_game_development_prompt.`
+                : "Call glitch_list_game_development_prompts, recommend the closest situation, and retrieve the selected prompt with glitch_get_game_development_prompt.",
+              context ? `Project context: ${context}` : "Inspect the available project context and ask only for information that materially changes the result.",
+              "Use the returned Markdown as the task instructions, replace bracketed placeholders with known project facts, and complete the work instead of merely repeating the prompt.",
+              "Every prompt requires creating or updating the appropriate game documentation and listing those documentation files in the final report."
+            ].join("\n")
+          }
+        }
+      ]
+    })
+  );
+
+  server.registerPrompt(
+    "glitch_game_design_blueprint",
+    {
+      title: "Glitch Game Mechanics and Core Loop",
+      description: "Turn an early game idea into a descriptor, mechanics, core verbs, core loop, session loop, test question, and documentation-ready blueprint.",
+      argsSchema: {
+        idea: z.string().optional().describe("Optional free-form game idea, player fantasy, setting, goal, pressure, twist, and preferred activities.")
+      }
+    },
+    async ({ idea }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: [
+              "Use Glitch MCP to generate a mechanics and core-loop blueprint for this game.",
+              idea ? `Game idea: ${idea}` : "Ask me for the game idea and the player fantasy, setting, primary goal, main pressure, and signature twist.",
+              "Call glitch_list_game_genres and let me choose one or more exact Glitch genres; games may combine up to eight genres.",
+              "Gather the remaining required play-mode and session-length fields, then call glitch_generate_game_design_blueprint.",
+              "The generation can take about a minute. Preserve progress updates and do not retry while the first request is still running.",
+              "Return the complete blueprint and save or update it at the documentation destination specified by the result when you have access to the game repository."
+            ].join("\n")
+          }
+        }
+      ]
+    })
+  );
+
+  for (const prompt of GAME_DEVELOPMENT_PROMPTS) {
+    server.registerPrompt(
+      gameDevelopmentPromptCommandName(prompt.id),
+      {
+        title: `Game Dev: ${prompt.title}`,
+        description: prompt.description,
+        argsSchema: {
+          context: z.string().optional().describe("Optional project-specific details that should replace or supplement the prompt's placeholders.")
+        }
+      },
+      async ({ context }) => ({
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: [
+                `Retrieve the public Glitch game-development prompt \`${prompt.id}\` with glitch_get_game_development_prompt and use it to complete this task.`,
+                `Situation: ${prompt.title}.`,
+                `Best for: ${prompt.bestFor}`,
+                context ? `Project context: ${context}` : "Use the repository and conversation for project context, and ask only for materially missing decisions.",
+                "Follow the complete returned Markdown, including verification and the required game-documentation update. Do not stop after displaying the prompt."
+              ].join("\n")
+            }
+          }
+        ]
+      })
+    );
+  }
 }
 
 interface ToolCommandPrompt {
@@ -320,6 +417,30 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
     title: "Glitch Get Title Context",
     description: "Fetch safe, subscription-gated context for a game title.",
     guidance: ["Use the selected title unless a title id is provided.", "Summarize the title context for practical agent planning."]
+  },
+  {
+    name: "glitch_list_game_development_prompts",
+    title: "Glitch List AI Game Development Prompts",
+    description: "Discover public prompts for game architecture, visuals, media, feedback, analytics, mobile, testing, and release work.",
+    guidance: ["Use category or search only when the user supplied a focus.", "Show stable prompt ids and recommend the closest situation.", "Use glitch_get_game_development_prompt before applying a selected prompt."]
+  },
+  {
+    name: "glitch_get_game_development_prompt",
+    title: "Glitch Get AI Game Development Prompt",
+    description: "Retrieve one complete public game-development prompt by stable id.",
+    guidance: ["Treat the first slug-like value as prompt_id.", "Return or apply the complete Markdown, including its required documentation section.", "Do not describe these public editorial prompts as private Glitch Agent planner prompts."]
+  },
+  {
+    name: "glitch_list_game_genres",
+    title: "Glitch List Game Genres",
+    description: "Fetch the live Glitch genre taxonomy used by game-design tools.",
+    guidance: ["Present genres as a multi-select choice because a game may have more than one genre.", "Pass the exact selected names to glitch_generate_game_design_blueprint."]
+  },
+  {
+    name: "glitch_generate_game_design_blueprint",
+    title: "Glitch Generate Game Mechanics and Core Loop",
+    description: "Generate a documentation-ready mechanics and core-loop blueprint from a game idea and multiple genres.",
+    guidance: ["Call glitch_list_game_genres first when exact genre names are unknown.", "Collect every required idea field before calling the tool.", "The call can take about a minute; do not duplicate it while it is running.", "Save or update the blueprint in the game documentation using documentationInstruction."]
   },
   {
     name: "glitch_get_analytics_capabilities",

@@ -6,6 +6,8 @@ export interface RequestOptions {
   readonly method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   readonly query?: Record<string, unknown> | undefined;
   readonly body?: unknown;
+  /** Optional per-request timeout for long-running public generation tools. */
+  readonly timeoutMs?: number;
 }
 
 export interface GlitchEnvelope<T> {
@@ -40,6 +42,10 @@ export class GlitchHttpClient {
       ...(body === undefined ? {} : { body }),
       ...(query ? { query } : {})
     });
+  }
+
+  async postWithTimeout<T>(path: string, body: unknown, timeoutMs: number): Promise<T> {
+    return this.request<T>(path, { method: "POST", body, timeoutMs });
   }
 
   async put<T>(path: string, body?: unknown, query?: Record<string, unknown>): Promise<T> {
@@ -147,7 +153,7 @@ export class GlitchHttpClient {
 
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? this.config.timeoutMs);
     const isMultipart = typeof FormData !== "undefined" && options.body instanceof FormData;
 
     try {

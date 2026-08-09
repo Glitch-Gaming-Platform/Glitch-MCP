@@ -6,6 +6,15 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as z from "zod/v4";
 import { GlitchMcpError, confirmationRequiredError } from "./errors.js";
 import { GlitchClient, JsonObject } from "./glitchClient.js";
+import { buildGameDesignBlueprint } from "./gameDesignBlueprint.js";
+import {
+  GAME_DEVELOPMENT_PROMPT_CATEGORIES,
+  filterGameDevelopmentPrompts,
+  gameDesignGenreProfile,
+  gameDevelopmentPromptResourceUri,
+  gameDevelopmentPromptUrl,
+  getGameDevelopmentPrompt
+} from "./gameDevelopmentPrompts.js";
 import {
   DEFAULT_SOCIAL_ASSET_FOLDERS,
   assertLocalPathAllowed,
@@ -161,6 +170,33 @@ const selectTitleInput = z.object({
 
 const titleContextInput = z.object({
   ...optionalTitleShape
+});
+
+const gameDevelopmentPromptCategorySchema = z.enum(["all", "foundation", "visuals", "media", "feedback", "launch"]);
+
+const listGameDevelopmentPromptsInput = z.object({
+  category: gameDevelopmentPromptCategorySchema.default("all").describe("Optional prompt-library category filter."),
+  search: z.string().trim().max(200).optional().describe("Optional search across prompt ids, titles, descriptions, and use cases.")
+});
+
+const getGameDevelopmentPromptInput = z.object({
+  prompt_id: z.string().trim().min(1).max(120).regex(/^[a-z0-9-]+$/).describe("Stable prompt id returned by glitch_list_game_development_prompts.")
+});
+
+const listGameGenresInput = z.object({});
+
+const generateGameDesignBlueprintInput = z.object({
+  game_name: z.string().trim().max(120).optional(),
+  genres: z.array(z.string().trim().min(1).max(80)).min(1).max(8).describe("One to eight exact genre names from glitch_list_game_genres."),
+  play_mode: z.enum(["single-player", "cooperative", "competitive multiplayer", "asynchronous multiplayer"]),
+  session_length: z.enum(["5–10 minute", "15–30 minute", "30–60 minute", "open-ended"]),
+  player_fantasy: z.string().trim().min(10).max(700).describe("Who the player feels like and what fantasy the game delivers."),
+  setting: z.string().trim().min(5).max(700),
+  primary_goal: z.string().trim().min(5).max(700),
+  main_pressure: z.string().trim().min(5).max(700).describe("The force, scarcity, opponent, or clock that makes decisions difficult."),
+  signature_twist: z.string().trim().min(5).max(700).describe("The rule or interaction that makes the game distinct."),
+  progression: z.string().trim().max(700).optional(),
+  preferred_activities: z.string().trim().max(700).optional().describe("Optional verbs or activities the player should repeatedly perform.")
 });
 
 const analyticsFilterScalar = z.union([z.string().max(500), z.number(), z.boolean(), z.null()]);
@@ -699,6 +735,137 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       links: [{ name: "Open title workspace", url: client.dashboardUrl("title", { titleId }) }]
     });
   }),
+
+  defineTool(
+    "glitch_list_game_development_prompts",
+    "List AI Game Development Prompts",
+    "Discover Glitch's public AI game-development prompt library by category or search term. Every prompt requires the game documentation to be created or updated.",
+    listGameDevelopmentPromptsInput,
+    true,
+    async (_client, input) => {
+      const prompts = filterGameDevelopmentPrompts({
+        category: input.category,
+        ...(input.search ? { search: input.search } : {})
+      }).map((prompt) => ({
+        id: prompt.id,
+        category: prompt.category,
+        eyebrow: prompt.eyebrow,
+        title: prompt.title,
+        description: prompt.description,
+        best_for: prompt.bestFor,
+        resource_uri: gameDevelopmentPromptResourceUri(prompt.id),
+        url: gameDevelopmentPromptUrl(prompt.id)
+      }));
+
+      return toolSuccess({
+        title: "AI game development prompts",
+        summary: `Found ${prompts.length} public prompt${prompts.length === 1 ? "" : "s"}. Use glitch_get_game_development_prompt for the complete Markdown.`,
+        data: {
+          count: prompts.length,
+          categories: GAME_DEVELOPMENT_PROMPT_CATEGORIES,
+          prompts
+        },
+        bodyMarkdown: prompts.length
+          ? prompts.map((prompt) => `- **${prompt.title}** (\`${prompt.id}\`) — ${prompt.description}`).join("\n")
+          : "No prompts matched the supplied filters."
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_get_game_development_prompt",
+    "Get AI Game Development Prompt",
+    "Return the complete public Markdown for one AI game-development prompt, including its required documentation instructions.",
+    getGameDevelopmentPromptInput,
+    true,
+    async (_client, input) => {
+      const prompt = getGameDevelopmentPrompt(input.prompt_id);
+      if (!prompt) {
+        throw new GlitchMcpError("not_found", `Unknown game-development prompt id: ${input.prompt_id}`);
+      }
+
+      const url = gameDevelopmentPromptUrl(prompt.id);
+      return toolSuccess({
+        title: prompt.title,
+        summary: `${prompt.description} Best for: ${prompt.bestFor}`,
+        data: {
+          ...prompt,
+          resource_uri: gameDevelopmentPromptResourceUri(prompt.id),
+          url
+        },
+        bodyMarkdown: prompt.prompt,
+        links: [{ name: "Open this prompt on Glitch", url }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_game_genres",
+    "List Game Genres",
+    "Fetch Glitch's live, alphabetized game genre taxonomy for multi-genre game-design inputs.",
+    listGameGenresInput,
+    true,
+    async (client) => {
+      const genres = await client.listGameGenres();
+      const genreNames = genres.map(genreDisplayName).filter((name): name is string => Boolean(name));
+      return toolSuccess({
+        title: "Glitch game genres",
+        summary: `Fetched ${genres.length} genres from the live Glitch API. A game-design blueprint may select up to eight.`,
+        data: { genres },
+        ...(genreNames.length ? { bodyMarkdown: genreNames.map((name) => `- ${name}`).join("\n") } : {})
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_generate_game_design_blueprint",
+    "Generate Game Mechanics and Core Loop",
+    "Generate a reusable descriptor, mechanics, core verbs, design pillars, moment-to-moment core loop, session loop, and documentation instruction for any game. This OpenAI-backed request may take about a minute.",
+    generateGameDesignBlueprintInput,
+    true,
+    async (client, input, ctx) => {
+      await ctx?.log("info", "Generating the game mechanics and core-loop blueprint. This may take about a minute…");
+      await ctx?.progress(1, 2, "Generating mechanics and core loop…");
+
+      const request = omitUndefined({
+        gameName: input.game_name,
+        genre: gameDesignGenreProfile(input.genres[0]!),
+        genres: input.genres,
+        playMode: input.play_mode,
+        sessionLength: input.session_length,
+        playerFantasy: input.player_fantasy,
+        setting: input.setting,
+        primaryGoal: input.primary_goal,
+        mainPressure: input.main_pressure,
+        signatureTwist: input.signature_twist,
+        progression: input.progression,
+        preferredActivities: input.preferred_activities
+      });
+
+      let data: JsonObject;
+      let usedLocalFallback = false;
+      try {
+        data = await client.generateGameDesignBlueprint(request);
+      } catch {
+        usedLocalFallback = true;
+        await ctx?.log(
+          "warning",
+          "The hosted OpenAI game-design route was unavailable; using the deterministic documentation-ready fallback."
+        );
+        data = buildGameDesignBlueprint(request) as JsonObject;
+      }
+
+      await ctx?.progress(2, 2, usedLocalFallback ? "Fallback game-design blueprint ready" : "Game-design blueprint ready");
+      await ctx?.log("info", "The blueprint is ready and includes the required game-documentation destination.");
+
+      return toolSuccess({
+        title: "Game mechanics and core-loop blueprint",
+        summary: `${usedLocalFallback ? "Generated the deterministic fallback because the hosted OpenAI route was unavailable." : "Generated an AI-assisted design blueprint."} Save or update it in the game's documentation as instructed by the result.`,
+        data,
+        bodyMarkdown: presentGameDesignBlueprint(data)
+      });
+    }
+  ),
 
   defineTool("glitch_get_analytics_capabilities", "Get Analytics Capabilities", "List every canonical read-only Glitch analytics family, report key, filter, source route, default, requirement, and safety limit.", analyticsCapabilitiesInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
@@ -2873,6 +3040,97 @@ function isValidBase64(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function genreDisplayName(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value.trim() || undefined;
+  }
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const genre = value as Record<string, unknown>;
+  const name = genre.name ?? genre.description ?? genre.label;
+  return typeof name === "string" && name.trim() ? name.trim() : undefined;
+}
+
+function presentGameDesignBlueprint(data: JsonObject): string {
+  const lines: string[] = [];
+  const gameName = textField(data, "gameName") || "Game";
+  lines.push(`# ${gameName} — Mechanics and Core Loop Blueprint`);
+
+  appendTextSection(lines, "Game descriptor", textField(data, "descriptor") || textField(data, "shortPitch"));
+  appendTextSection(lines, "Core fantasy", textField(data, "coreFantasy"));
+
+  const coreVerbs = stringArrayField(data, "coreVerbs");
+  if (coreVerbs.length) {
+    lines.push("", "## Core verbs", "", coreVerbs.join(" → "));
+  }
+
+  appendBlueprintItems(lines, "Design pillars", data.pillars, false);
+  appendBlueprintItems(lines, "Mechanics", data.mechanics, false);
+  appendBlueprintItems(lines, "Moment-to-moment core loop", data.coreLoop, true);
+
+  const sessionLoop = stringArrayField(data, "sessionLoop");
+  if (sessionLoop.length) {
+    lines.push("", "## Session loop", "", ...sessionLoop.map((item, index) => `${index + 1}. ${item}`));
+  }
+
+  const coreTest = textField(data, "coreTest");
+  if (coreTest) {
+    lines.push("", "## Core playtest question", "", `> ${coreTest}`);
+  }
+
+  const scopeRules = stringArrayField(data, "scopeRules");
+  if (scopeRules.length) {
+    lines.push("", "## Scope rules", "", ...scopeRules.map((item) => `- ${item}`));
+  }
+
+  appendTextSection(lines, "Documentation update", textField(data, "documentationInstruction"));
+  return lines.join("\n");
+}
+
+function appendTextSection(lines: string[], title: string, value: string | undefined): void {
+  if (value) {
+    lines.push("", `## ${title}`, "", value);
+  }
+}
+
+function appendBlueprintItems(lines: string[], title: string, value: unknown, numbered: boolean): void {
+  if (!Array.isArray(value)) {
+    return;
+  }
+
+  const items = value.flatMap((item, index) => {
+    if (typeof item !== "object" || item === null) {
+      return [];
+    }
+    const record = item as Record<string, unknown>;
+    const itemTitle = typeof record.title === "string" ? record.title.trim() : "";
+    const description = typeof record.description === "string" ? record.description.trim() : "";
+    if (!itemTitle && !description) {
+      return [];
+    }
+    const prefix = numbered ? `${index + 1}.` : "-";
+    return [`${prefix} **${itemTitle || `Step ${index + 1}`}:** ${description}`];
+  });
+
+  if (items.length) {
+    lines.push("", `## ${title}`, "", ...items);
+  }
+}
+
+function textField(data: JsonObject, key: string): string | undefined {
+  const value = data[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function stringArrayField(data: JsonObject, key: string): string[] {
+  const value = data[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim())
+    : [];
 }
 
 function omitUndefined(input: JsonObject): JsonObject {

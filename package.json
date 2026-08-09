@@ -1,7 +1,7 @@
 {
   "name": "glitch-mcp",
-  "version": "0.2.2",
-  "description": "Public MCP adapter for the hosted Glitch Agent service.",
+  "version": "0.3.0",
+  "description": "Public MCP adapter for Glitch game development prompts, design tools, analytics, hosting, and the hosted Glitch Agent service.",
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -34,7 +34,9 @@
     "codex",
     "cursor",
     "claude-code",
-    "game-marketing"
+    "game-marketing",
+    "game-development",
+    "ai-prompts"
   ],
   "license": "MIT",
   "engines": {

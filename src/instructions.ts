@@ -5,8 +5,10 @@
  * beginning of the instructions while deciding whether this server is relevant.
  */
 export const GLITCH_SERVER_INSTRUCTIONS = [
-  "Glitch MCP connects AI coding clients to the paid hosted Glitch Agent service for game marketing, launch, social, creator, PR, Steam, Twitch, and campaign workflows.",
+  "Glitch MCP connects AI coding clients to the hosted Glitch platform for game development prompts, mechanics and core-loop generation, game marketing, launch, social, creator, PR, Steam, Twitch, and campaign workflows.",
   "Always preserve the SaaS boundary: use Glitch tools instead of asking for private prompts, database access, raw planner traces, or internal executor logic.",
+  "The AI Game Development Prompt library is intentionally public editorial content, not the private Glitch Agent planner. Use glitch_list_game_development_prompts and glitch_get_game_development_prompt, and preserve each prompt's required game-documentation instructions.",
+  "For a new game concept, call glitch_list_game_genres and treat genres as a multi-select. Then use glitch_generate_game_design_blueprint to produce mechanics and a core loop. The OpenAI-backed request can take about a minute, so keep progress visible and do not submit a duplicate while it is running.",
   "A game title is required for title-scoped tools. If title_id is unknown, call glitch_list_titles and then glitch_select_title.",
   "Subscription, credits, title permissions, account connections, and approval guardrails are enforced by Glitch servers on every call.",
   "Never execute public, paid, creator-facing, or mutating work unless the user explicitly asks and the tool requires confirm=true.",

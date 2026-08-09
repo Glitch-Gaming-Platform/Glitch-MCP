@@ -30,13 +30,27 @@ describe("createGlitchMcpServer", () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name)).toContain("glitch_start_agent_run");
     expect(tools.tools.map((tool) => tool.name)).toContain("glitch_execute_action");
+    expect(tools.tools.map((tool) => tool.name)).toContain("glitch_get_game_development_prompt");
+    expect(tools.tools.map((tool) => tool.name)).toContain("glitch_generate_game_design_blueprint");
 
     const prompts = await client.listPrompts();
     expect(prompts.prompts.map((prompt) => prompt.name)).toContain("glitch_launch_audit");
+    expect(prompts.prompts.map((prompt) => prompt.name)).toContain("glitch_ai_game_development_prompt");
+    expect(prompts.prompts.map((prompt) => prompt.name)).toContain("glitch_game_design_blueprint");
+    expect(prompts.prompts.map((prompt) => prompt.name)).toContain("glitch_game_dev_remote_game_automation");
 
     const resource = await client.readResource({ uri: "glitch://mcp/capabilities" });
     expect(resource.contents[0]?.mimeType).toBe("application/json");
     expect(resource.contents[0]).toHaveProperty("text");
+
+    const promptCatalog = await client.readResource({ uri: "glitch://game-development/prompts" });
+    expect(promptCatalog.contents[0]?.mimeType).toBe("application/json");
+    expect("text" in promptCatalog.contents[0]!).toBe(true);
+    expect(String("text" in promptCatalog.contents[0]! ? promptCatalog.contents[0]!.text : "")).toContain("remote-game-automation");
+
+    const promptResource = await client.readResource({ uri: "glitch://game-development/prompts/visual-quality-rubric" });
+    expect(promptResource.contents[0]?.mimeType).toBe("text/markdown");
+    expect(String("text" in promptResource.contents[0]! ? promptResource.contents[0]!.text : "")).toContain("## Required game documentation");
 
     const widget = await client.readResource({ uri: "ui://glitch/run-status.html" });
     expect(widget.contents[0]?.mimeType).toBe("text/html");
