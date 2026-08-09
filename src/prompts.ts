@@ -10,7 +10,7 @@ export function registerGlitchPrompts(server: McpServer): void {
     "glitch_manage_hosting",
     {
       title: "Glitch Manage Hosting",
-      description: "Manage a title's hosted website, domains, managed databases, releases, analytics, and plan with explicit payment safeguards.",
+      description: "Manage a title's hosted website, multi-service game servers, domains, managed databases, releases, analytics, and plan with explicit payment safeguards.",
       argsSchema: {
         ...optionalTitleArgs,
         request: z.string().optional().describe("Optional Hosting task, such as deploy, connect a domain, add a database, or change the bandwidth plan.")
@@ -28,6 +28,7 @@ export function registerGlitchPrompts(server: McpServer): void {
               request ? `Requested Hosting task: ${request}` : "Start by showing the current Hosting state and ask what I want to change.",
               "Use plain language. Keep Hosting and Store distribution separate.",
               "For deployment, list existing game deployments first and reuse a compatible ready build. Upload a new local ZIP only when no compatible build exists.",
+              "If the repository has a website, API, authoritative world, workers, or scheduled jobs, inspect its Dockerfile and production scripts, then estimate a Hosting service stack first. Preserve the real per-service command and arguments, route WebSocket or asset prefixes with public_paths, declare persistent file mounts, use separate readiness and liveness endpoints, use singleton capacity for the one authoritative world, and keep private services non-public.",
               "Show the exact effect and current price before any paid, public, destructive, legal, or prorated operation. Set confirm=true only after my explicit approval.",
               "Never request payment credentials or put passwords, tokens, private keys, or connection strings in configuration. Use managed bindings and generate safe AI setup instructions when code changes are needed. If an owner needs database credentials for local server development, direct them to View credentials in the signed-in Hosting dashboard; never ask them to paste the value into the MCP conversation."
             ].join("\n")
@@ -516,6 +517,12 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
     title: "Glitch Deploy Hosting Build",
     description: "Deploy a ready game build as an independent hosted website.",
     guidance: ["Call glitch_list_deployments first and reuse a compatible ready build. Use glitch_deploy_game_build only when no compatible build exists and the build is local.", "Use the only existing hosting site automatically; ask for site_id when multiple sites exist, or site_name and site_slug when none exist.", "Set confirm=true only after explicit approval and publish=false when the user did not ask to go live."]
+  },
+  {
+    name: "glitch_apply_hosting_services",
+    title: "Glitch Deploy Hosting Services",
+    description: "Deploy a metered multi-service game Hosting release.",
+    guidance: ["List current services and estimate the proposed stack first.", "Reuse ready container builds; one image may run several services with different commands.", "Show the monthly floor and usage rates, then use the exact confirmation only after approval.", "Never send secret values through MCP; name the secrets the developer must add in Hosting."]
   },
   {
     name: "glitch_open_dashboard",

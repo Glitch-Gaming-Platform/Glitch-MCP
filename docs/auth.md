@@ -93,6 +93,8 @@ hosting:deploy
 hosting:promote
 hosting:databases:read
 hosting:databases:write
+hosting:services:read
+hosting:services:write
 hosting:billing
 social:read
 social:write
@@ -121,6 +123,8 @@ Hosting abilities are deliberately split:
 - `hosting:promote` — publish/rollback releases and connect/verify owned domains.
 - `hosting:databases:read` — safe database metadata only; never passwords or full connection strings.
 - `hosting:databases:write` — create, resize, retry, and delete managed databases. Community billing permission and explicit confirmations are still required.
+- `hosting:services:read` — inspect and estimate complex Hosting service stacks without creating resources.
+- `hosting:services:write` — queue metered multi-service releases after exact estimated-floor confirmation. It never grants secret-value access.
 - `hosting:billing` — change Hosting plans, purchase managed domains, and confirm secure checkout. Community billing permission, current-price confirmation, and proration acknowledgement remain mandatory.
 
 The `operator` preset cannot purchase domains, change subscriptions, create paid

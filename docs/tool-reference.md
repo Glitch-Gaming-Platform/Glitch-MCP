@@ -116,6 +116,34 @@ the artifact exists only as a local ZIP. Use
 `glitch_promote_hosting_release` with a previous release id to roll back. Hosting
 and Store distribution remain separate.
 
+#### Multi-service and persistent online games
+
+- `glitch_list_hosting_services` returns the current public, private, singleton, replicated, worker, and scheduled topology without secrets.
+- `glitch_estimate_hosting_services` is read-only. It accepts `single_server`, `world_of_claudecraft`, `web_and_api`, `authoritative_world`, or `biomes_style`, plus per-service overrides and ready container build ids.
+- `glitch_apply_hosting_services` queues an immutable service-stack release. It requires `confirm=true`, the reviewed `expected_monthly_floor_cents`, and `DEPLOY HOSTING STACK AT ESTIMATED FLOOR <cents> CENTS PER MONTH PLUS USAGE`.
+
+Use `world_of_claudecraft` for the reference authoritative MMO shape, including
+separate readiness/liveness checks and persistent media/spool mounts. Use
+`biomes_style` for replicated web and WebSocket routes, a private world
+simulation, and workers. Multi-service reference shapes require the AI to send
+the inspected `services` manifest with the image's real `command`/`arguments`;
+the preset by itself is an estimate, not permission to guess entrypoints.
+
+One ready container image may be reused with different commands. `public_paths`
+routes prefixes such as `/sync/` or `/api/assets` to the correct public service;
+`/` belongs only to the primary service. Authoritative world processes must be
+singleton. Dependencies receive `GLITCH_SERVICE_<SLUG>_URL`. `volumes` creates
+durable file mounts with `name`, absolute `mount_path`, `size_gb`, and optional
+`ReadOnly`/`ReadWrite` access. Managed database bindings are injected before
+health checks. Tests and migrations may run as one-time jobs before the release
+becomes ready. Secret values never pass through MCP; create the required secret
+names in the signed-in Hosting page.
+
+Service pricing is independent of game count. The Hosting plan covers website
+bandwidth/release storage; service stacks add metered vCPU time, allocated
+memory time, requests, scale-out, scheduled-job runtime, and persistent file
+capacity. Database and Redis add-ons are separate monthly items.
+
 #### Domains
 
 - `glitch_connect_hosting_domain` connects a domain already owned by the developer and returns public DNS instructions.
@@ -130,8 +158,8 @@ conflict and requires a fresh confirmation.
 
 #### Managed database add-ons
 
-The MCP supports only Glitch-managed choices: PostgreSQL, MySQL, SQL, and
-NoSQL. Marketplace database products are
+The MCP supports only Glitch-managed choices: PostgreSQL, MySQL, SQL, NoSQL,
+and Redis. Marketplace database products are
 not accepted.
 
 - `glitch_list_hosting_databases` and `glitch_get_hosting_database` return safe status, endpoint, port, storage, and binding metadata.
@@ -186,7 +214,8 @@ Marketplace channels include the 20% adjustment and ending-in-9 rounding.
 deployment runbook for a chosen framework, domain, and database add-ons. It
 covers NPX, installed and project-local CLI, CI, TypeScript SDK, MCP, all CLI
 options, response/status contracts, retries, rollback, verification, managed
-bindings, and approval boundaries without passwords or private infrastructure.
+bindings, multi-service presets, singleton handoff, jobs, migrations, and
+approval boundaries without passwords or private infrastructure.
 
 ### glitch_get_analytics_capabilities
 

@@ -197,6 +197,18 @@ export class GlitchClient {
     );
   }
 
+  async listHostingServices(titleId: string, siteId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/services`);
+  }
+
+  async estimateHostingServices(titleId: string, siteId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/services/estimate`, body);
+  }
+
+  async applyHostingServices(titleId: string, siteId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/services/apply`, body);
+  }
+
   async checkHostingDomainAvailability(titleId: string, hostname: string): Promise<JsonObject> {
     return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/hosting/domains/check`, { hostname });
   }

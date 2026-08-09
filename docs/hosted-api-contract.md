@@ -80,6 +80,9 @@ GET  /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}
 PUT  /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}
 POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}/retry
 DELETE /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/databases/{database_id}
+GET  /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/services
+POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/services/estimate
+POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/services/apply
 GET  /mcp/v1/titles/{title_id}/social/capabilities
 POST /mcp/v1/titles/{title_id}/social/operations/{operation}
 GET  /mcp/v1/titles/{title_id}/tokens
@@ -102,6 +105,9 @@ POST /titles/{title_id}/hosting/sites/{site_id}/releases/{release_id}/promote
 POST /titles/{title_id}/hosting/sites/{site_id}/domains
 POST /titles/{title_id}/hosting/sites/{site_id}/domains/{domain_id}/verify
 POST /titles/{title_id}/hosting/sites/{site_id}/ai-instructions
+GET  /titles/{title_id}/hosting/sites/{site_id}/services
+POST /titles/{title_id}/hosting/sites/{site_id}/services/estimate
+POST /titles/{title_id}/hosting/sites/{site_id}/services/apply
 ```
 
 ## Route Mapping
@@ -178,6 +184,12 @@ and a case-sensitive confirmation phrase. The backend compares both against its
 current catalog or live availability response. Active subscription changes
 also require `accept_proration=true`. A mismatch returns `409` before billing or
 hosting state is changed.
+
+Complex service deployment uses the same boundary. Estimation is read-only.
+Apply requires the current always-on monthly floor and an exact confirmation
+that additional scale-out, requests, and job runtime remain usage based.
+Service manifests may contain ordinary settings but reject secret-shaped keys.
+There is no MCP route for setting or revealing service secret values.
 
 New paid resources return a secure-checkout URL. The confirm endpoint retrieves
 the session from the payment provider, verifies that the checkout order belongs to the

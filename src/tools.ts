@@ -489,8 +489,67 @@ const purchaseHostingDomainInput = z.object({
 
 const hostingAiDatabaseSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  engine: z.enum(["postgresql", "mysql", "azure_sql", "cosmos_nosql"]),
-  plan: z.enum(["sandbox", "launch", "growth", "scale", "dedicated"])
+  engine: z.enum(["postgresql", "mysql", "azure_sql", "cosmos_nosql", "redis"]),
+  plan: z.enum(["sandbox", "launch", "growth", "scale", "dedicated", "cache_sandbox", "cache_launch", "cache_growth", "cache_scale"])
+});
+
+const hostingStackPresetSchema = z.enum(["single_server", "world_of_claudecraft", "web_and_api", "authoritative_world", "biomes_style"]);
+const hostingServiceVolumeSchema = z.object({
+  name: z.string().trim().min(1).max(63).regex(/^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
+  mount_path: z.string().trim().min(1).max(255).regex(/^\//),
+  size_gb: z.number().int().min(1).max(1024),
+  access_mode: z.enum(["ReadOnly", "ReadWrite"]).optional()
+});
+const hostingServiceDefinitionSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  slug: z.string().trim().min(1).max(63).regex(/^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
+  role: z.enum(["web", "api", "game", "realtime", "simulation", "worker", "scheduled"]).optional(),
+  runtime: z.enum(["node", "python", "rust", "container"]).optional(),
+  visibility: z.enum(["public", "internal", "none"]).optional(),
+  is_primary: z.boolean().optional(),
+  target_port: z.number().int().min(1).max(65535).optional(),
+  transport: z.enum(["http", "http2", "tcp"]).optional(),
+  health_check_path: z.string().trim().min(1).max(255).optional(),
+  startup_check_path: z.string().trim().min(1).max(255).optional(),
+  readiness_check_path: z.string().trim().min(1).max(255).optional(),
+  liveness_check_path: z.string().trim().min(1).max(255).optional(),
+  capacity_model: z.enum(["singleton", "replicated", "serverless"]).optional(),
+  container_cpu: z.number().min(0.25).max(4).optional(),
+  container_memory_mb: z.number().int().min(512).max(16384).optional(),
+  min_replicas: z.number().int().min(0).max(25).optional(),
+  max_replicas: z.number().int().min(1).max(25).optional(),
+  schedule_cron: z.string().trim().min(1).max(120).optional(),
+  termination_grace_seconds: z.number().int().min(1).max(600).optional(),
+  depends_on: z.array(z.string().trim().min(1).max(63)).max(24).optional(),
+  public_paths: z.array(z.string().trim().min(1).max(255).regex(/^\//)).max(20).optional(),
+  volumes: z.array(hostingServiceVolumeSchema).max(10).optional(),
+  environment: z.record(z.string().trim().min(1).max(120), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+  database_bindings: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+  configuration: z.record(z.string(), z.unknown()).optional(),
+  command: z.array(z.string().max(2000)).max(20).optional(),
+  arguments: z.array(z.string().max(2000)).max(50).optional(),
+  game_build_id: idSchema.optional()
+});
+
+const hostingStackShape = {
+  preset: hostingStackPresetSchema.optional(),
+  game_build_id: idSchema.optional(),
+  builds: z.record(z.string().trim().min(1).max(63), idSchema).optional(),
+  services: z.array(hostingServiceDefinitionSchema).min(1).max(24).optional()
+};
+
+const listHostingServicesInput = z.object({ ...optionalTitleShape, site_id: idSchema });
+const estimateHostingServicesInput = z.object({ ...optionalTitleShape, site_id: idSchema, ...hostingStackShape });
+const applyHostingServicesInput = z.object({
+  ...optionalTitleShape,
+  site_id: idSchema,
+  version: z.string().trim().min(1).max(80),
+  ...hostingStackShape,
+  test: z.object({ service: z.string().trim().min(1).max(63), command: z.array(z.string().max(2000)).min(1).max(20) }).optional(),
+  migration: z.object({ service: z.string().trim().min(1).max(63), command: z.array(z.string().max(2000)).min(1).max(20) }).optional(),
+  expected_monthly_floor_cents: z.number().int().nonnegative(),
+  billing_confirmation: z.string().trim().min(1).max(255),
+  confirm: z.boolean().default(false).describe("Must be true after the developer reviews the always-on floor and usage rates.")
 });
 
 const hostingAiInstructionsInput = z.object({
@@ -498,7 +557,10 @@ const hostingAiInstructionsInput = z.object({
   site_id: idSchema,
   framework: z.string().trim().min(1).max(120).optional(),
   custom_domain: hostnameSchema.optional(),
-  databases: z.array(hostingAiDatabaseSchema).max(20).optional()
+  databases: z.array(hostingAiDatabaseSchema).max(20).optional(),
+  preset: hostingStackPresetSchema.optional(),
+  version: z.string().trim().min(1).max(80).optional(),
+  services: z.array(hostingServiceDefinitionSchema).max(24).optional()
 });
 
 const listHostingDatabasesInput = z.object({
@@ -513,13 +575,13 @@ const getHostingDatabaseInput = z.object({
   database_id: idSchema
 });
 
-const databasePlanSchema = z.enum(["sandbox", "launch", "growth", "scale"]);
+const databasePlanSchema = z.enum(["sandbox", "launch", "growth", "scale", "cache_sandbox", "cache_launch", "cache_growth", "cache_scale"]);
 
 const createHostingDatabaseInput = z.object({
   ...optionalTitleShape,
   site_id: idSchema,
   name: z.string().trim().min(3).max(80).regex(/^[a-z][a-z0-9-]{1,78}[a-z0-9]$/),
-  engine: z.enum(["postgresql", "mysql", "azure_sql", "cosmos_nosql"]),
+  engine: z.enum(["postgresql", "mysql", "azure_sql", "cosmos_nosql", "redis"]),
   plan: databasePlanSchema,
   azure_region: z.string().trim().min(1).max(80),
   auto_grow_enabled: z.boolean().default(false),
@@ -1464,7 +1526,10 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     const data = await client.hostingAiInstructions(titleId, input.site_id, omitUndefined({
       framework: input.framework,
       custom_domain: input.custom_domain,
-      databases: input.databases
+      databases: input.databases,
+      preset: input.preset,
+      version: input.version,
+      services: input.services
     }));
     const instructions = readString(data.instructions);
     return toolSuccess({
@@ -1472,6 +1537,61 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       summary: "Copy the generated guide into the coding assistant working on the game. It contains no passwords or private connection strings.",
       data,
       ...(instructions ? { bodyMarkdown: instructions } : {}),
+      links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
+    });
+  }),
+
+  defineTool("glitch_list_hosting_services", "List Hosting Services", "List the public, private, singleton, replicated, worker, and scheduled services for a hosted game. Secret values are never returned.", listHostingServicesInput, true, async (client, input) => {
+    const titleId = client.resolveTitleId(input.title_id);
+    const data = await client.listHostingServices(titleId, input.site_id);
+    return toolSuccess({
+      title: "Hosting service stack",
+      summary: `Current service topology for hosting site ${input.site_id}.`,
+      data,
+      links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
+    });
+  }),
+
+  defineTool("glitch_estimate_hosting_services", "Estimate Hosting Services", "Estimate the always-on CPU and memory floor for a service stack without creating resources or charges. Scale-out, requests, and jobs remain usage based.", estimateHostingServicesInput, true, async (client, input) => {
+    const titleId = client.resolveTitleId(input.title_id);
+    const data = await client.estimateHostingServices(titleId, input.site_id, omitUndefined({
+      preset: input.preset,
+      game_build_id: input.game_build_id,
+      builds: input.builds,
+      services: input.services
+    }));
+    return toolSuccess({
+      title: "Hosting service estimate",
+      summary: "Review the monthly floor and usage rates before deploying the stack.",
+      data,
+      links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
+    });
+  }),
+
+  defineTool("glitch_apply_hosting_services", "Deploy Hosting Services", "Queue an immutable multi-service Hosting release from a ready container build. Requires exact confirmation of the estimated monthly floor; publishing remains separate.", applyHostingServicesInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Deploying a metered Hosting service stack");
+    requireExactConfirmation(
+      input.billing_confirmation,
+      `DEPLOY HOSTING STACK AT ESTIMATED FLOOR ${input.expected_monthly_floor_cents} CENTS PER MONTH PLUS USAGE`,
+      "Hosting service deployment"
+    );
+    const titleId = client.resolveTitleId(input.title_id);
+    const data = await client.applyHostingServices(titleId, input.site_id, omitUndefined({
+      version: input.version,
+      preset: input.preset,
+      game_build_id: input.game_build_id,
+      builds: input.builds,
+      services: input.services,
+      test: input.test,
+      migration: input.migration,
+      expected_monthly_floor_cents: input.expected_monthly_floor_cents,
+      billing_confirmation: input.billing_confirmation,
+      confirm: true
+    }));
+    return toolSuccess({
+      title: "Hosting service deployment queued",
+      summary: "Glitch is preparing private dependencies and public services as one immutable release. Publish only after the release is ready.",
+      data,
       links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
     });
   }),
@@ -1498,7 +1618,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_create_hosting_database", "Create Hosting Database", "Create secure checkout for a managed PostgreSQL, MySQL, SQL, or NoSQL add-on. Marketplace databases are not supported and setup waits for payment.", createHostingDatabaseInput, false, async (client, input) => {
+  defineTool("glitch_create_hosting_database", "Create Hosting Database", "Create secure checkout for a managed PostgreSQL, MySQL, SQL, NoSQL, or Redis add-on. Marketplace databases are not supported and setup waits for payment.", createHostingDatabaseInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Starting paid database Checkout");
     requireExactConfirmation(
       input.billing_confirmation,

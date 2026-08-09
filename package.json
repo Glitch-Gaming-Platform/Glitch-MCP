@@ -1,6 +1,6 @@
 {
   "name": "glitch-mcp",
-  "version": "0.1.9",
+  "version": "0.2.1",
   "description": "Public MCP adapter for the hosted Glitch Agent service.",
   "type": "module",
   "publishConfig": {

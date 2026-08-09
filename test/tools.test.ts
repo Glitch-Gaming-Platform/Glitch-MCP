@@ -64,6 +64,9 @@ describe("Glitch MCP tools", () => {
       "glitch_check_hosting_domain",
       "glitch_purchase_hosting_domain",
       "glitch_generate_hosting_ai_instructions",
+      "glitch_list_hosting_services",
+      "glitch_estimate_hosting_services",
+      "glitch_apply_hosting_services",
       "glitch_list_hosting_databases",
       "glitch_get_hosting_database",
       "glitch_create_hosting_database",
@@ -339,6 +342,60 @@ describe("Glitch MCP tools", () => {
 
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toMatchObject({ status: "error", code: "confirmation_required" });
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("estimates a Biomes-style service stack without confirmation", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { estimated_monthly_floor_cents: 50225 } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_estimate_hosting_services", client, {
+      site_id: "site_1",
+      preset: "biomes_style",
+      game_build_id: "build_1"
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/hosting/sites/site_1/services/estimate");
+    expect(mock.requests[0]?.body).toMatchObject({ preset: "biomes_style", game_build_id: "build_1" });
+  });
+
+  it("deploys a service stack only with the exact metered-price confirmation", async () => {
+    const mock = createFetchMock(() => jsonResponse({ release: { id: "release_stack", status: "processing" } }, 202));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_apply_hosting_services", client, {
+      site_id: "site_1",
+      version: "2.0.0",
+      preset: "authoritative_world",
+      game_build_id: "build_1",
+      expected_monthly_floor_cents: 9999,
+      billing_confirmation: "DEPLOY HOSTING STACK AT ESTIMATED FLOOR 9999 CENTS PER MONTH PLUS USAGE",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/hosting/sites/site_1/services/apply");
+    expect(mock.requests[0]?.body).toMatchObject({
+      version: "2.0.0",
+      preset: "authoritative_world",
+      expected_monthly_floor_cents: 9999,
+      confirm: true
+    });
+  });
+
+  it("rejects a service-stack deployment before any network call when confirmation is wrong", async () => {
+    const mock = createFetchMock(() => jsonResponse({}));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await safeTool(() => callTool("glitch_apply_hosting_services", client, {
+      site_id: "site_1",
+      version: "2.0.0",
+      preset: "authoritative_world",
+      game_build_id: "build_1",
+      expected_monthly_floor_cents: 9999,
+      billing_confirmation: "DEPLOY IT",
+      confirm: true
+    }));
+
+    expect(result.isError).toBe(true);
     expect(mock.requests).toHaveLength(0);
   });
 
