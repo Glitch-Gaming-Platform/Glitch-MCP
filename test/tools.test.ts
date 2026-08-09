@@ -345,18 +345,18 @@ describe("Glitch MCP tools", () => {
     expect(mock.requests).toHaveLength(0);
   });
 
-  it("estimates a Biomes-style service stack without confirmation", async () => {
+  it("estimates a large realtime service stack without confirmation", async () => {
     const mock = createFetchMock(() => jsonResponse({ data: { estimated_monthly_floor_cents: 50225 } }));
     const client = new GlitchClient(config, mock.fetch);
     const result = await callTool("glitch_estimate_hosting_services", client, {
       site_id: "site_1",
-      preset: "biomes_style",
+      preset: "large_realtime_world",
       game_build_id: "build_1"
     });
 
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/hosting/sites/site_1/services/estimate");
-    expect(mock.requests[0]?.body).toMatchObject({ preset: "biomes_style", game_build_id: "build_1" });
+    expect(mock.requests[0]?.body).toMatchObject({ preset: "large_realtime_world", game_build_id: "build_1" });
   });
 
   it("deploys a service stack only with the exact metered-price confirmation", async () => {

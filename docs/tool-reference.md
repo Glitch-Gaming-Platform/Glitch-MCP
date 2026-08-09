@@ -119,13 +119,13 @@ and Store distribution remain separate.
 #### Multi-service and persistent online games
 
 - `glitch_list_hosting_services` returns the current public, private, singleton, replicated, worker, and scheduled topology without secrets.
-- `glitch_estimate_hosting_services` is read-only. It accepts `single_server`, `world_of_claudecraft`, `web_and_api`, `authoritative_world`, or `biomes_style`, plus per-service overrides and ready container build ids.
+- `glitch_estimate_hosting_services` is read-only. It accepts `single_server`, `stateful_game_server`, `web_and_api`, `authoritative_world`, or `large_realtime_world`, plus per-service overrides and ready container build ids.
 - `glitch_apply_hosting_services` queues an immutable service-stack release. It requires `confirm=true`, the reviewed `expected_monthly_floor_cents`, and `DEPLOY HOSTING STACK AT ESTIMATED FLOOR <cents> CENTS PER MONTH PLUS USAGE`.
 
-Use `world_of_claudecraft` for the reference authoritative MMO shape, including
-separate readiness/liveness checks and persistent media/spool mounts. Use
-`biomes_style` for replicated web and WebSocket routes, a private world
-simulation, and workers. Multi-service reference shapes require the AI to send
+Use `stateful_game_server` for an authoritative MMO shape with separate
+readiness/liveness checks and persistent media/spool mounts. Use
+`large_realtime_world` for replicated web and WebSocket routes, a private world
+simulation, and workers. Multi-service shapes require the AI to send
 the inspected `services` manifest with the image's real `command`/`arguments`;
 the preset by itself is an estimate, not permission to guess entrypoints.
 

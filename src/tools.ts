@@ -493,7 +493,7 @@ const hostingAiDatabaseSchema = z.object({
   plan: z.enum(["sandbox", "launch", "growth", "scale", "dedicated", "cache_sandbox", "cache_launch", "cache_growth", "cache_scale"])
 });
 
-const hostingStackPresetSchema = z.enum(["single_server", "world_of_claudecraft", "web_and_api", "authoritative_world", "biomes_style"]);
+const hostingStackPresetSchema = z.enum(["single_server", "stateful_game_server", "web_and_api", "authoritative_world", "large_realtime_world"]);
 const hostingServiceVolumeSchema = z.object({
   name: z.string().trim().min(1).max(63).regex(/^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
   mount_path: z.string().trim().min(1).max(255).regex(/^\//),
