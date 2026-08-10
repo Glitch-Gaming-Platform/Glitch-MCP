@@ -447,6 +447,14 @@ Implement large targets and every applicable idle, hover, focus, pressed, disabl
 
 Test every critical menu path, button state, input-method switch, rapid repeated input, modal stack, focus restoration, resolution and aspect ratio, couch or mobile reading distance, safe area, localization, accessibility setting, performance budget, and recovery from interrupted loading or gameplay state changes.`;
 
+const MOBILE_DESKTOP_PARITY_REQUIREMENT = `## Protect the desktop experience
+
+Mobile optimization must not reduce or unintentionally change the existing desktop experience. Scope mobile layouts, touch controls, safe areas, asset variants, render caps, quality reductions, memory limits, lifecycle behavior, and network fallbacks through explicit platform capability checks, input-mode rules, responsive breakpoints, or mobile configuration rather than global defaults that also affect desktop.
+
+Record a desktop baseline before changes and rerun it after every mobile optimization. Cover supported browsers or native builds, resolution and device-pixel ratio, mouse and keyboard, controller where supported, visual quality, UI layout, startup and loading, frame time, memory, audio, networking, save/load, and representative gameplay. Reject mobile changes that degrade desktop image quality, field of view, render scale, frame rate, draw distance, effects, input latency, controls, menus, hover/focus behavior, aspect-ratio use, assets, audio, networking, saves, or gameplay unless the desktop change was separately approved.
+
+Report PASS only when physical-mobile acceptance passes and supported desktop scenarios show no unapproved regression. Include mobile and desktop before/after measurements, platform-scoping decisions, failed or untested gates, and an exact desktop regression procedure.`;
+
 const PLAYER_READABLE_OUTPUT_REQUIREMENT = `## Player-readable output requirement
 
 Everything shown to a player must be written and presented for a human player, not for a developer or debugger. This includes menus, HUD labels, buttons, prompts, tutorials, objectives, dialogue, tooltips, loading and save states, empty states, confirmations, warnings, errors, rewards, notifications, accessibility messages, and connection or recovery states.
@@ -496,6 +504,7 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
   }
   if (prompt.id === "mobile-game-optimization") {
     text = insertBeforeGameDocumentation(text, GAME_UI_IMPLEMENTATION);
+    text = insertBeforeGameDocumentation(text, MOBILE_DESKTOP_PARITY_REQUIREMENT);
   }
   if (prompt.id === "audit-game-media-pipeline") {
     text = insertBeforeGameDocumentation(text, SOUND_AND_MUSIC_MAP);

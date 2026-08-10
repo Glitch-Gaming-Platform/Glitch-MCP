@@ -53,6 +53,9 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("game-onboarding-flow")?.prompt).toContain("predictable controller or keyboard focus with no dead ends");
     expect(getGameDevelopmentPrompt("build-game-from-approved-plans")?.prompt).toContain("prevent repeated hits");
     expect(getGameDevelopmentPrompt("mobile-game-optimization")?.prompt).toContain("safe areas, localization expansion, text scaling");
+    expect(getGameDevelopmentPrompt("mobile-game-optimization")?.prompt).toContain("## Protect the desktop experience");
+    expect(getGameDevelopmentPrompt("mobile-game-optimization")?.prompt).toContain("must not reduce or unintentionally change the existing desktop experience");
+    expect(getGameDevelopmentPrompt("mobile-game-optimization")?.prompt).toContain("show no unapproved regression");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the sound effects the game needs");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the music loops the game needs");
     expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "game-onboarding-flow")).toBe(
