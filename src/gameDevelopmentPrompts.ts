@@ -381,6 +381,14 @@ For each category, choose the simplest stable representation that preserves play
 
 Resolve physics and collision before visual animation and rendering. Animation events may request an attack window, sound, VFX, or trail, but gameplay code must enable, validate, deduplicate, and close hit detection. Use the authoritative camera or gameplay aim solution rather than an animated barrel for weapon traces, with an obstruction check where needed. Document tests for tunneling, frame-rate variation, corners, slopes, stairs, moving platforms, doors, spawn overlap, repeated hits, reconciliation, and visible animation-to-contact alignment.`;
 
+const GAME_UI_DESIGN_AUDIT = `## Game UI, menu, HUD, and button design audit
+
+Plan and evaluate the interface as game UI rather than a website, admin dashboard, launcher, or collection of default engine controls. Inventory the HUD, title and pause menus, settings, save/load, inventory, equipment, skills, shop, dialogue, quests, notifications, loading, failure, victory, confirmations, and accessibility screens the approved game actually requires. Use approved game-interface references and verify that players can recognize within one second where they are, what they can do, what matters next, whether they are progressing, and whether they are in danger.
+
+Define the visual and interaction system for information hierarchy, one clear primary action, progressive disclosure, context-sensitive actions, recognizable icons, semantic colors, typography, spacing, panels, cards and grids, comparison views, progress elements, input glyphs, focus indicators, and large targets. Every applicable control must define idle, hover, keyboard or controller focus, pressed, disabled, selected, busy/loading, error, and cooldown states. Require immediate visual and audio feedback, short 150–300 ms transitions, predictable focus with no dead ends, reliable back and focus restoration, minimal inputs for common actions, and equivalent mouse, keyboard, controller, and touch behavior where supported.
+
+Document couch and mobile readability, safe areas, aspect ratios, localization expansion, text scaling, contrast, color-independent meaning, reduced motion, UI performance, preloading, pooling or virtualization, and critical-menu test coverage. The visual treatment must use the approved game's shapes, materials, imagery, typography, motion, and sound so the menus and buttons feel like part of the game world.`;
+
 const AAA_VISUAL_AND_ANIMATION_AUDIT = `## Establish the AAA comparison set
 
 Ask me to identify at least one AAA game that represents the visual quality bar I want. Prefer two or three user-approved references with a comparable genre, camera distance, perspective, platform, and visual style. Do not use “AAA” as a vague synonym for expensive or realistic.
@@ -403,6 +411,12 @@ Implement gameplay collision separately from the visual asset. Do not automatica
 
 Preserve or create documented sockets, markers, or named attachment points needed for interaction triggers, hurtboxes, temporary hitboxes, projectiles, vehicles, doors, ragdolls, and other gameplay systems without baking trusted game rules into art files. Verify collision scale, orientation, contact alignment, collider count, layers and masks, broad-phase pair counts, LOD behavior, import behavior, and target-platform physics cost.`;
 
+const GAME_UI_ASSET_PIPELINE = `## Game UI asset pipeline
+
+Build a repeatable pipeline for game-native icons, panels, cards, grids, comparison elements, progress displays, notifications, input glyphs, focus indicators, scalable or nine-slice frames, button-state art, fonts, localization variants, atlases, compression, preloading, and resolution or platform fallbacks. Preserve crisp edges, readable text, consistent icon and semantic-color meaning, and immediate state changes without shipping default engine widgets or generic web controls.
+
+Document source files, naming, ownership, export sizes, atlas rules, font licenses and fallbacks, safe-area variants, localization expansion, button states, memory and loading budgets, and visual regression checks across supported resolutions and input methods.`;
+
 const GAMEPLAY_ANIMATION_IMPLEMENTATION = `## Movement and animation implementation
 
 Implement and verify the approved movement stack rather than relying on placeholder clips or sliding transforms. Cover applicable locomotion, starts and stops, turns, jumps and landings, traversal, combat and interaction actions, facial or mechanical animation, vehicles, secondary motion, procedural IK, physics reactions, and VFX or shader movement.
@@ -414,6 +428,14 @@ const GAMEPLAY_COLLISION_IMPLEMENTATION = `## Collision and hit-detection implem
 Implement gameplay collision separately from render meshes and visual animation. Use simple movement bodies, primitive or compound world and vehicle colliders, layers and masks, interaction triggers, hurtboxes, event-timed hitboxes, authoritative camera or gameplay aim traces, and sweeps or continuous collision detection for fast attacks and projectiles. Use convex or static triangle geometry only where justified, and activate or sleep expensive ragdoll, cloth, or destruction physics only when needed.
 
 Animation events may request a collision window, but gameplay or server code must enable it, validate targets, prevent repeated hits, resolve outcomes, and close it. Verify physics and movement update before presentation. Test tunneling, frame-rate variation, corners, slopes, stairs, moving platforms, doors, spawn overlap, overlap recovery, interaction range, repeated-hit prevention, visual contact alignment, and multiplayer replication or reconciliation. Profile collider pair counts and collision or physics cost against documented budgets.`;
+
+const GAME_UI_IMPLEMENTATION = `## Game UI, menu, HUD, and button implementation
+
+Implement the approved game UI direction instead of generic website, dashboard, launcher, or default engine styling. Make the required HUD, menus, overlays, panels, cards, grids, icons, typography, progress displays, notifications, input glyphs, and buttons visually belong to the game world. Give every screen one clear primary action, use progressive disclosure and context-sensitive choices, show comparison information where players would otherwise perform mental arithmetic, and minimize inputs for common actions.
+
+Implement large targets and every applicable idle, hover, focus, pressed, disabled, selected, busy/loading, error, and cooldown state. Provide immediate visual and audio feedback, short 150–300 ms transitions, predictable controller or keyboard focus with no dead ends, reliable back/cancel and focus restoration, touch/mouse/controller parity, safe areas, localization expansion, text scaling, contrast, color-independent meaning, and reduced-motion behavior.
+
+Test every critical menu path, button state, input-method switch, rapid repeated input, modal stack, focus restoration, resolution and aspect ratio, couch or mobile reading distance, safe area, localization, accessibility setting, performance budget, and recovery from interrupted loading or gameplay state changes.`;
 
 const SOUND_AND_MUSIC_MAP = `## Map the sound effects the game needs
 
@@ -433,19 +455,26 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
   if (["threejs-game-architecture", "unity-game-architecture", "godot-game-architecture", "unreal-game-architecture"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, MOVEMENT_ANIMATION_AUDIT);
     text = insertBeforeGameDocumentation(text, COLLISION_SYSTEM_AUDIT);
+    text = insertBeforeGameDocumentation(text, GAME_UI_DESIGN_AUDIT);
   }
   if (prompt.id === "visual-quality-rubric") {
     text = insertBeforeGameDocumentation(text, AAA_VISUAL_AND_ANIMATION_AUDIT);
+    text = insertBeforeGameDocumentation(text, GAME_UI_DESIGN_AUDIT);
   }
   if (["refine-blender-art", "optimized-asset-pipeline"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, ASSET_ANIMATION_IMPLEMENTATION);
   }
   if (prompt.id === "optimized-asset-pipeline") {
     text = insertBeforeGameDocumentation(text, ASSET_COLLISION_IMPLEMENTATION);
+    text = insertBeforeGameDocumentation(text, GAME_UI_ASSET_PIPELINE);
   }
   if (["build-playable-vertical-slice", "game-onboarding-flow", "build-game-from-approved-plans"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, GAMEPLAY_ANIMATION_IMPLEMENTATION);
     text = insertBeforeGameDocumentation(text, GAMEPLAY_COLLISION_IMPLEMENTATION);
+    text = insertBeforeGameDocumentation(text, GAME_UI_IMPLEMENTATION);
+  }
+  if (prompt.id === "mobile-game-optimization") {
+    text = insertBeforeGameDocumentation(text, GAME_UI_IMPLEMENTATION);
   }
   if (prompt.id === "audit-game-media-pipeline") {
     text = insertBeforeGameDocumentation(text, SOUND_AND_MUSIC_MAP);
