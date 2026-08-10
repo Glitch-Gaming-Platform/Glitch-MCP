@@ -16,6 +16,103 @@ export interface GameDevelopmentPrompt {
 export const GAME_DEVELOPMENT_PROMPT_PAGE_URL =
   "https://www.glitch.fun/publishers/tools/ai-game-development-prompts";
 
+const GAME_ONBOARDING_PROMPT = `# Task: Design and implement a best-in-class onboarding flow for the approved game
+
+You are a senior game designer, gameplay engineer, UX designer, accessibility specialist, behavioral researcher, and retention analyst.
+
+Use the approved game design and the current playable build. Do not invent a different game, replace the core loop, or create a disconnected tutorial that teaches mechanics the real game does not use.
+
+## Project context
+
+- Current onboarding state: [NOT BUILT / PARTLY BUILT / BUILT BUT NEEDS IMPROVEMENT / INSPECT PROJECT]
+- Intended players: [TOTAL NEWCOMERS / GENRE FANS / CHILDREN / MIXED AUDIENCE / INSPECT AND RECOMMEND]
+- Target platforms and input devices: [WEB + KEYBOARD / MOBILE + TOUCH / CONSOLE + GAMEPAD / MULTIPLE / INSPECT PROJECT]
+- Onboarding entry point: [FIRST LAUNCH / TUTORIAL LEVEL / CHARACTER CREATION / EXISTING GAME FLOW / INSPECT PROJECT]
+- Account or store requirement before play: [NONE / SIGN-IN REQUIRED / STORE OR PURCHASE REQUIRED / UNKNOWN]
+- Preferred tutorial length: [UNDER 2 MINUTES / 2-5 MINUTES / 5-10 MINUTES / RECOMMEND BASED ON GAME]
+
+## Read and audit first
+
+Before proposing changes:
+
+1. Read the game design, mechanics, core loop, architecture, controls, accessibility, analytics, save, progression, economy, and platform documentation.
+2. Play or inspect the first playable build from launch until the core loop repeats. Record the time to first input, first meaningful action, first feedback, first success, first failure risk, and entry into the real game.
+3. Inventory every mechanic the player truly needs for the first session. Separate required knowledge from systems that can be introduced later.
+4. Inspect the current tutorial, UI, prompts, level flow, checkpoints, account gates, cinematics, permissions, store screens, and failure states.
+5. Identify where a new player could become confused, overloaded, blocked, punished before learning, or asked to read instead of play.
+6. State assumptions when information is missing. Ask for a decision only when it would materially change the approved game or a business requirement.
+
+## Onboarding principles
+
+- Reach a satisfying player-controlled action within the first 30–60 seconds.
+- Teach through doing and level or encounter design before using explanatory text.
+- Introduce one concept at a time, allow safe practice, and then combine it with earlier concepts.
+- Never punish the player for a mechanic that has not been taught and reinforced.
+- Keep prompts contextual, action-oriented, non-blocking, and no longer than two short lines.
+- Deliver an early genuine win with clear visual, audio, and game-state feedback.
+- Reveal HUD, currencies, menus, progression, social features, and advanced systems only when they become useful.
+- Save or checkpoint aggressively during the first session so crashes, exits, and mistakes do not erase early progress.
+- Provide a clear skip path and adapt to skill signals such as correct inputs before instruction or unusually fast completion.
+- Delay sign-in, permissions, monetization, and store friction until after the player experiences the core fun unless a documented requirement makes that impossible. Call out the trade-off when it cannot be delayed.
+- Support keyboard, controller, touch, remapping, localization, reduced motion, color-vision needs, hearing needs, motor needs, and readable cognitive load as required by the target platforms.
+
+## Create or update the onboarding specification
+
+Document:
+
+1. A beat-by-beat first-session flow from launch until the player is participating in the real core loop.
+2. A detailed first-60-seconds sequence showing what the player sees, does, learns, and receives as feedback.
+3. A first-10-minutes timeline, adjusted when the game's natural session is shorter.
+4. A mechanic-teaching table with the mechanic, prerequisite, teaching method, safe practice, reinforcement, mastery signal, and fallback hint.
+5. The early win, short-term objective, first meaningful choice, first safe failure, and transition out of onboarding.
+6. The UI reveal, checkpoint/save, accessibility, skip, replay, and adaptive-assistance rules.
+7. Every tutorial message, button prompt, voice line requirement, highlight, and environmental teaching cue.
+8. Risk flags for likely confusion, churn, difficulty spikes, control problems, account friction, and platform-specific issues.
+9. An analytics funnel covering onboarding start and completion, time to first input/action/success, each teaching beat, hints, retries, deaths, skips, drop-off points, session length, and return behavior.
+
+## Implement the approved flow
+
+Do not stop after writing the specification.
+
+1. Implement the onboarding inside the real game flow using the project's existing architecture, input, UI, save, analytics, localization, and accessibility systems.
+2. Prefer environmental setup, encounter design, animation, audio, and immediate feedback over modal instructions.
+3. Ensure tutorial prompts never stack, unexpectedly steal focus, block needed input, or reappear after completion unless the player requests a replay.
+4. Add progressive disclosure so unavailable or irrelevant systems do not compete for attention.
+5. Add safe practice, reinforcement, recovery, checkpoints, skip/replay controls, and adaptive shortening for experienced players.
+6. Instrument stable events for every important funnel step without collecting unnecessary personal information.
+7. Preserve the approved mechanics, difficulty intent, narrative tone, visual language, and core-loop pacing.
+
+## Verify with real behavior
+
+Test at minimum:
+
+- A completely new player path with no prior knowledge.
+- A returning or experienced player who skips or demonstrates mastery early.
+- Every required keyboard, controller, and touch path.
+- Failure, retry, quit, crash/reload, checkpoint, and resume behavior.
+- Accessibility settings and readable prompts at supported resolutions and text sizes.
+- Slow completion, ignored hints, unexpected inputs, and players who explore out of sequence.
+- Analytics events and funnel ordering without duplicate events.
+- Time to first fun, time to first success, onboarding completion time, and entry into the repeatable core loop.
+
+## Required final report
+
+Provide the implemented first-session flow, mechanic-teaching table, skip/adapt logic, risk mitigations, analytics funnel, tests and measurements, known limitations, before-and-after timing where available, and the exact next playtest questions. List every code, content, analytics, test, and documentation file changed.
+
+## Required game documentation
+
+Documentation is part of the definition of done for this task.
+
+Before finishing:
+
+1. Read the existing README, docs directory, architecture notes, decision records, and AI instructions that apply to this system.
+2. Update the existing relevant documentation instead of creating a competing document or a second source of truth.
+3. If no relevant document exists, create a clearly named Markdown document in the game's established documentation directory. Use docs/ when the project has no existing convention.
+4. Document the current system, the decisions made, ownership and lifecycle rules, configuration, files or assets changed, commands and tests run, known limitations, and how another developer should extend or troubleshoot the work.
+5. Update AI_INSTRUCTIONS.md or the project's equivalent when this task changes architectural boundaries, required workflows, naming rules, or validation commands.
+6. Keep documentation accurate to the implementation. Do not claim support, measurements, or test coverage that was not verified.
+7. In the final report, list every documentation file created or updated.`;
+
 export const GAME_DEVELOPMENT_PROMPT_CATEGORIES: readonly GameDevelopmentPromptCategory[] = [
   {
     "id": "all",
@@ -241,6 +338,15 @@ export const GAME_DEVELOPMENT_PROMPTS: readonly GameDevelopmentPrompt[] = [
     "description": "Combine the approved mechanics, core loop, architecture, assets, and media into the first complete playable version.",
     "bestFor": "Turning approved game design and production plans into the smallest representative build that can be played, measured, tested, and improved.",
     "prompt": "# Task: Implement the first playable build of the approved game\n\nYou are a senior game designer, gameplay engineer, technical artist, and test engineer.\n\nRead the project documentation, architecture, AI instructions, game design, mechanics, core loop, visual rubric, approved assets, asset pipeline, media plan, and testing requirements before changing anything.\n\nNow combine those approved decisions into the first playable build.\n\nDo not build the complete game yet. Build the smallest polished version that proves the mechanics, assets, feedback, and complete core loop work together.\n\n## Define the slice\n\nIdentify the minimum end-to-end experience that demonstrates:\n\n- The core fantasy\n- The core verbs\n- The approved mechanics working together\n- The signature mechanic or defining twist\n- The moment-to-moment core loop\n- One meaningful trade-off\n- One success state and one failure state\n- Representative controls, camera, UI, feedback, audio, and visual presentation\n- Representative approved characters, environments, animations, and other assets\n- Required save, backend, networking, or persistence behavior for that path\n- Analytics needed to evaluate the core playtest question\n\nUse existing architecture and pipelines. Do not create temporary patterns that the final game would need to replace.\n\n## Implement\n\n1. Make the project compile, launch, and pass its current baseline tests.\n2. Implement the complete playable path from entry through success or failure.\n3. Use representative final-quality behavior for the core mechanic, even when surrounding content remains limited.\n4. Add only the minimum enemies, challenges, levels, items, abilities, or content needed to test the loop.\n5. Add clear onboarding and feedback so a new player can complete the slice without developer explanation.\n6. Add analytics and debug output required to measure completion, failure, timing, friction, and the core playtest question.\n7. Add unit, integration, end-to-end, browser/device, and performance tests appropriate to the slice.\n8. Profile the target platforms and compare results with the documented budgets.\n\n## Stop conditions\n\nDo not expand content, metaprogression, cosmetics, world size, or secondary systems until the slice is playable and the core playtest question can be answered.\n\n## Final report\n\nReport the playable path, what was intentionally excluded, tests and measurements, analytics coverage, known risks, how to run the slice, and the exact questions the next playtest must answer.\n\n## Required game documentation\n\nDocumentation is part of the definition of done for this task.\n\nBefore finishing:\n\n1. Read the existing README, docs directory, architecture notes, decision records, and AI instructions that apply to this system.\n2. Update the existing relevant documentation instead of creating a competing document or a second source of truth.\n3. If no relevant document exists, create a clearly named Markdown document in the game's established documentation directory. Use docs/ when the project has no existing convention.\n4. Document the current system, the decisions made, ownership and lifecycle rules, configuration, files or assets changed, commands and tests run, known limitations, and how another developer should extend or troubleshoot the work.\n5. Update AI_INSTRUCTIONS.md or the project's equivalent when this task changes architectural boundaries, required workflows, naming rules, or validation commands.\n6. Keep documentation accurate to the implementation. Do not claim support, measurements, or test coverage that was not verified.\n7. In the final report, list every documentation file created or updated."
+  },
+  {
+    "id": "game-onboarding-flow",
+    "category": "foundation",
+    "eyebrow": "Critical player experience",
+    "title": "Design and implement game onboarding",
+    "description": "Teach the approved game through play, deliver an early win, support experienced players, and measure where newcomers struggle.",
+    "bestFor": "Immediately after the first playable build, when the real mechanics, controls, feedback, and first-session path are available to test.",
+    "prompt": GAME_ONBOARDING_PROMPT
   },
   {
     "id": "build-game-from-approved-plans",

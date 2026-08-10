@@ -8,7 +8,7 @@ More Info Here: https://www.glitch.fun/publishers/agents
 
 ## AI Game Development Workflows
 
-The MCP bundles the same 23 public prompts shown on the [AI Game Development Prompts page](https://www.glitch.fun/publishers/tools/ai-game-development-prompts). Prompt ids and deep links stay stable, and every prompt requires the developer or agent to create or update the game's documentation.
+The MCP bundles the same 24 public prompts shown on the [AI Game Development Prompts page](https://www.glitch.fun/publishers/tools/ai-game-development-prompts). Prompt ids and deep links stay stable, and every prompt requires the developer or agent to create or update the game's documentation.
 
 - Use `glitch_list_game_development_prompts` to search by situation or category.
 - Use `glitch_get_game_development_prompt` to retrieve the complete Markdown.
