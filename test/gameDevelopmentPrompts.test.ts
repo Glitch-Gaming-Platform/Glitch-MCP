@@ -27,6 +27,9 @@ describe("public AI game-development prompts", () => {
   it("supports stable lookup, category filtering, and situation search", () => {
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.title).toBe("Implement the first playable build");
     expect(getGameDevelopmentPrompt("game-onboarding-flow")?.prompt).toContain("Do not stop after writing the specification.");
+    expect(getGameDevelopmentPrompt("production-game-analytics")?.prompt).toContain(
+      "Glitch Analytics dashboard and setup: https://www.glitch.fun/publishers/analytics"
+    );
     expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "game-onboarding-flow")).toBe(
       GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "build-playable-vertical-slice") + 1
     );
