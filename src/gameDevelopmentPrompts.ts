@@ -140,7 +140,7 @@ export const GAME_DEVELOPMENT_PROMPT_CATEGORIES: readonly GameDevelopmentPromptC
   }
 ];
 
-export const GAME_DEVELOPMENT_PROMPTS: readonly GameDevelopmentPrompt[] = [
+const BASE_GAME_DEVELOPMENT_PROMPTS: readonly GameDevelopmentPrompt[] = [
   {
     "id": "secure-game-backend",
     "category": "foundation",
@@ -358,6 +358,79 @@ export const GAME_DEVELOPMENT_PROMPTS: readonly GameDevelopmentPrompt[] = [
     "prompt": "# Task: Build the game from all approved plans and documentation\n\nYou are the senior game director, lead gameplay engineer, technical artist, platform engineer, and quality owner responsible for completing this game.\n\nDo not invent a new game from this prompt. Build the game already defined by the project.\n\n## Read the project first\n\nBefore changing code or assets, inspect the entire workspace and read every relevant source of truth, including:\n\n- README and setup instructions\n- Game design document, specification, mechanics, core loop, and scope\n- Architecture and dependency rules\n- AI instructions and naming conventions\n- Decision records\n- Backend, networking, security, and SDK documentation\n- Art direction, visual rubric, Blender, export, and asset-pipeline documentation\n- Audio and video optimization reports\n- Analytics event taxonomy and playtesting plans\n- Testing, performance, deployment, rollback, and troubleshooting documentation\n\nIf documents conflict, identify the conflict and follow the project's stated source-of-truth rules. Ask for a decision only when the conflict materially changes the game; otherwise choose the smallest interpretation consistent with the approved scope and document it.\n\n## Audit before implementation\n\n1. Inventory what is already complete, partially complete, placeholder-only, broken, or missing.\n2. Map every approved game requirement to its owning system, implementation status, tests, and documentation.\n3. Identify the smallest playable vertical slice that proves the core fantasy, core verbs, signature mechanic, and core gameplay loop.\n4. Create a phased build order that preserves dependency direction and produces a playable, testable game at the end of every phase.\n5. Do not replace working architecture, pipelines, assets, or conventions without a measured technical reason.\n\nDo not stop after producing the audit and plan. Continue into implementation.\n\n## Implementation rules\n\n- Build the approved game one vertical slice and system at a time.\n- Keep engine code, game rules, rendering, UI, persistence, networking, analytics, and platform services separated according to the documented architecture.\n- Reuse existing systems and assets before creating replacements.\n- Keep trusted state and competitive rules authoritative on the server where the documentation requires it.\n- Integrate approved art, animation, audio, video, loading, caching, pooling, optimization, analytics, and deployment pipelines instead of adding parallel workflows.\n- Preserve accessibility, input, save compatibility, privacy, security, and target-platform requirements.\n- Do not expand the design with unapproved mechanics, content, currencies, progression, or technology.\n- Do not hide unfinished required behavior behind mocks or placeholders unless the project documentation explicitly marks it as out of scope.\n- Add or update automated tests with every system.\n- Profile representative gameplay and verify the documented performance budgets.\n- Keep the game runnable throughout implementation.\n\n## Build sequence\n\n1. Make the project compile, launch, and pass its baseline tests.\n2. Complete the smallest playable vertical slice of the core loop.\n3. Validate the project's core playtest question before expanding content.\n4. Complete the remaining in-scope gameplay systems using the vertical slice as the implementation pattern.\n5. Integrate final assets, media, UI, feedback, persistence, backend, analytics, and platform behavior.\n6. Complete onboarding, progression, failure, victory, pause, settings, save/load, and recovery flows required by the specification.\n7. Run unit, integration, end-to-end, browser/device, performance, security, and build tests appropriate to the project.\n8. Produce a release candidate and verify the documented deployment and rollback process without deploying unless explicitly authorized.\n\n## Definition of done\n\nThe task is complete only when:\n\n- The approved scoped game is playable from start to finish.\n- The core loop and signature mechanic are implemented rather than described only in documentation.\n- Required gameplay, UI, assets, audio, video, persistence, backend, analytics, and platform behavior work together.\n- Required tests and production builds pass.\n- Performance is measured against the documented budgets.\n- Known limitations are documented honestly.\n- The final report maps completed features back to the approved plans and lists every file, asset, test, measurement, and document changed.\n\n## Required game documentation\n\nDocumentation is part of the definition of done for this task.\n\nBefore finishing:\n\n1. Read the existing README, docs directory, architecture notes, decision records, and AI instructions that apply to this system.\n2. Update the existing relevant documentation instead of creating a competing document or a second source of truth.\n3. If no relevant document exists, create a clearly named Markdown document in the game's established documentation directory. Use docs/ when the project has no existing convention.\n4. Document the current system, the decisions made, ownership and lifecycle rules, configuration, files or assets changed, commands and tests run, known limitations, and how another developer should extend or troubleshoot the work.\n5. Update AI_INSTRUCTIONS.md or the project's equivalent when this task changes architectural boundaries, required workflows, naming rules, or validation commands.\n6. Keep documentation accurate to the implementation. Do not claim support, measurements, or test coverage that was not verified.\n7. In the final report, list every documentation file created or updated."
   }
 ];
+
+function insertBeforeGameDocumentation(prompt: string, addition: string): string {
+  const marker = "\n\n## Required game documentation";
+  const insertion = `\n\n${addition.trim()}`;
+  return prompt.includes(marker)
+    ? prompt.replace(marker, `${insertion}${marker}`)
+    : `${prompt.trim()}${insertion}`;
+}
+
+const MOVEMENT_ANIMATION_AUDIT = `## Movement and animation audit
+
+Read the approved mechanics and core loop and identify every movement category the game needs: character or creature locomotion, starts and stops, turns, jumps and landings, traversal, combat and interaction actions, facial or lip-sync animation, mechanical or vehicle motion, VFX or shader-driven movement, secondary motion, procedural IK, and physics-driven reactions where applicable.
+
+For each requirement, document its gameplay purpose, authored clips and rigs, state-machine or blend-tree needs, root-motion or in-place decision, procedural and physics layers, transitions and contact points, synchronization with collisions, audio, VFX, camera, lighting, haptics, and network authority, target-platform budget, and verification plan. Distinguish animation clips from the complete runtime animation system and keep presentation separate from trusted game rules.`;
+
+const AAA_VISUAL_AND_ANIMATION_AUDIT = `## Establish the AAA comparison set
+
+Ask me to identify at least one AAA game that represents the visual quality bar I want. Prefer two or three user-approved references with a comparable genre, camera distance, perspective, platform, and visual style. Do not use “AAA” as a vague synonym for expensive or realistic.
+
+Score the current game and the approved AAA references with the same rubric. For every applicable category, provide the current score, AAA-reference score, visible gap, evidence, smallest high-impact changes, primary cause of the gap, and whether matching it is realistic within the documented team, timeline, platform, and performance constraints. Finish with an overall AAA visual-readiness score and comparison matrix without claiming an AAA budget, team, content volume, or production scope.
+
+## Audit movement and animation needs
+
+Inventory the locomotion, starts and stops, turns, jumps and landings, traversal, combat and interaction actions, facial performance and lip sync, mechanical or vehicle motion, VFX movement, secondary motion, procedural IK, and physics-driven reactions the approved game needs. Include locomotion transitions, stride, foot planting, terrain response, facial and eye performance, secondary motion, VFX, shader animation, rigs, clips, synchronization, performance budgets, and gameplay-distance review in the rubric and art implementation guide.`;
+
+const ASSET_ANIMATION_IMPLEMENTATION = `## Movement and animation requirements
+
+If the asset moves, audit its gameplay movement requirements before editing or integration. Cover the applicable rig, deformation, locomotion, starts, stops, turns, transitions, traversal, combat, interaction, facial, mechanical, vehicle, secondary, procedural, VFX, shader, and physics-driven motion.
+
+Avoid foot sliding, frozen accessories, floating contacts, abrupt blends, and movement that disagrees with gameplay speed or scale. Keep authored animation separate from runtime state machines, blend trees, root motion or in-place movement, IK, physics, VFX, audio, camera, haptics, and network authority. Verify the result at gameplay distance, under frame-rate variation, and within target-platform animation, IK, physics, particle, memory, and loading budgets.`;
+
+const GAMEPLAY_ANIMATION_IMPLEMENTATION = `## Movement and animation implementation
+
+Implement and verify the approved movement stack rather than relying on placeholder clips or sliding transforms. Cover applicable locomotion, starts and stops, turns, jumps and landings, traversal, combat and interaction actions, facial or mechanical animation, vehicles, secondary motion, procedural IK, physics reactions, and VFX or shader movement.
+
+Synchronize gameplay state, collision and hit windows, footsteps, impacts, audio, particles, lighting, camera feedback, controller vibration, and network state. Keep gameplay or server code authoritative. Test animation readability, transitions, foot and contact placement, slopes and stairs, interruptions, frame-rate variation, target input devices, multiplayer replication, accessibility and reduced-motion behavior, and performance budgets.`;
+
+const SOUND_AND_MUSIC_MAP = `## Map the sound effects the game needs
+
+Read the approved design, mechanics, core loop, movement and animation audit, onboarding, environments, UI, progression, combat, interactions, vehicles, and accessibility requirements. Create a proposed sound-effects map for the complete approved game, including relevant player locomotion, character and combat actions, interactions, mechanical objects, vehicles and thrusters, environment and ambience, UI and onboarding, narrative, progression, rewards, victory, failure, and save feedback.
+
+For each sound or reusable family, record: gameplay trigger, information conveyed, 2D or 3D use, surface and state variants, variation and anti-repetition plan, priority, concurrency, distance and occlusion, synchronization with animation/VFX/camera/haptics, source or creation method, loading strategy, owning system, and required/optional/deferred status. Separate verified assets from proposed sounds and identify missing, redundant, reusable, and intentionally silent moments.
+
+## Map the music loops the game needs
+
+Create a proposed music map from the fantasy, core loop, session structure, locations, narrative beats, progression, difficulty, onboarding, and expected session length. Consider title and menu, onboarding, exploration, safe areas, tension, combat tiers, bosses, puzzles, planning, dialogue, discovery, rewards, victory, failure, credits, and location or faction themes only where relevant.
+
+For each cue, loop, or adaptive family, record: state or scene, emotional and gameplay purpose, loop length, intro/outro and loop point, stems or intensity tiers, horizontal or vertical transitions, trigger and exit rules, beat/bar synchronization, stingers, dialogue ducking, repetition plan, loading or streaming, platform fallback, and required/optional/deferred status. Explain when the game needs a loop, one-shot, adaptive score, ambience, rest period, or deliberate silence, and separate existing music from proposed composition.`;
+
+function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopmentPrompt {
+  let text = prompt.prompt;
+
+  if (["threejs-game-architecture", "unity-game-architecture", "godot-game-architecture", "unreal-game-architecture"].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, MOVEMENT_ANIMATION_AUDIT);
+  }
+  if (prompt.id === "visual-quality-rubric") {
+    text = insertBeforeGameDocumentation(text, AAA_VISUAL_AND_ANIMATION_AUDIT);
+  }
+  if (["refine-blender-art", "optimized-asset-pipeline"].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, ASSET_ANIMATION_IMPLEMENTATION);
+  }
+  if (["build-playable-vertical-slice", "game-onboarding-flow", "build-game-from-approved-plans"].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, GAMEPLAY_ANIMATION_IMPLEMENTATION);
+  }
+  if (prompt.id === "audit-game-media-pipeline") {
+    text = insertBeforeGameDocumentation(text, SOUND_AND_MUSIC_MAP);
+  }
+
+  return { ...prompt, prompt: text };
+}
+
+export const GAME_DEVELOPMENT_PROMPTS: readonly GameDevelopmentPrompt[] =
+  BASE_GAME_DEVELOPMENT_PROMPTS.map(synchronizePromptGuidance);
 
 export function gameDevelopmentPromptUrl(promptId: string): string {
   return GAME_DEVELOPMENT_PROMPT_PAGE_URL + "?prompt=" + encodeURIComponent(promptId) + "#prompt-picker";

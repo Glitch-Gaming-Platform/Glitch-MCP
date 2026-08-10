@@ -30,6 +30,12 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("production-game-analytics")?.prompt).toContain(
       "Glitch Analytics dashboard and setup: https://www.glitch.fun/publishers/analytics"
     );
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Movement and animation audit");
+    expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("overall AAA visual-readiness score");
+    expect(getGameDevelopmentPrompt("optimized-asset-pipeline")?.prompt).toContain("root motion or in-place movement");
+    expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("placeholder clips or sliding transforms");
+    expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the sound effects the game needs");
+    expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the music loops the game needs");
     expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "game-onboarding-flow")).toBe(
       GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "build-playable-vertical-slice") + 1
     );
