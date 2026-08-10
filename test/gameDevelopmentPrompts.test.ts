@@ -31,9 +31,15 @@ describe("public AI game-development prompts", () => {
       "Glitch Analytics dashboard and setup: https://www.glitch.fun/publishers/analytics"
     );
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Movement and animation audit");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Collision and hit-detection audit");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("Resolve physics and collision before visual animation and rendering");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("overall AAA visual-readiness score");
     expect(getGameDevelopmentPrompt("optimized-asset-pipeline")?.prompt).toContain("root motion or in-place movement");
+    expect(getGameDevelopmentPrompt("optimized-asset-pipeline")?.prompt).toContain("Do not automatically reuse detailed render meshes or animated bones as colliders");
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("placeholder clips or sliding transforms");
+    expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("## Collision and hit-detection implementation");
+    expect(getGameDevelopmentPrompt("game-onboarding-flow")?.prompt).toContain("event-timed hitboxes");
+    expect(getGameDevelopmentPrompt("build-game-from-approved-plans")?.prompt).toContain("prevent repeated hits");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the sound effects the game needs");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the music loops the game needs");
     expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "game-onboarding-flow")).toBe(

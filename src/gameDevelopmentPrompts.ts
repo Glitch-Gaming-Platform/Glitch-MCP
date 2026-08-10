@@ -373,6 +373,14 @@ Read the approved mechanics and core loop and identify every movement category t
 
 For each requirement, document its gameplay purpose, authored clips and rigs, state-machine or blend-tree needs, root-motion or in-place decision, procedural and physics layers, transitions and contact points, synchronization with collisions, audio, VFX, camera, lighting, haptics, and network authority, target-platform budget, and verification plan. Distinguish animation clips from the complete runtime animation system and keep presentation separate from trusted game rules.`;
 
+const COLLISION_SYSTEM_AUDIT = `## Collision and hit-detection audit
+
+Design collision as a gameplay system separate from render meshes and visual animation. Inventory every character or vehicle movement body, world blocker, interaction trigger, hurtbox, temporary attack hitbox, projectile or ray test, moving platform, door, dynamic prop, ragdoll, cloth or hair interaction, and static-world collision surface required by the approved game.
+
+For each category, choose the simplest stable representation that preserves play: capsules for characters; boxes, spheres, convex or compound primitives for props and vehicles; swept shapes for fast melee and projectiles; and triangle-mesh collision only for justified, mostly static world geometry. Define layers and masks, broad-phase filtering, trigger versus blocking behavior, continuous collision detection or previous-to-current-frame sweeps, contact ownership, activation and sleeping rules, performance budgets, and network authority.
+
+Resolve physics and collision before visual animation and rendering. Animation events may request an attack window, sound, VFX, or trail, but gameplay code must enable, validate, deduplicate, and close hit detection. Use the authoritative camera or gameplay aim solution rather than an animated barrel for weapon traces, with an obstruction check where needed. Document tests for tunneling, frame-rate variation, corners, slopes, stairs, moving platforms, doors, spawn overlap, repeated hits, reconciliation, and visible animation-to-contact alignment.`;
+
 const AAA_VISUAL_AND_ANIMATION_AUDIT = `## Establish the AAA comparison set
 
 Ask me to identify at least one AAA game that represents the visual quality bar I want. Prefer two or three user-approved references with a comparable genre, camera distance, perspective, platform, and visual style. Do not use “AAA” as a vague synonym for expensive or realistic.
@@ -389,11 +397,23 @@ If the asset moves, audit its gameplay movement requirements before editing or i
 
 Avoid foot sliding, frozen accessories, floating contacts, abrupt blends, and movement that disagrees with gameplay speed or scale. Keep authored animation separate from runtime state machines, blend trees, root motion or in-place movement, IK, physics, VFX, audio, camera, haptics, and network authority. Verify the result at gameplay distance, under frame-rate variation, and within target-platform animation, IK, physics, particle, memory, and loading budgets.`;
 
+const ASSET_COLLISION_IMPLEMENTATION = `## Collision asset requirements
+
+Implement gameplay collision separately from the visual asset. Do not automatically reuse detailed render meshes or animated bones as colliders. Prefer primitive or compound shapes, use convex hulls only when primitives cannot preserve gameplay, and reserve triangle-mesh collision for justified static world geometry.
+
+Preserve or create documented sockets, markers, or named attachment points needed for interaction triggers, hurtboxes, temporary hitboxes, projectiles, vehicles, doors, ragdolls, and other gameplay systems without baking trusted game rules into art files. Verify collision scale, orientation, contact alignment, collider count, layers and masks, broad-phase pair counts, LOD behavior, import behavior, and target-platform physics cost.`;
+
 const GAMEPLAY_ANIMATION_IMPLEMENTATION = `## Movement and animation implementation
 
 Implement and verify the approved movement stack rather than relying on placeholder clips or sliding transforms. Cover applicable locomotion, starts and stops, turns, jumps and landings, traversal, combat and interaction actions, facial or mechanical animation, vehicles, secondary motion, procedural IK, physics reactions, and VFX or shader movement.
 
 Synchronize gameplay state, collision and hit windows, footsteps, impacts, audio, particles, lighting, camera feedback, controller vibration, and network state. Keep gameplay or server code authoritative. Test animation readability, transitions, foot and contact placement, slopes and stairs, interruptions, frame-rate variation, target input devices, multiplayer replication, accessibility and reduced-motion behavior, and performance budgets.`;
+
+const GAMEPLAY_COLLISION_IMPLEMENTATION = `## Collision and hit-detection implementation
+
+Implement gameplay collision separately from render meshes and visual animation. Use simple movement bodies, primitive or compound world and vehicle colliders, layers and masks, interaction triggers, hurtboxes, event-timed hitboxes, authoritative camera or gameplay aim traces, and sweeps or continuous collision detection for fast attacks and projectiles. Use convex or static triangle geometry only where justified, and activate or sleep expensive ragdoll, cloth, or destruction physics only when needed.
+
+Animation events may request a collision window, but gameplay or server code must enable it, validate targets, prevent repeated hits, resolve outcomes, and close it. Verify physics and movement update before presentation. Test tunneling, frame-rate variation, corners, slopes, stairs, moving platforms, doors, spawn overlap, overlap recovery, interaction range, repeated-hit prevention, visual contact alignment, and multiplayer replication or reconciliation. Profile collider pair counts and collision or physics cost against documented budgets.`;
 
 const SOUND_AND_MUSIC_MAP = `## Map the sound effects the game needs
 
@@ -412,6 +432,7 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
 
   if (["threejs-game-architecture", "unity-game-architecture", "godot-game-architecture", "unreal-game-architecture"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, MOVEMENT_ANIMATION_AUDIT);
+    text = insertBeforeGameDocumentation(text, COLLISION_SYSTEM_AUDIT);
   }
   if (prompt.id === "visual-quality-rubric") {
     text = insertBeforeGameDocumentation(text, AAA_VISUAL_AND_ANIMATION_AUDIT);
@@ -419,8 +440,12 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
   if (["refine-blender-art", "optimized-asset-pipeline"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, ASSET_ANIMATION_IMPLEMENTATION);
   }
+  if (prompt.id === "optimized-asset-pipeline") {
+    text = insertBeforeGameDocumentation(text, ASSET_COLLISION_IMPLEMENTATION);
+  }
   if (["build-playable-vertical-slice", "game-onboarding-flow", "build-game-from-approved-plans"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, GAMEPLAY_ANIMATION_IMPLEMENTATION);
+    text = insertBeforeGameDocumentation(text, GAMEPLAY_COLLISION_IMPLEMENTATION);
   }
   if (prompt.id === "audit-game-media-pipeline") {
     text = insertBeforeGameDocumentation(text, SOUND_AND_MUSIC_MAP);
