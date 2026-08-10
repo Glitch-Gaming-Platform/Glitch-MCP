@@ -437,6 +437,16 @@ Implement large targets and every applicable idle, hover, focus, pressed, disabl
 
 Test every critical menu path, button state, input-method switch, rapid repeated input, modal stack, focus restoration, resolution and aspect ratio, couch or mobile reading distance, safe area, localization, accessibility setting, performance budget, and recovery from interrupted loading or gameplay state changes.`;
 
+const PLAYER_READABLE_OUTPUT_REQUIREMENT = `## Player-readable output requirement
+
+Everything shown to a player must be written and presented for a human player, not for a developer or debugger. This includes menus, HUD labels, buttons, prompts, tutorials, objectives, dialogue, tooltips, loading and save states, empty states, confirmations, warnings, errors, rewards, notifications, accessibility messages, and connection or recovery states.
+
+Use concise plain language, the game's established terminology and tone, recognizable icons with text where meaning could be ambiguous, and a clear next action. A player-facing error should explain what happened in useful terms, whether progress is safe, and what the player can do next.
+
+Never expose raw exceptions, stack traces, JSON, database IDs, internal event names, enum or variable names, file paths, debug coordinates, unexplained HTTP status codes, server implementation details, developer TODOs, placeholder text, or raw telemetry on a player-facing surface. Send technical details to development-only logs, diagnostics, telemetry, or an authenticated support view. Show a short support reference code only when it helps locate the private diagnostic record.
+
+Verify representative success, failure, offline, loading, empty, permission, validation, timeout, save, reconnect, and recovery states from the player's perspective. Developer documentation and final engineering reports may remain technical; this requirement applies to anything the game presents to players.`;
+
 const SOUND_AND_MUSIC_MAP = `## Map the sound effects the game needs
 
 Read the approved design, mechanics, core loop, movement and animation audit, onboarding, environments, UI, progression, combat, interactions, vehicles, and accessibility requirements. Create a proposed sound-effects map for the complete approved game, including relevant player locomotion, character and combat actions, interactions, mechanical objects, vehicles and thrusters, environment and ambience, UI and onboarding, narrative, progression, rewards, victory, failure, and save feedback.
@@ -479,6 +489,8 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
   if (prompt.id === "audit-game-media-pipeline") {
     text = insertBeforeGameDocumentation(text, SOUND_AND_MUSIC_MAP);
   }
+
+  text = insertBeforeGameDocumentation(text, PLAYER_READABLE_OUTPUT_REQUIREMENT);
 
   return { ...prompt, prompt: text };
 }

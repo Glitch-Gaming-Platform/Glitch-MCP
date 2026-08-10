@@ -17,6 +17,9 @@ describe("public AI game-development prompts", () => {
     for (const prompt of GAME_DEVELOPMENT_PROMPTS) {
       expect(prompt.prompt).toMatch(/^# Task:/);
       expect(prompt.prompt).toContain("## Required game documentation");
+      expect(prompt.prompt).toContain("## Player-readable output requirement");
+      expect(prompt.prompt).toContain("Never expose raw exceptions, stack traces, JSON");
+      expect(prompt.prompt).toContain("what the player can do next");
       expect(prompt.prompt).toContain("In the final report, list every documentation file created or updated.");
       expect(gameDevelopmentPromptCommandName(prompt.id)).toMatch(/^glitch_game_dev_[a-z0-9_]+$/);
       expect(gameDevelopmentPromptResourceUri(prompt.id)).toBe(`glitch://game-development/prompts/${prompt.id}`);
