@@ -40,6 +40,9 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("rather than a website, admin dashboard, launcher");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("overall AAA visual-readiness score");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("Every applicable control must define idle, hover");
+    expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("## Representative visual states and complete-frame communication audit");
+    expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("tactile presentation of cards, tiles, tokens, units");
+    expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("Use a one-second readability check");
     expect(getGameDevelopmentPrompt("optimized-asset-pipeline")?.prompt).toContain("root motion or in-place movement");
     expect(getGameDevelopmentPrompt("optimized-asset-pipeline")?.prompt).toContain("Do not automatically reuse detailed render meshes or animated bones as colliders");
     expect(getGameDevelopmentPrompt("optimized-asset-pipeline")?.prompt).toContain("## Game UI asset pipeline");

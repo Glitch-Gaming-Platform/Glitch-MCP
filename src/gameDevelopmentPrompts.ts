@@ -389,6 +389,16 @@ Define the visual and interaction system for information hierarchy, one clear pr
 
 Document couch and mobile readability, safe areas, aspect ratios, localization expansion, text scaling, contrast, color-independent meaning, reduced motion, UI performance, preloading, pooling or virtualization, and critical-menu test coverage. The visual treatment must use the approved game's shapes, materials, imagery, typography, motion, and sound so the menus and buttons feel like part of the game world.`;
 
+const COMPLETE_FRAME_VISUAL_AUDIT = `## Representative visual states and complete-frame communication audit
+
+Do not judge the game only from a marketing image, cinematic frame, empty environment, or one menu. Ask for current-game and approved-reference screenshots or footage across the visually important states that apply: quiet exploration or building, dense or high-pressure play, combat or another core challenge, a key menu or inventory/shop/upgrade flow, selection and targeting, progression states, affordable and unaffordable choices, success and failure, rewards, loading or empty states, close character presentation, and wide environment or world vistas. Record missing states and identify the weakest critical state rather than allowing one polished frame to hide unreadable gameplay.
+
+For every representative state, audit the complete frame: screen-space composition and visual budget; focal order; subject scale, crop, negative space, edge safety, depth layers, UI footprint, and gameplay occlusion; camera distance, field of view, angle, pose, gaze, grouping, silhouette overlap, actor-to-target relationship, scale contrast, and ensemble readability; current actor or turn, target, threat, objective, available action, action/resource budget, health or danger, selected/unselected, active/inactive, owned/unowned, locked/unlocked, completed/incomplete, affordable/unaffordable, valid/invalid, cooldown, reward, and failure states where applicable.
+
+Also audit interaction affordance and spatial association; costs, quantities, missing requirements, gains/losses, timers, progression, comparisons, and consequences; tactile presentation of cards, tiles, tokens, units, items, vehicles, buildings, or other selectable game pieces through hierarchy, depth, shadows, stacking, fanning, overlap, z-order, focus lift, selection, dragging, placement, valid targets, and return-to-rest behavior; action telegraphs, trajectories, impact, damage/healing/status feedback, VFX priority, team ownership, and effect occlusion; landmarks, route hierarchy, scale cues, vistas, density, functional zones, environmental storytelling, atmosphere, and depth; cohesion across characters, environments, UI, typography, cards, VFX, lighting, and camera; and technical defects such as aliasing, shimmering, clipping, z-fighting, blur, compression, pop-in, transparency errors, and unreadable scaling.
+
+Use a one-second readability check for critical frames: can a representative player identify the focal subject, current state, immediate threat or opportunity, available action, and likely consequence? Review live motion or sequential frames when animation, effects, card movement, camera motion, or state changes carry information. Produce a visual-state matrix, name the weakest critical state and largest screen-space communication failure, and annotate focal paths, competing focal points, occlusion, unclear state indicators, and high-impact corrections when image annotation is available.`;
+
 const AAA_VISUAL_AND_ANIMATION_AUDIT = `## Establish the AAA comparison set
 
 Ask me to identify at least one AAA game that represents the visual quality bar I want. Prefer two or three user-approved references with a comparable genre, camera distance, perspective, platform, and visual style. Do not use “AAA” as a vague synonym for expensive or realistic.
@@ -470,6 +480,7 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
   if (prompt.id === "visual-quality-rubric") {
     text = insertBeforeGameDocumentation(text, AAA_VISUAL_AND_ANIMATION_AUDIT);
     text = insertBeforeGameDocumentation(text, GAME_UI_DESIGN_AUDIT);
+    text = insertBeforeGameDocumentation(text, COMPLETE_FRAME_VISUAL_AUDIT);
   }
   if (["refine-blender-art", "optimized-asset-pipeline"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, ASSET_ANIMATION_IMPLEMENTATION);
