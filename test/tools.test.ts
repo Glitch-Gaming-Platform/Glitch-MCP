@@ -447,6 +447,7 @@ describe("Glitch MCP tools", () => {
     const result = await callTool("glitch_deploy_hosting_build", client, {
       game_build_id: "build_1",
       version: "1.0.0",
+      entry_point: "dist/index.html",
       confirm: true,
       poll_interval_ms: 1,
       timeout_ms: 1000
@@ -465,11 +466,27 @@ describe("Glitch MCP tools", () => {
     const client = new GlitchClient(config, mock.fetch);
     const result = await safeTool(() => callTool("glitch_deploy_hosting_build", client, {
       game_build_id: "build_1",
-      version: "1.0.0"
+      version: "1.0.0",
+      entry_point: "dist/index.html"
     }));
 
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toMatchObject({ status: "error", code: "confirmation_required" });
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("rejects package.json as a guessed hosting entry before any API request", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await safeTool(() => callTool("glitch_deploy_hosting_build", client, {
+      game_build_id: "build_1",
+      version: "1.0.0",
+      entry_point: "package.json",
+      confirm: true
+    }));
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({ status: "error", code: "validation_error" });
     expect(mock.requests).toHaveLength(0);
   });
 
@@ -837,7 +854,8 @@ describe("Glitch MCP tools", () => {
       file_name: "build.zip",
       version_string: "1.0.0",
       build_type: "production",
-      deployment_type: "html5"
+      deployment_type: "html5",
+      entry_point: "index.html"
     });
 
     expect(result.isError).toBeUndefined();

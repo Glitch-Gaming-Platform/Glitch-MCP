@@ -596,6 +596,10 @@ const hostingAiInstructionsInput = z.object({
   databases: z.array(hostingAiDatabaseSchema).max(20).optional(),
   preset: hostingStackPresetSchema.optional(),
   version: z.string().trim().min(1).max(80).optional(),
+  entry_point: z.string().trim().min(1).max(500)
+    .refine((value) => !value.includes("..") && !value.startsWith("/"), "Use a safe relative entry point.")
+    .describe("Optional candidate path from the finished artifact. The generated guide treats this as a candidate to prove, never as an assumption.")
+    .optional(),
   services: z.array(hostingServiceDefinitionSchema).max(24).optional()
 });
 
@@ -681,7 +685,10 @@ const deployHostingBuildInput = z.object({
   site_mode: z.enum(["static", "server"]).optional().describe("Used only when creating a site. Defaults to server for Node builds and static otherwise."),
   azure_region: z.string().trim().min(1).max(80).optional(),
   version: z.string().trim().min(1).max(80),
-  entry_point: z.string().trim().min(1).max(500).default("index.html").refine((value) => !value.includes("..") && !value.startsWith("/"), "Use a safe relative entry point."),
+  entry_point: z.string().trim().min(1).max(500)
+    .refine((value) => !value.includes("..") && !value.startsWith("/"), "Use a safe relative entry point.")
+    .refine((value) => value.replace(/^\.\//, "") !== "package.json", "package.json is metadata, not a proven production entry. Pass the real browser bootstrap or executable server module.")
+    .describe("Required proven path inside the finished build. Use index.html only when it exists there and is the real browser bootstrap; for a server use the executable module that binds PORT."),
   publish: z.boolean().default(true).describe("Publish the ready release to the site's generated/custom domains. False prepares the release without changing the live site."),
   timeout_ms: z.number().int().positive().max(900_000).default(300_000),
   poll_interval_ms: z.number().int().positive().max(30_000).default(2_000),
@@ -1528,7 +1535,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn a ready Glitch game build into an independent hosted website release. It can select the only existing site, create a site when none exists, wait for build and release processing, and publish the result. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists.", deployHostingBuildInput, false, async (client, input, ctx) => {
+  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn a ready Glitch game build into an independent hosted website release using a proven entry path from the finished artifact. It can select the only existing site, create a site when none exists, wait for build and release processing, and publish the result. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists. Ready is not live; publish must also complete HTTPS and final public-site verification.", deployHostingBuildInput, false, async (client, input, ctx) => {
     requireConfirmation(input.confirm, input.publish ? "Deploying and publishing a hosted game website" : "Creating a hosted game website release");
     const titleId = client.resolveTitleId(input.title_id);
 
@@ -1586,7 +1593,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     if (!input.publish) {
       return toolSuccess({
         title: "Hosting release ready",
-        summary: `Prepared hosting release ${releaseId} without changing the live website.`,
+        summary: `Prepared hosting release ${releaseId} without changing the live website. Ready is not active; HTTPS and the public interactive screen have not been proven by this result.`,
         data: { site: site || { id: siteId }, build, release: readyRelease },
         links: [{ name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }]
       });
@@ -1605,7 +1612,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_promote_hosting_release", "Publish Or Roll Back Hosting Release", "Publish a ready hosting release or roll the website back to an earlier immutable release without changing Store distribution.", promoteHostingReleaseInput, false, async (client, input) => {
+  defineTool("glitch_promote_hosting_release", "Publish Or Roll Back Hosting Release", "Publish a ready hosting release or roll the website back to an earlier immutable release without changing Store distribution. A ready release remains unchanged when HTTPS or routing cannot activate; Glitch returns an actionable error and support reference instead of creating another release.", promoteHostingReleaseInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Changing the live hosted website release");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.promoteHostingRelease(titleId, input.site_id, input.release_id);
@@ -1696,6 +1703,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       databases: input.databases,
       preset: input.preset,
       version: input.version,
+      entry_point: input.entry_point,
       services: input.services
     }));
     const instructions = readString(data.instructions);
@@ -2196,7 +2204,10 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       version_string: z.string().min(1).max(20).describe("Human build version, e.g. \"1.4.2\"."),
       build_type: z.enum(["production", "playtest", "demo"]),
       deployment_type: z.string().min(1).max(64).describe("Glitch deployment type, e.g. html5/webgl/windows/linux (must match a configured type)."),
-      entry_point: z.string().max(500).optional().describe("Entry file for web builds. Defaults to index.html server-side."),
+      entry_point: z.string().trim().min(1).max(500)
+        .refine((value) => !value.includes("..") && !value.startsWith("/"), "Use a safe relative entry point.")
+        .refine((value) => value.replace(/^\.\//, "") !== "package.json", "package.json is metadata, not a production entry.")
+        .describe("Required proven entry in the packaged build. Use index.html only when it is the real browser bootstrap; use the executable server module for Node builds."),
       ue_version: z.string().max(20).optional(),
       custom_variables: z.record(z.string(), z.unknown()).optional(),
       part_size_mb: z.number().int().min(5).max(100).optional().describe("Multipart chunk size in MB (S3 minimum 5). Default 10.")

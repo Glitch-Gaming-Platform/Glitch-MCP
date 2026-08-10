@@ -1,4 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { ZodError } from "zod";
 import { GlitchMcpError, isGlitchMcpError } from "./errors.js";
 
 export interface ToolSuccessOptions {
@@ -115,6 +116,13 @@ export async function safeTool(handler: () => Promise<CallToolResult>): Promise<
 function normalizeError(error: unknown): GlitchMcpError {
   if (isGlitchMcpError(error)) {
     return error;
+  }
+  if (error instanceof ZodError) {
+    const message = error.issues.map((issue) => {
+      const field = issue.path.length ? `${issue.path.join(".")}: ` : "";
+      return `${field}${issue.message}`;
+    }).join("; ");
+    return new GlitchMcpError("validation_error", message || "The tool input is invalid.");
   }
 
   return new GlitchMcpError("upstream_error", error instanceof Error ? error.message : "Unexpected MCP adapter error.");

@@ -350,6 +350,8 @@ Glitch MCP can handle the complete website deployment flow with one scoped MCP t
 3. Use `glitch_deploy_hosting_build` with the selected build id. It waits for processing, selects or creates the hosting site, creates an immutable release, and publishes it when `publish=true`.
 4. Use `glitch_promote_hosting_release` to roll back to an earlier release.
 
+Before step 2 or 3, inspect the finished production artifact and prove its exact entry path. `index.html` is valid only when it exists at that path and is the real browser bootstrap. A Node/server build must use the executable module that binds `PORT`; `package.json` is metadata and is rejected as an entry. Test the exact entry in clean Linux or the production container, verify health and all assets, reach the first interactive screen without console errors, and verify the final public HTTPS URL. A `ready` release is not yet active.
+
 All mutations require `confirm=true`. Hosting remains independent from the Glitch Store distribution fee and release state.
 
 ## Manage Hosting From MCP

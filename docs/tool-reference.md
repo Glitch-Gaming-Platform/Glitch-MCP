@@ -169,6 +169,13 @@ the title has one site it selects it automatically. When no site exists, pass
 default to static mode. The tool waits for both build and hosting release
 processing and publishes unless `publish=false`.
 
+`entry_point` is required and must be proven from the finished artifact. The
+tool rejects `package.json` as an entry. Use `index.html` only when that exact
+file is the real browser bootstrap, or use the executable server module that
+binds `PORT`. A ready result is not live; activation still requires successful
+HTTPS/routing and final public-site verification. If promotion returns an
+incident reference, retry the same release instead of creating a duplicate.
+
 ```json
 {
   "title_id": "title_123",
@@ -176,7 +183,7 @@ processing and publishes unless `publish=false`.
   "site_name": "Neon Drift",
   "site_slug": "neon-drift",
   "version": "1.4.0",
-  "entry_point": "index.html",
+  "entry_point": "dist/index.html",
   "publish": true,
   "confirm": true
 }
