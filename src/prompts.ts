@@ -375,6 +375,7 @@ function registerGameDevelopmentWorkflowPrompts(server: McpServer): void {
                 `Retrieve the public Glitch game-development prompt \`${prompt.id}\` with glitch_get_game_development_prompt and use it to complete this task.`,
                 `Situation: ${prompt.title}.`,
                 `Best for: ${prompt.bestFor}`,
+                ...(prompt.warning ? [`Warning: ${prompt.warning}`] : []),
                 context ? `Project context: ${context}` : "Use the repository and conversation for project context, and ask only for materially missing decisions.",
                 "Follow the complete returned Markdown, including verification and the required game-documentation update. Do not stop after displaying the prompt."
               ].join("\n")

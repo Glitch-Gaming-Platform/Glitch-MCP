@@ -10,9 +10,9 @@ import {
 } from "../src/gameDevelopmentPrompts.js";
 
 describe("public AI game-development prompts", () => {
-  it("bundles the authoritative 24-prompt catalog with documentation requirements", () => {
-    expect(GAME_DEVELOPMENT_PROMPTS).toHaveLength(24);
-    expect(new Set(GAME_DEVELOPMENT_PROMPTS.map((prompt) => prompt.id)).size).toBe(24);
+  it("bundles the authoritative 25-prompt catalog with documentation requirements", () => {
+    expect(GAME_DEVELOPMENT_PROMPTS).toHaveLength(25);
+    expect(new Set(GAME_DEVELOPMENT_PROMPTS.map((prompt) => prompt.id)).size).toBe(25);
 
     for (const prompt of GAME_DEVELOPMENT_PROMPTS) {
       expect(prompt.prompt).toMatch(/^# Task:/);
@@ -33,11 +33,15 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("production-game-analytics")?.prompt).toContain(
       "Glitch Analytics dashboard and setup: https://www.glitch.fun/publishers/analytics"
     );
+    expect(getGameDevelopmentPrompt("production-game-analytics")?.prompt).toContain("## Establish tracking before gameplay implementation");
+    expect(getGameDevelopmentPrompt("production-game-analytics")?.prompt).toContain("maps every important player journey and game system");
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Movement and animation audit");
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Collision and hit-detection audit");
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("Resolve physics and collision before visual animation and rendering");
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Game UI, menu, HUD, and button design audit");
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("rather than a website, admin dashboard, launcher");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Internationalization and localization architecture");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("Do not hard-code display strings");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("overall AAA visual-readiness score");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("Every applicable control must define idle, hover");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("## Representative visual states and complete-frame communication audit");
@@ -49,6 +53,9 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("placeholder clips or sliding transforms");
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("## Collision and hit-detection implementation");
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("## Game UI, menu, HUD, and button implementation");
+    expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("## Internationalization and localization implementation");
+    expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("Run pseudolocalization and representative real-locale tests");
+    expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("## Analytics implementation requirement");
     expect(getGameDevelopmentPrompt("game-onboarding-flow")?.prompt).toContain("event-timed hitboxes");
     expect(getGameDevelopmentPrompt("game-onboarding-flow")?.prompt).toContain("predictable controller or keyboard focus with no dead ends");
     expect(getGameDevelopmentPrompt("build-game-from-approved-plans")?.prompt).toContain("prevent repeated hits");
@@ -56,10 +63,19 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("mobile-game-optimization")?.prompt).toContain("## Protect the desktop experience");
     expect(getGameDevelopmentPrompt("mobile-game-optimization")?.prompt).toContain("must not reduce or unintentionally change the existing desktop experience");
     expect(getGameDevelopmentPrompt("mobile-game-optimization")?.prompt).toContain("show no unapproved regression");
+    expect(getGameDevelopmentPrompt("final-aaa-visual-optimization")?.warning).toContain("consume a large number of AI tokens");
+    expect(getGameDevelopmentPrompt("final-aaa-visual-optimization")?.prompt).toContain("## Low and Ultra graphics implementations");
+    expect(getGameDevelopmentPrompt("final-aaa-visual-optimization")?.prompt).toContain("labels and file ordering hidden");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the sound effects the game needs");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the music loops the game needs");
     expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "game-onboarding-flow")).toBe(
       GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "build-playable-vertical-slice") + 1
+    );
+    expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "production-game-analytics")).toBe(
+      GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "build-playable-vertical-slice") - 1
+    );
+    expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "final-aaa-visual-optimization")).toBe(
+      GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "mobile-game-optimization") + 1
     );
     expect(filterGameDevelopmentPrompts({ category: "media" })).toHaveLength(7);
     expect(filterGameDevelopmentPrompts({ search: "mobile" }).map((prompt) => prompt.id)).toEqual(

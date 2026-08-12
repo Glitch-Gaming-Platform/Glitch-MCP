@@ -760,6 +760,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
         title: prompt.title,
         description: prompt.description,
         best_for: prompt.bestFor,
+        ...(prompt.warning ? { warning: prompt.warning } : {}),
         resource_uri: gameDevelopmentPromptResourceUri(prompt.id),
         url: gameDevelopmentPromptUrl(prompt.id)
       }));

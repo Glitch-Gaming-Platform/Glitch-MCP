@@ -10,6 +10,7 @@ export interface GameDevelopmentPrompt {
   readonly title: string;
   readonly description: string;
   readonly bestFor: string;
+  readonly warning?: string;
   readonly prompt: string;
 }
 
@@ -359,6 +360,106 @@ const BASE_GAME_DEVELOPMENT_PROMPTS: readonly GameDevelopmentPrompt[] = [
   }
 ];
 
+const FINAL_AAA_VISUAL_OPTIMIZATION_PROMPT: GameDevelopmentPrompt = {
+  id: "final-aaa-visual-optimization",
+  category: "visuals",
+  eyebrow: "Intensive final polish",
+  title: "Run the final AAA visual optimization pass",
+  description: "Use parallel specialists, independent harsh visual reviews, and measured low-to-ultra quality tiers to polish the complete game.",
+  bestFor: "A functionally complete, mobile-tested game that is ready for an intensive final graphics, animation, physics-presentation, UI, and performance pass.",
+  warning: "This is an intensive prompt. It can run for a long time, use many sub-agents, and consume a large number of AI tokens. Set a budget and review checkpoints before starting.",
+  prompt: `# Task: Run the final AAA visual, animation, and presentation optimization pass
+
+> **Intensive-token warning:** This is a long-running final-polish prompt. It may fan work out across many specialist sub-agents, repeat visual reviews, generate comparison captures, and consume a large number of tokens. Confirm the available token, time, compute, and human-review budget before starting. Use explicit checkpoints so progress can be reviewed or stopped safely.
+
+You are the visual quality director and final presentation owner for a functionally complete game. Make every applicable visible system as cohesive, readable, beautiful, responsive, and technically polished as the approved AAA comparison set allows without changing the approved game design.
+
+Use the environment's strongest available coding/reasoning mode, including an ultracode mode when that is a supported option. Fan out specialist sub-agents when the environment supports them. If sub-agents are unavailable, perform the same workstreams sequentially and keep their implementer and reviewer roles separate.
+
+## Project context
+
+- Repositories and immutable build: [PATHS, URL, COMMIT, BUILD ID, AND ASSET VERSION]
+- Engine or runtime: [THREE.JS / UNITY / GODOT / UNREAL / OTHER]
+- Target platforms and supported devices: [DESKTOP / WEB / IOS / ANDROID / CONSOLE / OTHER]
+- Approved visual rubric and art guide: [PATHS OR LINKS]
+- Approved comparable AAA references: [GAMEPLAY CAPTURES, SCREENSHOTS, OR LINKS]
+- Representative game states and test routes: [PATHS, SCENES, SAVES, OR AUTOMATION STEPS]
+- Performance budgets for Low and Ultra: [FRAME TIME, MEMORY, LOADING, DOWNLOAD, THERMAL, OR ASK AI TO PROPOSE]
+- Token, time, compute, and review budget: [BUDGET AND CHECKPOINTS]
+
+## Preconditions and guardrails
+
+1. Read the approved game design, architecture, visual rubric, art guide, movement and animation audit, collision plan, UI style guide, localization rules, media plan, performance budgets, mobile report, analytics taxonomy, tests, and documentation before changing anything.
+2. Confirm that the game is functionally complete enough for final visual optimization. Do not hide broken mechanics, collision, saves, networking, onboarding, menus, or accessibility behind visual polish.
+3. Capture an immutable baseline on representative devices, resolutions, aspect ratios, locales, input methods, gameplay states, menus, quiet scenes, dense scenes, high-action play, success, failure, loading, and recovery.
+4. Use user-approved AAA games with comparable genre, camera, platform, and art direction. Do not use “AAA” as a vague demand for realism, expense, or content volume.
+5. Preserve gameplay clarity, responsiveness, accessibility, localization, save compatibility, network authority, and the existing desktop and mobile experiences.
+
+## Fan out specialist workstreams
+
+Assign an implementation specialist and a separate independent visual critic to every applicable area:
+
+1. Complete-frame composition, focal order, camera, lens, staging, scale, and gameplay readability.
+2. Characters, creatures, faces, deformation, silhouettes, materials, hair, cloth, accessories, and secondary motion.
+3. Environments, props, world density, landmarks, navigation cues, depth, atmosphere, and environmental storytelling.
+4. Textures, materials, shaders, transparency, reflections, decals, terrain, and technical image stability.
+5. Lighting, shadows, exposure, color grading, contrast, mood, and platform fallbacks.
+6. Locomotion, starts/stops, turns, traversal, combat and interaction animation, facial performance, lip sync, IK, motion matching or blends, procedural animation, vehicles, mechanical motion, and physics-driven reactions.
+7. VFX, particles, trails, impacts, destruction, fluids, smoke, fire, thrusters, weather, camera feedback, haptics, and synchronization with gameplay and audio.
+8. Collision-to-animation alignment and believable physical response while authoritative collision remains simple and separate from visual meshes.
+9. Game-native HUD, menus, buttons, cards, icons, typography, transitions, input glyphs, accessibility, text expansion, right-to-left layout, CJK/font coverage, and supported locales.
+10. Technical presentation: aliasing, shimmering, temporal stability, clipping, z-fighting, LOD transitions, pop-in, streaming, animation compression, frame pacing, memory, loading, and delivery.
+11. Scalability and quality settings, including Low, Ultra, and every shared level between them.
+
+Specialists may work in parallel only when file, scene, asset, and system ownership prevents destructive overlap. Integrate through reviewed checkpoints and keep the game runnable.
+
+## Iterative harsh-critic loop
+
+For each workstream:
+
+1. Grade the baseline against the approved rubric and comparable AAA captures using visible evidence and measured performance.
+2. Implement the smallest high-impact improvement without changing the approved game or exceeding the platform budget.
+3. Capture the same camera, state, resolution, settings, locale, and gameplay moment before and after.
+4. Give the captures to a separate harsh critic with labels and file ordering hidden. The critic must choose which version looks and plays better, explain why, identify regressions, and score both with the same rubric.
+5. Reject changes that lose the blind comparison, hurt readability or responsiveness, break localization/accessibility, or exceed the target profile's budget.
+6. Loop on the weakest applicable category. Do not stop after one pass. Continue until every required quality gate passes or a verified blocker, explicit budget limit, or diminishing-return threshold is documented for human review.
+
+Never claim that a result is AAA, perfect, or visually verified when the representative build, states, comparisons, or target hardware were not actually inspected.
+
+## Low and Ultra graphics implementations
+
+- **Ultra:** the highest approved visual target for capable hardware, with the best justified textures, materials, lighting, shadows, animation layers, VFX, draw distance, density, postprocessing, and presentation that remain within the Ultra budget.
+- **Low:** an art-directed fallback for constrained hardware. Preserve the same fantasy, silhouette, focal hierarchy, state readability, UI clarity, animation timing, collision behavior, and gameplay rules while reducing expensive resolution, density, effects, shadows, postprocessing, simulation, or streaming pressure.
+
+Use capability detection, player settings, and measured defaults instead of one global reduction. Define safe transitions, persistence, automatic fallback and recovery, shader/material/asset variants, memory limits, and profile-specific budgets. Low must look intentional and polished; Ultra must not change mechanics or hide information unavailable on Low.
+
+## Final verification
+
+- Run blind same-state side-by-side comparisons for every critical workstream and representative state.
+- Re-test desktop, mobile, and other supported platforms so one profile or platform is not improved by degrading another.
+- Test high and low motion, menus and HUD, loading, success/failure, multiple resolutions and aspect ratios, supported inputs, pseudolocalization, representative locales, right-to-left layout where supported, accessibility settings, and reduced motion.
+- Measure frame time, CPU/GPU cost, memory, thermals, loading, downloads, streaming, animation, physics, particles, UI, and visual stability for Low and Ultra on target hardware.
+- Run the project's automated, remote-automation, screenshot, visual-regression, gameplay, collision, UI-navigation, localization, performance, and production-build tests.
+
+## Required final report
+
+Provide the baseline and final rubric, workstream ownership, iterations attempted, blind-comparison results, rejected changes, Low and Ultra specifications, per-platform measurements, representative before/after captures, unresolved blockers, untested claims, files and assets changed, documentation updated, and exact commands and routes needed to reproduce every visual and performance check.
+
+## Required game documentation
+
+Documentation is part of the definition of done for this task.
+
+Before finishing:
+
+1. Read the existing README, docs directory, architecture notes, decision records, and AI instructions that apply to this system.
+2. Update the existing relevant documentation instead of creating a competing document or a second source of truth.
+3. If no relevant document exists, create a clearly named Markdown document in the game's established documentation directory. Use docs/ when the project has no existing convention.
+4. Document the current system, the decisions made, ownership and lifecycle rules, configuration, files or assets changed, commands and tests run, known limitations, and how another developer should extend or troubleshoot the work.
+5. Update AI_INSTRUCTIONS.md or the project's equivalent when this task changes architectural boundaries, required workflows, naming rules, or validation commands.
+6. Keep documentation accurate to the implementation. Do not claim support, measurements, or test coverage that was not verified.
+7. In the final report, list every documentation file created or updated.`
+};
+
 function insertBeforeGameDocumentation(prompt: string, addition: string): string {
   const marker = "\n\n## Required game documentation";
   const insertion = `\n\n${addition.trim()}`;
@@ -447,6 +548,52 @@ Implement large targets and every applicable idle, hover, focus, pressed, disabl
 
 Test every critical menu path, button state, input-method switch, rapid repeated input, modal stack, focus restoration, resolution and aspect ratio, couch or mobile reading distance, safe area, localization, accessibility setting, performance budget, and recovery from interrupted loading or gameplay state changes.`;
 
+const I18N_SETUP_REQUIREMENT = `## Internationalization and localization architecture
+
+Build internationalization into the existing architecture before gameplay and UI content multiply. Do not create a separate localization application or bolt translation onto finished screens.
+
+- Centralize player-facing text behind stable translation keys and locale resources. Do not hard-code display strings in gameplay, menus, tutorials, errors, notifications, subtitles, or content data.
+- Define a fallback locale, missing-key behavior, resource ownership, extraction and validation commands, translator notes, and a safe process for adding or updating a language.
+- Support Unicode, plural/select rules through an ICU-style message system or the engine's equivalent, locale-aware number/date/time/currency/unit formatting, and invariant internal IDs for saves, networking, analytics, achievements, and game rules.
+- Plan for right-to-left layout and bidirectional text, CJK and other line-breaking rules, diacritics, input methods and IME where players type, font fallback and glyph coverage, translated text expansion, subtitles/captions, localized audio or asset variants where required, and runtime language selection with a persisted preference.
+- Keep localization data separate from trusted game rules. Servers, SDKs, automation, and analytics should exchange stable language-independent identifiers while clients turn them into localized player-readable text.
+- Add pseudolocalization, missing/unused-key validation, fallback-locale tests, long-string and text-expansion tests, right-to-left tests, font/glyph checks, and representative locale screenshots to the normal test and CI strategy.
+
+Document the supported launch locales, later-locale workflow, ownership, file locations, naming rules, formatting rules, font and audio strategy, platform limitations, and exact commands another developer or translator uses.`;
+
+const I18N_IMPLEMENTATION_REQUIREMENT = `## Internationalization and localization implementation
+
+Implement the approved internationalization architecture as part of this work rather than leaving localization for a later rewrite.
+
+- Route every new or changed player-facing string through stable translation keys and locale resources, including HUD, menus, buttons, tutorials, objectives, dialogue, item and ability descriptions, errors, loading/save/reconnect states, accessibility text, subtitles, and notifications.
+- Use locale-aware pluralization and formatting. Keep save data, network messages, analytics event names, content IDs, achievements, and gameplay rules language-independent; attach the active locale as metadata only where it is useful and privacy-safe.
+- Preserve the selected language across sessions and support safe runtime switching where the platform allows it. Fall back predictably when a translation, font glyph, subtitle, voice line, or localized asset is missing.
+- Verify text expansion, wrapping, truncation, responsive layout, safe areas, button and card sizing, controller focus, touch targets, subtitle timing, localized audio fallback, font and atlas memory, CJK text, diacritics, right-to-left mirroring and mixed-direction text, and IME/text entry where applicable.
+- Run pseudolocalization and representative real-locale tests across supported resolutions and input methods. Player-facing output must remain natural, readable, visually native to the game, and free of raw translation keys or developer diagnostics.
+
+Update the existing localization documentation and report supported, partially supported, fallback-only, and untested locales honestly.`;
+
+const PRE_IMPLEMENTATION_ANALYTICS_REQUIREMENT = `## Establish tracking before gameplay implementation
+
+Complete the analytics contract before the first playable implementation begins so every new system is measurable when it is added.
+
+1. Read the approved mechanics, core loop, onboarding plan, UI flows, progression, economy, multiplayer, accessibility, localization, performance, failure, and release requirements.
+2. Create a coverage matrix that maps every important player journey and game system to stable events, required properties, success/failure outcomes, timing, version, platform, input method, and privacy-safe locale context.
+3. Define one centralized, failure-safe analytics interface that gameplay, UI, backend, and platform code can call without depending directly on a provider. A blocked, offline, slow, or failed analytics provider must never block input, saves, networking, scene changes, or gameplay.
+4. Keep event names and property keys language-independent. Never use translated display text as an event identifier, and never send raw dialogue, player-entered text, secrets, unnecessary personal data, or developer diagnostics.
+5. Document exactly where implementation prompts must emit events for session start/end, onboarding, core-loop entry and repetition, mechanics, movement, combat or challenges, menus, progression, rewards, economy, purchases, saves, errors, performance, accessibility, localization changes, success, failure, retry, abandonment, and exits where applicable.
+6. Add schema validation, duplicate prevention, consent and production gating, offline/queue behavior, provider-failure tests, and a development validation view that proves event order and payloads without exposing it to players.
+
+Do not mark analytics setup complete until the taxonomy, integration interface, privacy rules, test strategy, and implementation coverage matrix are documented and ready for every later game-development step to follow.`;
+
+const ANALYTICS_IMPLEMENTATION_REQUIREMENT = `## Analytics implementation requirement
+
+Use the approved analytics taxonomy and centralized analytics interface while implementing this game work. Before adding or changing a mechanic, screen, onboarding beat, progression step, success/failure state, or recovery path, identify its required events and acceptance evidence in the coverage matrix.
+
+Emit stable language-independent event names with validated properties, build/version and platform context, input method where useful, and privacy-safe locale metadata. Prevent duplicates and preserve event order. Analytics must be asynchronous and failure-safe: blocked consent, offline play, provider failure, or a full queue must not break gameplay, input, saves, networking, loading, or UI.
+
+Add automated tests for the new event paths and verify representative sessions in the development validation view and approved provider tools. Update the coverage matrix and analytics documentation with implemented, deferred, and untested events.`;
+
 const MOBILE_DESKTOP_PARITY_REQUIREMENT = `## Protect the desktop experience
 
 Mobile optimization must not reduce or unintentionally change the existing desktop experience. Scope mobile layouts, touch controls, safe areas, asset variants, render caps, quality reductions, memory limits, lifecycle behavior, and network fallbacks through explicit platform capability checks, input-mode rules, responsive breakpoints, or mobile configuration rather than global defaults that also affect desktop.
@@ -480,6 +627,21 @@ For each cue, loop, or adaptive family, record: state or scene, emotional and ga
 function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopmentPrompt {
   let text = prompt.prompt;
 
+  if (prompt.id === "production-game-analytics") {
+    text = insertBeforeGameDocumentation(text, PRE_IMPLEMENTATION_ANALYTICS_REQUIREMENT);
+  }
+  if ([
+    "secure-game-backend",
+    "game-backend-sdk",
+    "threejs-game-architecture",
+    "unity-game-architecture",
+    "godot-game-architecture",
+    "unreal-game-architecture",
+    "remote-game-automation",
+    "production-game-analytics"
+  ].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, I18N_SETUP_REQUIREMENT);
+  }
   if (["threejs-game-architecture", "unity-game-architecture", "godot-game-architecture", "unreal-game-architecture"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, MOVEMENT_ANIMATION_AUDIT);
     text = insertBeforeGameDocumentation(text, COLLISION_SYSTEM_AUDIT);
@@ -502,6 +664,10 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
     text = insertBeforeGameDocumentation(text, GAMEPLAY_COLLISION_IMPLEMENTATION);
     text = insertBeforeGameDocumentation(text, GAME_UI_IMPLEMENTATION);
   }
+  if (["build-playable-vertical-slice", "game-onboarding-flow", "build-game-from-approved-plans", "final-aaa-visual-optimization"].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, I18N_IMPLEMENTATION_REQUIREMENT);
+    text = insertBeforeGameDocumentation(text, ANALYTICS_IMPLEMENTATION_REQUIREMENT);
+  }
   if (prompt.id === "mobile-game-optimization") {
     text = insertBeforeGameDocumentation(text, GAME_UI_IMPLEMENTATION);
     text = insertBeforeGameDocumentation(text, MOBILE_DESKTOP_PARITY_REQUIREMENT);
@@ -515,8 +681,46 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
   return { ...prompt, prompt: text };
 }
 
+function movePromptBefore(
+  prompts: readonly GameDevelopmentPrompt[],
+  promptId: string,
+  beforePromptId: string
+): GameDevelopmentPrompt[] {
+  const prompt = prompts.find((candidate) => candidate.id === promptId);
+  if (!prompt) return [...prompts];
+  const remaining = prompts.filter((candidate) => candidate.id !== promptId);
+  const insertionIndex = remaining.findIndex((candidate) => candidate.id === beforePromptId);
+  if (insertionIndex < 0) return [...remaining, prompt];
+  return [...remaining.slice(0, insertionIndex), prompt, ...remaining.slice(insertionIndex)];
+}
+
+function movePromptAfter(
+  prompts: readonly GameDevelopmentPrompt[],
+  promptId: string,
+  afterPromptId: string
+): GameDevelopmentPrompt[] {
+  const prompt = prompts.find((candidate) => candidate.id === promptId);
+  if (!prompt) return [...prompts];
+  const remaining = prompts.filter((candidate) => candidate.id !== promptId);
+  const insertionIndex = remaining.findIndex((candidate) => candidate.id === afterPromptId);
+  if (insertionIndex < 0) return [...remaining, prompt];
+  return [...remaining.slice(0, insertionIndex + 1), prompt, ...remaining.slice(insertionIndex + 1)];
+}
+
+const PROMPTS_WITH_FINAL_VISUAL_PASS = movePromptAfter(
+  [...BASE_GAME_DEVELOPMENT_PROMPTS, FINAL_AAA_VISUAL_OPTIMIZATION_PROMPT],
+  "final-aaa-visual-optimization",
+  "mobile-game-optimization"
+);
+
+const ORDERED_GAME_DEVELOPMENT_PROMPTS = movePromptBefore(
+  PROMPTS_WITH_FINAL_VISUAL_PASS,
+  "production-game-analytics",
+  "build-playable-vertical-slice"
+);
+
 export const GAME_DEVELOPMENT_PROMPTS: readonly GameDevelopmentPrompt[] =
-  BASE_GAME_DEVELOPMENT_PROMPTS.map(synchronizePromptGuidance);
+  ORDERED_GAME_DEVELOPMENT_PROMPTS.map(synchronizePromptGuidance);
 
 export function gameDevelopmentPromptUrl(promptId: string): string {
   return GAME_DEVELOPMENT_PROMPT_PAGE_URL + "?prompt=" + encodeURIComponent(promptId) + "#prompt-picker";

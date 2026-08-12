@@ -106,6 +106,7 @@ export function registerGlitchResources(server: McpServer): void {
                 title: prompt.title,
                 description: prompt.description,
                 best_for: prompt.bestFor,
+                ...(prompt.warning ? { warning: prompt.warning } : {}),
                 resource_uri: gameDevelopmentPromptResourceUri(prompt.id),
                 url: gameDevelopmentPromptUrl(prompt.id)
               }))
@@ -135,6 +136,7 @@ export function registerGlitchResources(server: McpServer): void {
             text: [
               `<!-- Glitch prompt id: ${prompt.id} -->`,
               `<!-- Category: ${prompt.category}; Best for: ${prompt.bestFor} -->`,
+              ...(prompt.warning ? [`<!-- Warning: ${prompt.warning} -->`] : []),
               `<!-- Web: ${gameDevelopmentPromptUrl(prompt.id)} -->`,
               "",
               prompt.prompt
