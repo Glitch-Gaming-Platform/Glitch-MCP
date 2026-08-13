@@ -2170,7 +2170,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_list_deployments",
     "List Game Deployments",
-    "List the game build deployments for the title.",
+    "List the game build deployments for the title. For Store launch decisions, the active ready build is authoritative for deployment_type and runtime selection; title-level deployment metadata may be denormalized.",
     z.object({ ...optionalTitleShape }),
     true,
     async (client, input) => {
@@ -2183,8 +2183,8 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_update_deployment_status",
     "Update Deployment Status",
-    "Update a game build's deployment status (e.g. publish or roll back) for the title's game.",
-    z.object({ ...optionalTitleShape, build_id: z.string().min(1).max(191), status: z.string().min(1).max(64) }),
+    "Update a game build's deployment status. Setting ready activates that build for its production, demo, or playtest channel; inactive or failed removes it from launch selection. After activation, list deployments again and verify the public play response uses this build's deployment_type and URL.",
+    z.object({ ...optionalTitleShape, build_id: z.string().min(1).max(191), status: z.enum(["ready", "inactive", "failed"]) }),
     false,
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
@@ -2196,7 +2196,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_deploy_game_build",
     "Deploy Game Build",
-    "Upload a packaged game build (.zip) to Glitch end to end and register the deployment: initiate the multipart upload, PUT each part to its pre-signed URL, complete it, and confirm the build. Provide file_path over the stdio transport (large builds are streamed part by part) or content_base64 over HTTP (small builds). Requires deploy-create rights (a deploy token or title-admin JWT). This creates a real deployment; ask the developer for version/build/deployment type if not given.",
+    "Upload a packaged game build (.zip) to Glitch end to end and register the deployment: initiate the multipart upload, PUT each part to its pre-signed URL, complete it, and confirm the build. Provide file_path over the stdio transport (large builds are streamed part by part) or content_base64 over HTTP (small builds). Requires deploy-create rights (a deploy token or title-admin JWT). This creates a processing deployment, not a verified public launch; ask the developer for version, build channel, and deployment type if not given, then verify the active ready build and public play response after processing.",
     z.object({
       ...optionalTitleShape,
       file_path: z.string().max(1024).optional().describe("Local path to the packaged build .zip. stdio transport only; streamed part by part."),
@@ -2204,7 +2204,8 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       file_name: z.string().max(255).optional(),
       version_string: z.string().min(1).max(20).describe("Human build version, e.g. \"1.4.2\"."),
       build_type: z.enum(["production", "playtest", "demo"]),
-      deployment_type: z.string().min(1).max(64).describe("Glitch deployment type, e.g. html5/webgl/windows/linux (must match a configured type)."),
+      deployment_type: z.enum(["iframe", "wasm", "node", "container", "streamed_native", "pixel_streaming"])
+        .describe("Runtime used by the uploaded artifact. Use node/container for a server build, iframe/wasm for a browser artifact, and streamed_native/pixel_streaming only for matchmaker-backed streaming."),
       entry_point: z.string().trim().min(1).max(500)
         .refine((value) => !value.includes("..") && !value.startsWith("/"), "Use a safe relative entry point.")
         .refine((value) => value.replace(/^\.\//, "") !== "package.json", "package.json is metadata, not a production entry.")
@@ -2269,7 +2270,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
 
         return toolSuccess({
           title: "Game build deployed",
-          summary: `Uploaded ${source.fileName} and registered a ${input.build_type}/${input.deployment_type} deployment (v${input.version_string}). Processing runs asynchronously.`,
+          summary: `Uploaded ${source.fileName} and registered a ${input.build_type}/${input.deployment_type} deployment (v${input.version_string}). Processing runs asynchronously; verify the active ready build and public play response before calling it launch-ready.`,
           data: build,
           links: [{ name: "Open deploy", url: client.dashboardUrl("title", { titleId }) }]
         });

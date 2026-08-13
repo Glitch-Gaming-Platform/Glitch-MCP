@@ -817,14 +817,14 @@ describe("Glitch MCP tools", () => {
   });
 
   it("updates a deployment status with a PUT", async () => {
-    const mock = createFetchMock(() => jsonResponse({ data: { id: "build_1", status: "published" } }));
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "build_1", status: "ready" } }));
     const client = new GlitchClient(config, mock.fetch);
-    const result = await callTool("glitch_update_deployment_status", client, { build_id: "build_1", status: "published" });
+    const result = await callTool("glitch_update_deployment_status", client, { build_id: "build_1", status: "ready" });
 
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/titles/title_default/deployments/build_1/status");
     expect(mock.requests[0]?.init?.method).toBe("PUT");
-    expect(mock.requests[0]?.body).toMatchObject({ status: "published" });
+    expect(mock.requests[0]?.body).toMatchObject({ status: "ready" });
   });
 
   it("deploys a build end to end through the multipart flow", async () => {
@@ -854,7 +854,7 @@ describe("Glitch MCP tools", () => {
       file_name: "build.zip",
       version_string: "1.0.0",
       build_type: "production",
-      deployment_type: "html5",
+      deployment_type: "wasm",
       entry_point: "index.html"
     });
 
@@ -871,7 +871,7 @@ describe("Glitch MCP tools", () => {
     expect(complete?.body).toMatchObject({ upload_id: "upload_1", parts: [{ PartNumber: 1, ETag: "\"etag-1\"" }] });
     // The confirm step registers the build with the provided metadata.
     const confirm = mock.requests.find((r) => r.url.endsWith("/deployments/confirm"));
-    expect(confirm?.body).toMatchObject({ version_string: "1.0.0", build_type: "production", deployment_type: "html5" });
+    expect(confirm?.body).toMatchObject({ version_string: "1.0.0", build_type: "production", deployment_type: "wasm" });
     expect(result.structuredContent?.data).toMatchObject({ id: "build_1", status: "processing" });
   });
 });
