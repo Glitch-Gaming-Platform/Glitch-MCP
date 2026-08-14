@@ -42,6 +42,14 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("rather than a website, admin dashboard, launcher");
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Internationalization and localization architecture");
     expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("Do not hard-code display strings");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Three.js WebGPU and WebGL renderer architecture");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("fall back to a WebGL 2 backend");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("Three.js Shading Language and node materials");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Three.js geometry, draw-call, and rendering performance");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("below 500 is a strong initial target");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("## Three.js multi-device rendering quality and fallback paths");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("Low, Balanced, High, and Ultra profiles");
+    expect(getGameDevelopmentPrompt("threejs-game-architecture")?.prompt).toContain("Character and object animation quality");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("overall AAA visual-readiness score");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("Every applicable control must define idle, hover");
     expect(getGameDevelopmentPrompt("visual-quality-rubric")?.prompt).toContain("## Representative visual states and complete-frame communication audit");
@@ -56,6 +64,8 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("## Internationalization and localization implementation");
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("Run pseudolocalization and representative real-locale tests");
     expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("## Analytics implementation requirement");
+    expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("do not treat a triangle count or WebGPU selection as a universal performance guarantee");
+    expect(getGameDevelopmentPrompt("build-playable-vertical-slice")?.prompt).toContain("Create real asset, material, animation, and effect fallback paths");
     expect(getGameDevelopmentPrompt("game-onboarding-flow")?.prompt).toContain("event-timed hitboxes");
     expect(getGameDevelopmentPrompt("game-onboarding-flow")?.prompt).toContain("predictable controller or keyboard focus with no dead ends");
     expect(getGameDevelopmentPrompt("build-game-from-approved-plans")?.prompt).toContain("prevent repeated hits");
@@ -68,6 +78,8 @@ describe("public AI game-development prompts", () => {
     expect(getGameDevelopmentPrompt("final-aaa-visual-optimization")?.prompt).toContain("labels and file ordering hidden");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the sound effects the game needs");
     expect(getGameDevelopmentPrompt("audit-game-media-pipeline")?.prompt).toContain("## Map the music loops the game needs");
+    expect(getGameDevelopmentPrompt("threejs-media-optimization")?.prompt).toContain("Compare WebGPU and WebGL 2 with the same build");
+    expect(getGameDevelopmentPrompt("threejs-media-optimization")?.prompt).toContain("renderer.info");
     expect(GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "game-onboarding-flow")).toBe(
       GAME_DEVELOPMENT_PROMPTS.findIndex((prompt) => prompt.id === "build-playable-vertical-slice") + 1
     );

@@ -594,6 +594,56 @@ Emit stable language-independent event names with validated properties, build/ve
 
 Add automated tests for the new event paths and verify representative sessions in the development validation view and approved provider tools. Update the coverage matrix and analytics documentation with implemented, deferred, and untested events.`;
 
+const THREEJS_RENDERER_ARCHITECTURE_REQUIREMENT = `## Three.js WebGPU and WebGL renderer architecture
+
+If this project uses Three.js, inspect the installed Three.js version and its official documentation before choosing renderer imports or APIs. Do not copy an older WebGPU setup from memory.
+
+- For a new compatible renderer layer, evaluate the current three/webgpu entry point and WebGPURenderer. The current renderer is designed to select a WebGPU backend when available and fall back to a WebGL 2 backend. Do not add a separate hand-written WebGPU-detection branch and a second renderer unless an audited feature incompatibility, target-browser requirement, or current-version limitation makes that necessary.
+- Initialize the renderer asynchronously where deterministic initialization, feature inspection, loading flow, or on-demand rendering requires it. Use the renderer's supported animation-loop lifecycle and prevent gameplay simulation, asset upload, resize, input, or UI startup from racing renderer initialization.
+- If the project deliberately uses WebGLRenderer, document why. If it uses WebGPURenderer with a forced WebGL backend, document the compatibility reason and test that path separately.
+- Build a renderer capability and compatibility matrix for standard materials, shadows, render targets, post-processing, video textures, animation/skinning, particles, picking, WebXR if applicable, custom shaders, device/context loss, screenshots, and every third-party Three.js extension used by the game.
+- Use Three.js Shading Language and node materials for new custom shader work that must run across the WebGPU and WebGL backends. Do not silently port raw GLSL, ShaderMaterial, RawShaderMaterial, or onBeforeCompile customizations without proving an equivalent supported path and visual parity.
+- Keep renderer selection behind one documented interface so scenes and gameplay systems do not branch throughout the codebase. Record the active backend in development diagnostics and privacy-safe performance telemetry.
+- Handle initialization failure, WebGPU device loss, WebGL context loss, unsupported WebGL 2, reduced features, and recovery with a player-readable fallback rather than a blank canvas or raw exception.
+
+Test the exact pinned Three.js version on every supported browser/device. Compare WebGPU and WebGL 2 with the same build, scene, camera, resolution, device-pixel ratio, quality tier, warm-up, and gameplay route before declaring either backend faster or production-ready.`;
+
+const THREEJS_RENDERING_PERFORMANCE_REQUIREMENT = `## Three.js geometry, draw-call, and rendering performance
+
+If the project uses Three.js, do not treat a triangle count or WebGPU selection as a universal performance guarantee. Establish per-device and per-quality-tier budgets from measured CPU frame time, GPU frame time, frame pacing, draw calls, visible triangles, shader and material cost, overdraw/fill rate, lights and shadows, post-processing, texture bandwidth, uploads, animation/skinning, physics, memory, loading, and JavaScript allocation behavior.
+
+Use these only as initial planning hypotheses before profiling, never as pass/fail claims:
+
+- Visible scene geometry: roughly 100k–500k triangles for constrained mobile, 500k–2 million for mid-range mobile, 2–5 million for capable mobile, 2–10 million for older desktop hardware, and 10–50 million for capable gaming desktops when the rest of the frame is controlled.
+- Asset envelopes: characters around 5k–50k triangles, props around 100–5k, buildings around 1k–20k, terrain around 100k–500k visible, and approximately 1–5 million visible triangles for a broadly compatible complete scene.
+- Draw calls: below 500 is a strong initial target, 500–1,000 requires observation, 1,000–2,000 has increasing CPU risk, and more than 2,000 requires explicit evidence on the target hardware and renderer backend.
+
+Replace those hypotheses with project-specific measured budgets as soon as representative content exists. A lower triangle scene can still be slower because of expensive pixels, shaders, state changes, transparency, shadows, post-processing, animation, physics, or JavaScript work.
+
+Prefer the smallest measured combination of InstancedMesh, BatchedMesh, merged static geometry, shared geometry/materials, texture atlases or arrays where appropriate, frustum culling, distance and screen-size LOD, spatial partitioning, bounded object pools, selective updates, compressed KTX2/Basis textures, compressed glTF meshes where justified, asynchronous loading, streaming, and explicit resource disposal. Do not merge objects that need independent culling, animation, selection, collision, or material behavior without measuring the trade-off.
+
+Record renderer.info counters and browser/GPU profiler captures for representative quiet, dense, high-motion, transparent, shadow-heavy, particle-heavy, UI-overlay, and post-processing states. Profile WebGPU and WebGL 2 separately; WebGPU can reduce some CPU submission overhead and enable compute or modern rendering features, but it does not repair excessive allocations, physics, pathfinding, poor scene organization, expensive fragment shading, oversized shadows, or unnecessary post-processing.
+
+For every optimization, capture the same build and gameplay route before and after, verify visual and gameplay parity, and report the actual bottleneck moved—not only the triangle count.`;
+
+const THREEJS_QUALITY_SCALABILITY_REQUIREMENT = `## Three.js multi-device rendering quality and fallback paths
+
+If the project uses Three.js, design and implement capability-based rendering quality paths so the same game remains playable and visually coherent across constrained phones, capable phones and tablets, integrated-GPU laptops, older desktops, and high-end desktops.
+
+Define documented Low, Balanced, High, and Ultra profiles when the supported device range justifies them. Each profile must specify measured budgets and explicit settings for:
+
+- Renderer backend and supported feature path, render scale, device-pixel-ratio cap, target frame rate, antialiasing, output-buffer precision, and post-processing.
+- Visible triangle and draw-call budgets, LOD distances or screen-size thresholds, object and vegetation density, terrain detail, decals, particles, transparent effects, reflection quality, and draw distance.
+- Texture resolution, KTX2/Basis variants, anisotropy, material and shader complexity, normal/detail maps, environment maps, lighting count, shadow count, shadow-map resolution, cascades, contact shadows, and baked versus dynamic lighting.
+- Character and object animation quality: rig and bone budgets, skinned-mesh count, animation sampling/update rate, interpolation, blend layers, facial animation, lip sync, IK, secondary motion, cloth, hair, ragdolls, physics reactions, crowd animation, and update-distance throttling.
+- Asset residency, streaming, preload scope, memory ceilings, cache limits, geometry and texture disposal, worker use, and recovery from memory or graphics-device pressure.
+
+Build the quality system from centralized data rather than scattered conditionals. Use measured capabilities and runtime performance—not only user-agent strings—to select a safe default. Let players override the choice when practical, persist the setting, explain costly options simply, and support safe automatic degradation with hysteresis so quality does not rapidly oscillate. Recover upward only after sustained headroom and never during a critical gameplay moment without an approved transition policy.
+
+Create real asset, material, animation, and effect fallback paths instead of only disabling everything globally. Preserve silhouettes, art direction, gameplay readability, telegraphs, interaction feedback, hit timing, collision, input response, UI meaning, localization, accessibility, network authority, saves, and deterministic gameplay across every profile. Ultra may add presentation detail, but it must not reveal gameplay information or mechanics unavailable on Low.
+
+Test cold start, representative gameplay, dense/high-motion scenes, menus, particles, transparency, lighting and shadows, animation-heavy scenes, background/resume, resize, orientation change, device/context loss, and live profile switching on representative devices. Capture comparable screenshots and performance traces for every profile and backend. Report unsupported combinations and fall back to the nearest verified path with a player-readable message rather than a blank canvas, crash, or raw error.`;
+
 const MOBILE_DESKTOP_PARITY_REQUIREMENT = `## Protect the desktop experience
 
 Mobile optimization must not reduce or unintentionally change the existing desktop experience. Scope mobile layouts, touch controls, safe areas, asset variants, render caps, quality reductions, memory limits, lifecycle behavior, and network fallbacks through explicit platform capability checks, input-mode rules, responsive breakpoints, or mobile configuration rather than global defaults that also affect desktop.
@@ -641,6 +691,34 @@ function synchronizePromptGuidance(prompt: GameDevelopmentPrompt): GameDevelopme
     "production-game-analytics"
   ].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, I18N_SETUP_REQUIREMENT);
+  }
+  if (["threejs-game-architecture", "threejs-media-optimization"].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, THREEJS_RENDERER_ARCHITECTURE_REQUIREMENT);
+  }
+  if ([
+    "threejs-game-architecture",
+    "threejs-media-optimization",
+    "optimized-asset-pipeline",
+    "build-playable-vertical-slice",
+    "game-onboarding-flow",
+    "mobile-game-optimization",
+    "final-aaa-visual-optimization",
+    "build-game-from-approved-plans"
+  ].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, THREEJS_RENDERING_PERFORMANCE_REQUIREMENT);
+  }
+  if ([
+    "threejs-game-architecture",
+    "visual-quality-rubric",
+    "optimized-asset-pipeline",
+    "threejs-media-optimization",
+    "build-playable-vertical-slice",
+    "game-onboarding-flow",
+    "mobile-game-optimization",
+    "final-aaa-visual-optimization",
+    "build-game-from-approved-plans"
+  ].includes(prompt.id)) {
+    text = insertBeforeGameDocumentation(text, THREEJS_QUALITY_SCALABILITY_REQUIREMENT);
   }
   if (["threejs-game-architecture", "unity-game-architecture", "godot-game-architecture", "unreal-game-architecture"].includes(prompt.id)) {
     text = insertBeforeGameDocumentation(text, MOVEMENT_ANIMATION_AUDIT);
