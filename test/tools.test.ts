@@ -461,6 +461,42 @@ describe("Glitch MCP tools", () => {
     expect(mock.requests.some((request) => request.url.endsWith("/hosting/sites/site_1/releases/release_1/promote"))).toBe(true);
   });
 
+  it("resumes a processing game build and waits for ready without activating it", async () => {
+    let deploymentChecks = 0;
+    const mock = createFetchMock((request) => {
+      if (request.url.includes("/deployments?")) {
+        deploymentChecks += 1;
+        return jsonResponse({ data: [{ id: "build_processing", status: deploymentChecks === 1 ? "processing" : "ready", deployment_type: "node" }] });
+      }
+      if (request.url.endsWith("/hosting")) {
+        return jsonResponse({ data: { sites: [{ id: "site_1" }] } });
+      }
+      if (request.url.endsWith("/hosting/sites/site_1/releases") && request.init?.method === "POST") {
+        return jsonResponse({ data: { id: "release_1", status: "processing" } }, 202);
+      }
+      if (request.url.includes("/hosting/sites/site_1/releases?") && request.init?.method === "GET") {
+        return jsonResponse({ data: [{ id: "release_1", status: "ready" }] });
+      }
+      return jsonResponse({ message: "Unexpected request" }, 500);
+    });
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_deploy_hosting_build", client, {
+      game_build_id: "build_processing",
+      site_id: "site_1",
+      version: "1.0.0",
+      entry_point: "dist/server.js",
+      publish: false,
+      confirm: true,
+      poll_interval_ms: 1,
+      timeout_ms: 1000
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(deploymentChecks).toBeGreaterThanOrEqual(2);
+    expect(mock.requests.some((request) => request.url.includes("/deployments/build_processing/status"))).toBe(false);
+    expect(result.structuredContent?.data).toMatchObject({ build: { id: "build_processing", status: "ready" } });
+  });
+
   it("does not create a hosting release without explicit confirmation", async () => {
     const mock = createFetchMock(() => jsonResponse({ data: {} }));
     const client = new GlitchClient(config, mock.fetch);

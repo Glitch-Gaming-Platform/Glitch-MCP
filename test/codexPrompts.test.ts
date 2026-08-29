@@ -26,6 +26,9 @@ describe("installCodexPrompts", () => {
 
     const prompt = await readFile(join(codexHome, "prompts", "glitch_launch_audit.md"), "utf8");
     expect(prompt).toContain("description: Run a Glitch launch readiness audit.");
+    const deployPrompt = await readFile(join(codexHome, "prompts", "glitch_deploy_hosting_build.md"), "utf8");
+    expect(deployPrompt).toContain("https://api.glitch.fun/js/aegis-bridge.js");
+    expect(deployPrompt).toContain("Node/SSR, streamed-native/noVNC, generic container");
   });
 
   it("copies packaged Glitch slash prompts into Cursor and Claude project command directories", async () => {

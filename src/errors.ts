@@ -25,6 +25,10 @@ export interface GlitchErrorDetails {
   readonly billingUrl?: string;
   readonly dashboardUrl?: string;
   readonly fieldErrors?: Record<string, unknown>;
+  readonly buildId?: string;
+  readonly failureStage?: string;
+  readonly deploymentErrorCode?: string;
+  readonly retryable?: boolean;
 }
 
 /**

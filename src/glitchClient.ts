@@ -10,6 +10,49 @@ export interface TitleSelectionStore {
   set(titleId: string): void;
 }
 
+function deploymentFailure(build: JsonObject, buildId: string): {
+  message: string;
+  details: {
+    buildId: string;
+    failureStage?: string;
+    deploymentErrorCode?: string;
+    retryable?: boolean;
+  };
+} {
+  const errorCode = stringOrUndefined(build.error_code) || "deployment_failed";
+  const failureStage = stringOrUndefined(build.failure_stage) || stringOrUndefined(build.failed_at_step);
+  const errorMessage = stringOrUndefined(build.error_message)
+    || stringOrUndefined(build.error_log)
+    || stringOrUndefined(build.error)
+    || `Game build ${buildId} failed during deployment.`;
+  const remediation = stringOrUndefined(build.remediation);
+  const retryable = typeof build.retryable === "boolean" ? build.retryable : undefined;
+  const parts = [
+    `Game build ${buildId} failed.`,
+    `Code: ${errorCode}.`,
+    failureStage ? `Stage: ${failureStage}.` : undefined,
+    `Retryable: ${retryable === true ? "yes" : retryable === false ? "no" : "unknown"}.`,
+    `Message: ${errorMessage}`,
+    remediation ? `Next step: ${remediation}` : undefined
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    message: parts.join(" "),
+    details: {
+      buildId,
+      ...(failureStage ? { failureStage } : {}),
+      deploymentErrorCode: errorCode,
+      ...(retryable === undefined ? {} : { retryable })
+    }
+  };
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
 /**
  * In-memory title selection for stdio sessions.
  *
@@ -304,9 +347,18 @@ export class GlitchClient {
           return build;
         }
         if (status === "failed") {
+          const failure = deploymentFailure(build, buildId);
           throw new GlitchMcpError(
             "upstream_error",
-            String(build.error_message || build.error || `Game build ${buildId} failed during deployment.`)
+            failure.message,
+            failure.details
+          );
+        }
+        if (status === "inactive") {
+          throw new GlitchMcpError(
+            "conflict",
+            `Game build ${buildId} is inactive, not processing or ready. Verify that this is the intended finished build before requesting an allowed activation transition.`,
+            { buildId }
           );
         }
       }
@@ -314,7 +366,11 @@ export class GlitchClient {
       await sleep(pollIntervalMs);
     }
 
-    throw new GlitchMcpError("upstream_timeout", `Timed out waiting for game build ${buildId} to become ready.`, { status: 408 });
+    throw new GlitchMcpError(
+      "upstream_timeout",
+      `Timed out waiting for game build ${buildId} to become ready. The build was not re-uploaded or activated; resume polling this same build id and inspect its processing_stage and deployment_heartbeat_at.`,
+      { status: 408, buildId, retryable: true }
+    );
   }
 
   async waitForHostingReleaseReady(

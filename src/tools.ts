@@ -678,7 +678,7 @@ const confirmHostingCheckoutInput = z.object({
 
 const deployHostingBuildInput = z.object({
   ...optionalTitleShape,
-  game_build_id: idSchema.describe("Ready Glitch game build id. Call glitch_list_deployments first; upload a local ZIP only when no compatible build exists."),
+  game_build_id: idSchema.describe("Existing compatible Glitch game build id. It may be processing or ready; this tool waits for ready. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists."),
   site_id: idSchema.optional().describe("Hosting site id. When omitted, the only existing site is used, or a new site is created from site_name/site_slug."),
   site_name: z.string().trim().min(1).max(120).optional(),
   site_slug: z.string().trim().min(1).max(63).regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/).optional(),
@@ -1536,7 +1536,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn a ready Glitch game build into an independent hosted website release using a proven entry path from the finished artifact. It can select the only existing site, create a site when none exists, wait for build and release processing, and publish the result. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists. Ready is not live; publish must also complete HTTPS and final public-site verification.", deployHostingBuildInput, false, async (client, input, ctx) => {
+  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn an existing compatible Glitch game build into an independent hosted website release using a proven entry path from the finished artifact. The build may already be processing; the tool resumes by id and waits for build and release readiness before publishing. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists. Never activate a processing Store build. Ready is not live; publish must also complete HTTPS and final public-site verification.", deployHostingBuildInput, false, async (client, input, ctx) => {
     requireConfirmation(input.confirm, input.publish ? "Deploying and publishing a hosted game website" : "Creating a hosted game website release");
     const titleId = client.resolveTitleId(input.title_id);
 
@@ -2183,7 +2183,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_update_deployment_status",
     "Update Deployment Status",
-    "Update a game build's deployment status. Setting ready activates that build for its production, demo, or playtest channel; inactive or failed removes it from launch selection. After activation, list deployments again and verify the public play response uses this build's deployment_type and URL.",
+    "Update a finished game build's deployment status. Never use this tool to set ready while a build is processing; the deployment job owns that transition and HTTP 400 is expected. Setting ready activates an eligible inactive build for its production, demo, or playtest channel; inactive or failed removes it from launch selection. After activation, list deployments again and verify the public play response uses this build's deployment_type and URL.",
     z.object({ ...optionalTitleShape, build_id: z.string().min(1).max(191), status: z.enum(["ready", "inactive", "failed"]) }),
     false,
     async (client, input) => {
@@ -2196,7 +2196,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_deploy_game_build",
     "Deploy Game Build",
-    "Upload a packaged game build (.zip) to Glitch end to end and register the deployment: initiate the multipart upload, PUT each part to its pre-signed URL, complete it, and confirm the build. Provide file_path over the stdio transport (large builds are streamed part by part) or content_base64 over HTTP (small builds). Requires deploy-create rights (a deploy token or title-admin JWT). This creates a processing deployment, not a verified public launch; ask the developer for version, build channel, and deployment type if not given, then verify the active ready build and public play response after processing.",
+    "Upload a packaged game build (.zip) to Glitch end to end and register the deployment: initiate the multipart upload, PUT each part to its pre-signed URL, complete it, and confirm the build. Provide file_path over the stdio transport (large builds are streamed part by part) or content_base64 over HTTP (small builds). Requires deploy-create rights (a deploy token or title-admin JWT). This creates a processing deployment, not a verified public launch; ask the developer for version, build channel, and deployment type if not given, then verify the active ready build and public play response after processing. For Store-embedded pages, Glitch auto-injects the Aegis bridge only into exact static HTML/HTM entries and discovered standard Pixel Streaming player pages. Node/SSR, streamed-native/noVNC, generic container, non-HTML static, and custom Pixel Streaming frontends must include https://api.glitch.fun/js/aegis-bridge.js once in the real browser layout.",
     z.object({
       ...optionalTitleShape,
       file_path: z.string().max(1024).optional().describe("Local path to the packaged build .zip. stdio transport only; streamed part by part."),

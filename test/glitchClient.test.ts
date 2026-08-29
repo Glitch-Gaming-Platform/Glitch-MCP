@@ -187,6 +187,32 @@ describe("GlitchClient", () => {
     vi.useRealTimers();
   });
 
+  it("reports actionable deployment diagnostics when a build fails", async () => {
+    const mock = createFetchMock(() => jsonResponse({
+      data: [{
+        id: "build_failed",
+        status: "failed",
+        error_code: "runtime_not_ready",
+        failure_stage: "public_smoke_test",
+        retryable: false,
+        error_message: "The public entry returned metrics instead of game HTML.",
+        remediation: "Return game HTML from the configured public entry path."
+      }]
+    }));
+    const client = new GlitchClient(config, mock.fetch);
+
+    await expect(client.waitForDeploymentReady("title_1", "build_failed", 1000, 10)).rejects.toMatchObject({
+      code: "upstream_error",
+      message: expect.stringContaining("Next step: Return game HTML from the configured public entry path."),
+      details: {
+        buildId: "build_failed",
+        deploymentErrorCode: "runtime_not_ready",
+        failureStage: "public_smoke_test",
+        retryable: false
+      }
+    });
+  });
+
   it("forwards a per-request auth token to the hosted service, overriding config.token", async () => {
     const mock = createFetchMock(() => jsonResponse({ data: { id: "title_1" } }));
     const client = new GlitchClient(

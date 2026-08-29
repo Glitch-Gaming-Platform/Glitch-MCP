@@ -162,12 +162,27 @@ Glitch bindings for credentials.
 state. Use a ready release id with `glitch_promote_hosting_release` to publish or
 roll back.
 
-`glitch_deploy_hosting_build` deploys a ready Glitch game build to Hosting. Call
-`glitch_list_deployments` first and reuse a compatible ready build. When
+`glitch_deploy_hosting_build` deploys an existing compatible Glitch game build
+to Hosting. Call `glitch_list_deployments` first and reuse a compatible
+processing or ready build. The tool resumes by build id and waits for a
+processing build to become ready. Never call `glitch_update_deployment_status`
+with `ready` while a build is processing; Glitch returns HTTP 400. When
 the title has one site it selects it automatically. When no site exists, pass
 `site_name` and `site_slug`; Node builds default to server mode and other builds
 default to static mode. The tool waits for both build and hosting release
 processing and publishes unless `publish=false`.
+
+Persist the build id returned by `glitch_deploy_game_build`. If the client or
+agent restarts, list deployments and resume that same id instead of uploading
+the unchanged ZIP again. Upload another build only when no compatible build
+exists or after a failed build has been corrected.
+
+For a Node build, the finished ZIP must contain `package.json`, the executable
+production entry, and a production `Dockerfile` in the same build context.
+Place `Dockerfile` at the ZIP root by default, bind the app to `0.0.0.0`, and
+align application `PORT`, Dockerfile `EXPOSE`, and `custom_variables.target_port`
+on one explicit port. The standard contract is `HOST=0.0.0.0`, `PORT=3000`,
+`EXPOSE 3000`, and `target_port=3000`.
 
 `entry_point` is required and must be proven from the finished artifact. The
 tool rejects `package.json` as an entry. Use `index.html` only when that exact
@@ -175,6 +190,24 @@ file is the real browser bootstrap, or use the executable server module that
 binds `PORT`. A ready result is not live; activation still requires successful
 HTTPS/routing and final public-site verification. If promotion returns an
 incident reference, retry the same release instead of creating a duplicate.
+
+Developers do not need to provide a custom smoke-test suite. Glitch runs the
+mandatory acceptance checks appropriate to the deployment type, and build
+variables cannot disable them. While a build is processing, clients should show
+`processing_stage`. A failed build should surface its build id, `error_code`,
+`failure_stage`, `retryable`, `error_message`, and `remediation`; a poll timeout
+means resume the same build id, not create or activate another build.
+
+For a browser surface embedded in the Glitch Store, use the canonical Aegis
+bridge URL `https://api.glitch.fun/js/aegis-bridge.js`. Glitch automatically
+injects it only into the exact static HTML/HTM entry and discovered standard
+Pixel Streaming `player.html`/`player.htm` pages. Normal Node/SSR entries,
+streamed-native/noVNC frontends, generic container images, non-HTML static
+entries, and custom Pixel Streaming frontends must add the script once to their
+real browser layout. Hosting-only pages do not need the Store parent bridge
+unless that same surface is also embedded in the Store. Verify the final served
+page loads the canonical URL once; do not copy it locally or put secrets in
+`window.AEGIS_CONFIG`.
 
 ```json
 {

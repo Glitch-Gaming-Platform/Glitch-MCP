@@ -345,12 +345,23 @@ Hosted facade contract: [docs/hosted-api-contract.md](docs/hosted-api-contract.m
 
 Glitch MCP can handle the complete website deployment flow with one scoped MCP token:
 
-1. Use `glitch_list_deployments` and select a compatible ready game build already uploaded on Deploy Game.
-2. Only when no compatible build exists, use `glitch_deploy_game_build` to upload the local packaged build once.
-3. Use `glitch_deploy_hosting_build` with the selected build id. It waits for processing, selects or creates the hosting site, creates an immutable release, and publishes it when `publish=true`.
+1. Use `glitch_list_deployments` and select a compatible processing or ready game build already uploaded on Deploy Game.
+2. Preserve that build id. If it is processing, resume waiting on it; never activate it or upload the unchanged artifact again. Only when no compatible build exists, use `glitch_deploy_game_build` once and persist the returned id.
+3. Use `glitch_deploy_hosting_build` with the selected build id. It waits for game-build and release processing, selects or creates the hosting site, creates an immutable release, and publishes it when `publish=true`.
 4. Use `glitch_promote_hosting_release` to roll back to an earlier release.
 
+Developers do not need to supply a custom smoke-test suite. Glitch runs mandatory deployment-type acceptance gates that custom variables cannot disable. MCP reports `processing_stage` while waiting and includes the build id, `error_code`, `failure_stage`, `retryable`, `error_message`, and `remediation` when a build fails.
+
+For Store-embedded browser surfaces, the canonical Aegis bridge is `https://api.glitch.fun/js/aegis-bridge.js`. Static HTML/HTM entries and discovered standard Pixel Streaming player pages are patched automatically. Node/SSR, streamed-native/noVNC, generic container, non-HTML static, and custom Pixel Streaming frontends must add the script once to their own browser layout and verify it loads in the final page.
+
 Before step 2 or 3, inspect the finished production artifact and prove its exact entry path. `index.html` is valid only when it exists at that path and is the real browser bootstrap. A Node/server build must use the executable module that binds `PORT`; `package.json` is metadata and is rejected as an entry. Test the exact entry in clean Linux or the production container, verify health and all assets, reach the first interactive screen without console errors, and verify the final public HTTPS URL. A `ready` release is not yet active.
+
+Node packages must also include a production `Dockerfile` in the same build
+context as `package.json` and the executable entry. Put it at the ZIP root by
+default. Bind to `0.0.0.0` and align `HOST=0.0.0.0`, `PORT=3000`, Dockerfile
+`EXPOSE 3000`, and `custom_variables.target_port=3000` unless another single
+port is explicitly tested. Do not call `glitch_update_deployment_status` with
+`ready` while a Store build is processing; Glitch returns HTTP 400.
 
 All mutations require `confirm=true`. Hosting remains independent from the Glitch Store distribution fee and release state.
 
