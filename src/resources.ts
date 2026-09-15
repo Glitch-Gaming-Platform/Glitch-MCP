@@ -1,4 +1,6 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { GlitchClient } from "./glitchClient.js";
+import { MICROTRANSACTION_SETUP_GUIDE, sanitizeMicrotransactionResult } from "./microtransactionTools.js";
 import {
   GAME_DEVELOPMENT_PROMPT_CATEGORIES,
   GAME_DEVELOPMENT_PROMPTS,
@@ -8,7 +10,21 @@ import {
 } from "./gameDevelopmentPrompts.js";
 import { GLITCH_MCP_VERSION } from "./version.js";
 
-export function registerGlitchResources(server: McpServer): void {
+export function registerGlitchResources(server: McpServer, client: GlitchClient): void {
+  server.registerResource("glitch-microtransaction-setup", "glitch://microtransactions/setup", {
+    title: "Glitch Microtransaction Setup", mimeType: "text/markdown",
+    description: "Complete safe LLM workflow: product/media/branding schemas, 12% economics, title abilities, human approvals, white-label checkout, account handoff, restore and sandbox checks."
+  }, async uri => ({ contents: [{ uri: uri.href, mimeType: "text/markdown", text: MICROTRANSACTION_SETUP_GUIDE }] }));
+
+  server.registerResource("glitch-title-microtransaction-capabilities", new ResourceTemplate("glitch://titles/{title_id}/microtransactions/capabilities", { list: undefined }), {
+    title: "Title Microtransaction Schemas", mimeType: "application/json",
+    description: "Authoritative live server JSON schemas, units, examples, abilities and approval requirements for this exact title; authenticated with the requesting MCP caller, never a shared operator or runtime title token."
+  }, async (uri, variables) => {
+    const titleId = variables.title_id;
+    if (typeof titleId !== "string" || !/^[A-Za-z0-9_:-]{1,160}$/.test(titleId)) throw new Error("A valid title identifier is required.");
+    const data = await client.microtransactionCapabilities(titleId);
+    return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(sanitizeMicrotransactionResult(data), null, 2) }] };
+  });
   server.registerResource(
     "glitch-mcp-capabilities",
     "glitch://mcp/capabilities",
@@ -30,6 +46,7 @@ export function registerGlitchResources(server: McpServer): void {
               rich_experience: ["structured_results", "dashboard_deep_links", "mcp_apps_progressive_enhancement", "long_running_generation_progress"],
               game_development: ["public_prompt_library", "live_genre_taxonomy", "multi_genre_mechanics_and_core_loop_blueprints", "documentation_required"],
               analytics: ["canonical_dashboard_reports", "dynamic_report_catalog", "family_bundles", "partial_results", "agent_shared_contract"],
+              microtransactions: ["title_scoped_schema_discovery", "catalog_prices_grants", "existing_media_upload", "game_white_label_checkout", "one_time_scoped_account_handoff", "sandbox_readiness", "server_human_approval", "immutable_delivery_replay"],
               social: ["dynamic_operation_catalog", "title_scoped_primitives", "agent_shared_registry", "platform_capability_matrix"],
               safety: [
                 "subscription_checked_server_side",

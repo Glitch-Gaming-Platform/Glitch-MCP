@@ -38,6 +38,8 @@ import {
   presentTitles
 } from "./present.js";
 import { safeTool, toolSuccess } from "./result.js";
+import { microtransactionToolDefinitions } from "./microtransactionTools.js";
+import { progressionToolDefinitions } from "./progressionTools.js";
 
 /** Maximum upload size (50 MB), matching the hosted facade's limit. */
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -133,6 +135,8 @@ export interface GlitchToolDefinition {
   readonly title: string;
   readonly description: string;
   readonly inputSchema: RawShape;
+  /** Preserve strict object validation through the MCP SDK (raw shapes strip unknown fields). */
+  readonly validationSchema?: z.ZodObject<RawShape>;
   readonly readOnlyHint?: boolean;
   readonly destructiveHint?: boolean;
   readonly idempotentHint?: boolean;
@@ -365,6 +369,14 @@ const uploadFileInput = z.object({
   file_name: z.string().trim().min(1).max(255).optional().describe("File name. Inferred from file_path when omitted; required with content_base64."),
   mime_type: z.string().trim().min(1).max(120).optional().describe("MIME type. Inferred from the file extension when omitted.")
 });
+
+const uploadMicrotransactionMediaInput = uploadFileInput.omit({ agent_run_id: true }).extend({
+  confirm: z.boolean().default(false).describe("Explicit user approval to upload this image/video to the selected game's product media. No social post is created.")
+}).strict();
+
+const uploadAchievementIconInput = uploadFileInput.omit({ agent_run_id: true }).extend({
+  confirm: z.boolean().default(false).describe("Explicit approval to upload this public achievement icon for the selected title.")
+}).strict();
 
 const localProjectRootSchema = z
   .string()
@@ -958,6 +970,8 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     }
   ),
 
+  ...microtransactionToolDefinitions,
+
   defineTool("glitch_start_agent_run", "Start Agent Run", "Start a paid Glitch Agent run for a title. Subscription and title permissions are enforced by Glitch.", startRunInput, false, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const run = await client.startRun(titleId, omitUndefined({
@@ -1415,6 +1429,18 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       data,
       links: [{ name: "Open title workspace", url: client.dashboardUrl("title", { titleId }) }]
     });
+  }),
+
+  defineTool("glitch_upload_microtransaction_media", "Upload Microtransaction Media", "Upload a reviewed product image/video (maximum 50 MiB) through existing Glitch Media processing with trusted title/actor ownership. Requires commerce:write and confirm=true. Use file_path only on local stdio; HTTP uses content_base64 plus file_name. Accepted raster images/videos, not SVG/HTML/documents. Returns Media {id,url,mime_type,poster}; attach id to product.media_ids or branding.logo_media_id for the same title. Does not create a scheduler, title update or social post. Processing may be asynchronous; inspect media before publication. Cross-title/unowned media is rejected server-side.", uploadMicrotransactionMediaInput, false, async (client, input) => {
+    requireConfirmation(input.confirm, "Uploading game product media");
+    const titleId = client.resolveTitleId(input.title_id);
+    const { bytes, fileName } = await loadUploadBytes(client, input);
+    const mimeType = inferMimeType(fileName, input.mime_type);
+    if (!/^(image\/(png|jpeg|webp|gif)|video\/(mp4|webm|quicktime))$/.test(mimeType) || bytes.byteLength > MAX_UPLOAD_BYTES) {
+      throw new GlitchMcpError("validation_error", "Product media must be an accepted raster image/video of at most 50 MiB. SVG/HTML is not accepted.");
+    }
+    const data = await client.uploadMicrotransactionMedia(titleId, { bytes, fileName, mimeType });
+    return toolSuccess({ title: "Game product media uploaded", summary: "Attach the returned Media id to this title's product or branding. No social post was created.", data });
   }),
 
   defineTool("glitch_upload_file", "Upload File", "Upload a local image, video, or document (e.g. a screenshot, gameplay clip, or brief) to a Glitch title or run. Files become run attachments and potential social assets, treated as reference material behind the prompt-injection boundary.", uploadFileInput, false, async (client, input) => {
@@ -2084,29 +2110,44 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   ),
 
   // --- Progression: leaderboards + achievements ---
+  ...progressionToolDefinitions,
+  defineTool("glitch_upload_achievement_icon", "Upload Achievement Icon", "Upload a reviewed PNG/JPEG/WebP/GIF icon (maximum 10 MiB). Requires progression:write and confirm=true. Returns a public URL to use as icon_locked_url or icon_unlocked_url on an achievement; does not itself attach the icon. No agent subscription, social post or AI media processing is created. Local file_path is stdio-only; HTTP uses content_base64 and file_name.", uploadAchievementIconInput, false, async (client, input) => {
+    if (!input.confirm) throw confirmationRequiredError("upload achievement icon");
+    const titleId = client.resolveTitleId(input.title_id);
+    const { bytes, fileName } = await loadUploadBytes(client, input);
+    const mimeType = inferMimeType(fileName, input.mime_type);
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mimeType) || bytes.byteLength > 10 * 1024 * 1024) {
+      throw new GlitchMcpError("validation_error", "Achievement icons must be PNG/JPEG/WebP/GIF images no larger than 10 MiB.");
+    }
+    return toolSuccess({ title: "Achievement icon uploaded", summary: "Attach the returned public URL to the locked or unlocked icon field.", data: await client.uploadAchievementIcon(titleId, { bytes, fileName, mimeType }) });
+  }),
   defineTool(
     "glitch_submit_progression",
     "Submit Progression Run",
-    "Submit a progression run for a player install. `stats` (map of stat api_key -> number) drives stats AND achievement thresholds; `scores` (map of leaderboard api_key -> number) drives leaderboards. Use the exact api keys defined in the dashboard — unknown keys 404. Provide a unique `idempotency_key` so a retried run is counted once (a repeat returns status \"duplicate\"). Provide at least one of stats or scores. Returns newly-unlocked achievements and updated stats.",
+    "Submit an approved progression run for a player install. Requires progression:submit and confirm=true; this changes real player data. stats (stat api_key -> number) drives stats/achievement thresholds; scores (board api_key -> number) drives leaderboards. List definitions first. Include at least one nonempty map and a unique idempotency_key; retry the same run with the same key (duplicate returns HTTP 409). Success means accepted, not a verified leaderboard rank: pending runs remain excluded from standings. Read player achievements/stats after submission to verify state.",
     z.object({
       ...optionalTitleShape,
       install_id: z.string().min(1).max(191),
       idempotency_key: z.string().min(1).max(191).describe("Unique per run (e.g. a UUID). A repeat is treated as a duplicate so the run counts once."),
       stats: z.record(z.string(), z.number()).optional().describe("Map of stat api_key -> value. Drives stats and achievement unlocks."),
       scores: z.record(z.string(), z.number()).optional().describe("Map of leaderboard api_key -> score."),
-      trust_level: z.enum(["unverified", "verified"]).optional().describe("Defaults to unverified."),
+      metadata: z.record(z.string(), z.unknown()).optional().describe("Optional run metadata, nested inside payload."),
+      confirm: z.boolean().default(false).describe("Explicit approval to change player progression; tests affect real title data."),
+      trust_level: z.enum(["unverified", "authenticated", "server_authoritative"]).optional().describe("Defaults to unverified. server_authoritative is for approved developer/server submissions to trusted_server boards, never shipped credentials."),
       platform: z.string().max(50).optional().describe("Defaults to web.")
     }),
     false,
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
-      const payload = omitUndefined({ stats: input.stats, scores: input.scores });
-      if (Object.keys(payload).length === 0) {
+      const payload = omitUndefined({ stats: input.stats, scores: input.scores, metadata: input.metadata });
+      if (Object.keys(input.stats ?? {}).length + Object.keys(input.scores ?? {}).length === 0) {
         throw new GlitchMcpError("validation_error", "Provide at least one of `stats` or `scores`.");
       }
+      if (!input.confirm) throw confirmationRequiredError("submit progression");
       const data = await client.submitProgression(titleId, input.install_id, omitUndefined({
         idempotency_key: input.idempotency_key,
         payload,
+        confirm: true,
         trust_level: input.trust_level,
         platform: input.platform
       }));
@@ -2123,19 +2164,20 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
       const data = await client.listLeaderboardDefinitions(titleId);
-      return toolSuccess({ title: "Leaderboard definitions", summary: "Configured leaderboards for this title.", data, links: [{ name: "Open leaderboards", url: client.dashboardUrl("title", { titleId }) }] });
+      return toolSuccess({ title: "Leaderboard definitions", summary: "Configured leaderboards for this title.", data, links: [{ name: "Open leaderboards", url: client.dashboardUrl("leaderboards", { titleId }) }] });
     }
   ),
 
   defineTool(
     "glitch_read_leaderboard",
     "Read Leaderboard Standings",
-    "Read the standings for a leaderboard by its api key.",
-    z.object({ ...optionalTitleShape, api_key: z.string().min(1).max(191), limit: z.number().int().min(1).max(500).optional() }),
+    "Read valid-run standings by exact board api_key with page/limit and optional season_id. around_me requires install_id and returns a fixed radius of five; page/limit apply only to standard standings. Requires progression:read. New pending submissions may not appear.",
+    z.object({ ...optionalTitleShape, api_key: z.string().min(1).max(100), limit: z.number().int().min(1).max(500).optional(), page: z.number().int().min(1).optional(), season_id: z.uuid().optional(), around_me: z.boolean().optional(), install_id: z.string().min(1).max(191).optional() }),
     true,
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
-      const data = await client.readLeaderboard(titleId, input.api_key, omitUndefined({ limit: input.limit }));
+      if (input.around_me && !input.install_id) throw new GlitchMcpError("validation_error", "install_id is required when around_me is true.");
+      const data = await client.readLeaderboard(titleId, input.api_key, omitUndefined({ limit: input.limit, page: input.page, season_id: input.season_id, around_me: input.around_me === undefined ? undefined : Number(input.around_me), install_id: input.install_id }));
       return toolSuccess({ title: "Leaderboard standings", summary: `Standings for ${input.api_key}.`, data });
     }
   ),
@@ -2149,7 +2191,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
       const data = await client.listAchievementDefinitions(titleId);
-      return toolSuccess({ title: "Achievement definitions", summary: "Configured achievements for this title.", data, links: [{ name: "Open achievements", url: client.dashboardUrl("title", { titleId }) }] });
+      return toolSuccess({ title: "Achievement definitions", summary: "Configured achievements for this title.", data, links: [{ name: "Open achievements", url: client.dashboardUrl("achievements", { titleId }) }] });
     }
   ),
 
@@ -2288,7 +2330,7 @@ export function registerGlitchTools(server: McpServer, client: GlitchClient): vo
       {
         title: definition.title,
         description: definition.description,
-        inputSchema: definition.inputSchema,
+        inputSchema: definition.validationSchema ?? definition.inputSchema,
         annotations: {
           readOnlyHint: definition.readOnlyHint ?? false,
           destructiveHint: definition.destructiveHint ?? false,
@@ -2297,7 +2339,7 @@ export function registerGlitchTools(server: McpServer, client: GlitchClient): vo
         },
         ...(definition.uiResourceUri ? { _meta: { "ui.resourceUri": definition.uiResourceUri } } : {})
       },
-      async (input, extra) => safeTool(() => definition.handler(client, input as never, buildToolContext(extra, server)))
+      async (input: unknown, extra: unknown) => safeTool(() => definition.handler(client, input as never, buildToolContext(extra, server)))
     );
   }
 }
@@ -2375,6 +2417,7 @@ function defineTool<Input extends RawShape>(
     title,
     description,
     inputSchema: schema.shape,
+    validationSchema: schema,
     readOnlyHint,
     destructiveHint: !readOnlyHint,
     idempotentHint: readOnlyHint,

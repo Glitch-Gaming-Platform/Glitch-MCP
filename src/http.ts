@@ -273,6 +273,10 @@ function errorForResponse(response: Response, payload: unknown): GlitchMcpError 
     ...(typeof objectPayload.errors === "object" && objectPayload.errors !== null ? { fieldErrors: objectPayload.errors as Record<string, unknown> } : {})
   };
 
+  if ((response.status === 403 || response.status === 409) && objectPayload.code === "human_approval_required") {
+    return new GlitchMcpError("human_approval_required", message, details);
+  }
+
   switch (response.status) {
     case 400:
     case 422:

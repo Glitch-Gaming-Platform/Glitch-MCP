@@ -1,6 +1,6 @@
 {
   "name": "glitch-mcp",
-  "version": "0.3.1",
+  "version": "0.4.1",
   "description": "Public MCP adapter for Glitch game development prompts, design tools, analytics, hosting, and the hosted Glitch Agent service.",
   "type": "module",
   "publishConfig": {
@@ -23,6 +23,7 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist coverage",
     "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test:commerce-contract": "npm run build && node scripts/check-microtransaction-contract.mjs",
     "prepack": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest"

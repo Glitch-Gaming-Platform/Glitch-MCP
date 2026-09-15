@@ -12,6 +12,93 @@ All tools are exposed by the public MCP adapter and fulfilled by the hosted Glit
 
 ## Tools
 
+### Leaderboards, achievements, stats and seasons
+
+These tools use the canonical `/titles/{title_id}` progression API. MCP tokens
+must belong to the title and to a user who still has title administration
+rights. `progression:read` permits reads, `progression:write` permits definition
+changes/icon uploads, and `progression:submit` permits submissions and the
+developer test install. All mutations require `confirm=true` after approval.
+New readonly/operator/developer presets include the relevant abilities; existing
+tokens keep their existing scopes. An admin JWT is also supported. Runtime
+title tokens are not developer definition-management credentials.
+
+| Capability | Tools |
+| --- | --- |
+| Board definitions | `glitch_list_leaderboards`, `glitch_create_leaderboard`, `glitch_update_leaderboard`, `glitch_delete_leaderboard` |
+| Achievement definitions | `glitch_list_achievement_definitions`, `glitch_create_achievement`, `glitch_update_achievement`, `glitch_delete_achievement` |
+| Stat definitions | `glitch_list_stat_definitions`, `glitch_create_stat_definition`, `glitch_update_stat_definition`, `glitch_delete_stat_definition` |
+| Seasons | `glitch_list_progression_seasons`, `glitch_create_progression_season`, `glitch_update_progression_season`, `glitch_delete_progression_season` |
+| Icons | `glitch_upload_achievement_icon` |
+| Test and submit | `glitch_create_progression_test_install`, `glitch_submit_progression` |
+| Read results | `glitch_read_leaderboard`, `glitch_list_player_stats`, `glitch_list_player_achievements` |
+
+Definition fields:
+
+- Leaderboards: `api_key`, `name`, `sort_order` (`asc`/`desc`), `display_type`
+  (`score`/`time_ms`/`distance`/`currency`/`percent`), and `write_policy`
+  (`client`/`trusted_server`) are required on create.
+- Achievements: required `api_key`, `name`, `description`; optional `is_hidden`,
+  same-title `progress_stat_id`, `unlock_threshold`, `tiered_data`, and
+  `icon_locked_url`/`icon_unlocked_url`. A linked stat requires a positive
+  threshold. Without a matching stat definition, submitting a trophy's key
+  directly unlocks it regardless of the submitted number or threshold.
+  `tiered_data` is stored metadata, not independent tier-award logic.
+- Stats: required `api_key`, `display_name`, `type` (`int`/`float`/`avgrate`),
+  `aggregation_policy` (`sum`/`max`/`min`/`latest`); optional `default_value`,
+  `min_value`, `max_value`, `increment_only`, `max_delta`. The numeric MCP run
+  payload is intended for int/float stats; configuring avgrate does not imply
+  support for a structured points/session-length submission.
+- Seasons: required `name`, ISO 8601 `start_date` and `end_date`; optional
+  `is_active`. End must follow start. Avoid overlapping active windows because
+  the server assigns the first active matching season at submission time.
+
+Updates accept only the fields being changed plus the relevant `leaderboard_id`,
+`achievement_id`, `stat_id`, or `season_id`. Omitted fields remain unchanged;
+explicit `null` clears nullable fields. Updates do not rebuild historical data.
+Changing the sort order of a board with recorded entries is rejected, since the
+discarded non-best attempts cannot be reconstructed. Create a new board instead.
+
+Deleting a board deletes entries; deleting an achievement deletes unlock states;
+deleting a stat deletes player values and is blocked while achievements refer to
+it. Deleting a season is a soft delete that preserves history. Prefer a new
+season for a fresh competition instead of deleting scores.
+
+Icon upload accepts `file_path` in local stdio or `content_base64` + `file_name`
+over HTTP. PNG/JPEG/WebP/GIF only, maximum 10 MiB; SVG is rejected. Attach its
+returned public `url` to either icon field. Uploading an icon does not require an
+Agent or create social content.
+
+Example sequence (replace IDs and review each mutation):
+
+1. List existing definitions and reuse the exact keys/IDs.
+2. Create a stat with `glitch_create_stat_definition`:
+   `{"api_key":"wins","display_name":"Wins","type":"int","aggregation_policy":"sum","confirm":true}`.
+3. Create an achievement with `glitch_create_achievement`, using the returned
+   stat ID and `unlock_threshold:10`, plus name, description and a unique key.
+4. Create a board with `glitch_create_leaderboard`:
+   `{"api_key":"high_score","name":"High Score","sort_order":"desc","display_type":"score","write_policy":"client","confirm":true}`.
+5. If approved, call `glitch_create_progression_test_install` with `confirm:true`.
+   This binds the developer's own account. **This is real title progression,
+   not an isolated sandbox.**
+6. Submit with the returned install ID, a unique `idempotency_key`, optional
+   `stats`, `scores`, `metadata`, and `confirm:true`. At least one nonempty numeric
+   stats/scores map is required. Retry with the same key; a duplicate is HTTP 409.
+7. Verify with player-stat and achievement reads. Read standings with `api_key`,
+   `limit` (1–500), `page`, optional `season_id`. `around_me:true` requires
+   `install_id` and uses a fixed radius of five, ignoring standard page/limit.
+
+Submission acceptance is not leaderboard validation: canonical runs start
+pending and only valid runs appear in standings. MCP does not manufacture ranks
+or bypass run validation. The canonical instant-feedback array may not enumerate
+all unlocks; read player achievement state to verify. `server_authoritative`
+submissions are for explicitly approved trusted developer/server workflows, not
+for distributing MCP credentials to players.
+
+These capabilities require both the updated adapter and backend deployment.
+Tests use isolated PostgreSQL fixtures and mocked HTTP for protocol checks; they
+do not modify the user's production title.
+
 ### glitch_auth_status
 
 Checks current auth, title access, and entitlement state.

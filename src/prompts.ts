@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
+import { MICROTRANSACTION_SETUP_GUIDE } from "./microtransactionTools.js";
 import {
   GAME_DEVELOPMENT_PROMPTS,
   gameDevelopmentPromptCommandName
@@ -10,6 +11,11 @@ const optionalTitleArgs = {
 };
 
 export function registerGlitchPrompts(server: McpServer): void {
+  server.registerPrompt("glitch_setup_microtransactions", {
+    title: "Set Up Game Microtransactions",
+    description: "Set up reviewed title-scoped products, media, prices, branding, regional providers and safe hosted checkout/account handoff using exact server schemas and explicit approval gates.",
+    argsSchema: { ...optionalTitleArgs }
+  }, async ({ title_id }) => ({ messages: [{ role: "user", content: { type: "text", text: `${title_id ? `Selected title: ${title_id}` : "List titles and ask which game I want to configure."}\n\n${MICROTRANSACTION_SETUP_GUIDE}` } }] }));
   server.registerPrompt(
     "glitch_manage_hosting",
     {

@@ -92,6 +92,40 @@ POST /mcp/v1/titles/{title_id}/tokens
 DELETE /mcp/v1/titles/{title_id}/tokens/{token_id}
 ```
 
+## Canonical progression routes with scoped MCP access
+
+The adapter also calls the existing title progression API (not `/mcp/v1`).
+`TitleOrJwtMiddleware` authenticates MCP tokens on these controllers, enforcing
+same-title access, current administrator membership, the following abilities,
+and `confirm=true` on writes. This does not turn a runtime title token into an
+administrator or change authentication for unrelated controllers.
+
+```text
+GET    /titles/{title_id}/progression/{stats|achievements|leaderboards|seasons}
+POST   /titles/{title_id}/progression/{stats|achievements|leaderboards|seasons}
+PUT    /titles/{title_id}/progression/{type}/{definition_id}
+DELETE /titles/{title_id}/progression/{type}/{definition_id}
+POST   /titles/{title_id}/progression/icons
+POST   /titles/{title_id}/progression/test-install
+POST   /titles/{title_id}/installs/{install_id}/submit
+GET    /titles/{title_id}/installs/{install_id}/stats
+GET    /titles/{title_id}/installs/{install_id}/achievements
+GET    /titles/{title_id}/leaderboards/{api_key}
+```
+
+GET requires `progression:read`; definition writes and multipart `media` icon
+upload require `progression:write`; test-install and submit require
+`progression:submit`. Readonly presets gain read, operator/developer gain all
+three; previously issued token abilities are unchanged. Definition responses
+retain canonical resource envelopes; deletes are 204; duplicate submissions
+remain 409. Icon upload returns `{data:{id,url,mime_type,size}}` and stores public
+Media without Agent/social processing. The test-install request accepts no
+caller-selected player identity: the current administrator is bound server-side.
+
+See [the progression tool reference](tool-reference.md#leaderboards-achievements-stats-and-seasons)
+for field schemas, destructive-operation warnings, filter behavior and known
+canonical progression limitations. No paid Agent activation is required.
+
 ## Public Game-Development Routes
 
 The prompt catalog itself is bundled in the public MCP package so prompt

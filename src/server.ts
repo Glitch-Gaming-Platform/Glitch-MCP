@@ -53,7 +53,7 @@ export function createGlitchMcpServer(options: CreateServerOptions): McpServer {
     });
   registerGlitchTools(server, client);
   registerGlitchPrompts(server);
-  registerGlitchResources(server);
+  registerGlitchResources(server, client);
 
   return server;
 }

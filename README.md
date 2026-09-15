@@ -17,6 +17,23 @@ The MCP bundles the same 25 public prompts shown on the [AI Game Development Pro
 
 The MCP also registers every library item as a native prompt such as `glitch_game_dev_remote_game_automation`, plus `glitch_ai_game_development_prompt` for guided selection and `glitch_game_design_blueprint` for guided mechanics/core-loop generation.
 
+## Leaderboards and Achievements
+
+The adapter can create, list, update and delete leaderboard, achievement, stat
+and season definitions through the same title APIs used by the admin dashboard.
+It also uploads locked/unlocked achievement icons, creates a developer-owned
+test install, submits scores/stats with metadata, reads player progression, and
+queries standings with pagination, seasonal filters and an around-player view.
+
+Use a developer MCP token with `progression:read`, `progression:write` and
+`progression:submit` as appropriate. Existing tokens are not silently upgraded.
+All writes require explicit approval and `confirm=true`. Test submissions affect
+the developer's real progression, not a sandbox. Accepted runs may remain
+pending and are not proof of a published leaderboard position. See the
+[progression tool reference](docs/tool-reference.md#leaderboards-achievements-stats-and-seasons)
+for fields, lifecycle warnings and examples. Deploy the corresponding backend
+changes before using these tools against a hosted API.
+
 ## Example Game Marketing Workflows
 
 Use these examples as starting prompts inside your MCP client. Glitch returns structured data your coding agent can read, summarize, compare, and turn into next steps for your game.
@@ -436,3 +453,11 @@ npm test
 ```
 
 The tests mock the hosted Glitch facade and cover config loading, HTTP behavior, title selection, run polling, confirmation gates, MCP server initialization, resources, prompts, and tool registration.
+# Game microtransactions
+
+The adapter includes explicit schema-driven commerce tools for products, existing
+Media uploads, game-branded checkout setup, readiness and reviewed financial actions.
+Start with `glitch_get_microtransaction_capabilities` and the
+`glitch://microtransactions/setup` resource. See
+[the MCP commerce guide](docs/microtransactions.md) for exact tools, units, scopes,
+approval boundaries and the verified game/account handoff workflow.

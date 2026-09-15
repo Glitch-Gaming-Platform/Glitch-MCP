@@ -124,7 +124,7 @@ export class GlitchClient {
     return this.titles.get() || this.config.defaultTitleId;
   }
 
-  dashboardUrl(kind: "title" | "run" | "action" | "billing" | "hosting", input: { titleId: string; runId?: string; actionId?: string }): string {
+  dashboardUrl(kind: "title" | "run" | "action" | "billing" | "hosting" | "leaderboards" | "achievements", input: { titleId: string; runId?: string; actionId?: string }): string {
     const base = this.config.dashboardBaseUrl.replace(/\/+$/, "");
     const titlePath = `${base}/agents/titles/${encodeURIComponent(input.titleId)}`;
 
@@ -137,6 +137,9 @@ export class GlitchClient {
         return `${titlePath}/billing`;
       case "hosting":
         return `${base}/games/admin/${encodeURIComponent(input.titleId)}/hosting`;
+      case "leaderboards":
+      case "achievements":
+        return `${base}/games/admin/${encodeURIComponent(input.titleId)}/${kind}`;
       case "title":
       default:
         return titlePath;
@@ -406,6 +409,26 @@ export class GlitchClient {
 
   async socialCapabilities(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/social/capabilities`);
+  }
+
+  /** Authoritative title-scoped schemas, abilities, units, and human-approval requirements. */
+  async microtransactionCapabilities(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/microtransactions/capabilities`);
+  }
+
+  /** Never substitutes runtime title tokens for MCP authorization; host enforces every title/ability. */
+  async microtransactionOperation(titleId: string, operation: string, args: JsonObject, confirm = false): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/microtransactions/operations/${segment(operation)}`,
+      { arguments: args, confirm }
+    );
+  }
+
+  /** Existing Media pipeline with explicit commerce title/actor ownership; never creates a social post. */
+  async uploadMicrotransactionMedia(titleId: string, input: { bytes: Uint8Array; fileName: string; mimeType: string }): Promise<JsonObject> {
+    const form = new FormData();
+    form.append("media", new Blob([input.bytes as BlobPart], { type: input.mimeType }), input.fileName);
+    return this.http.postMultipart<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/microtransactions/media`, form);
   }
 
   async socialOperation(titleId: string, operation: string, args: JsonObject, confirm = false): Promise<JsonObject> {
@@ -679,6 +702,33 @@ export class GlitchClient {
   }
 
   // --- Progression: shared submit + leaderboards + achievements ---
+  async listProgressionDefinitions(titleId: string, resource: "stats" | "seasons"): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/progression/${resource}`);
+  }
+
+  async writeProgressionDefinition(titleId: string, resource: "leaderboards" | "achievements" | "stats" | "seasons",
+    action: "create" | "update" | "delete", body: JsonObject, id?: string): Promise<JsonObject> {
+    const path = `/titles/${segment(titleId)}/progression/${resource}${id ? `/${segment(id)}` : ""}`;
+    if (action === "delete") return this.http.deleteWithBody<JsonObject>(path, body);
+    if (action === "update") return this.http.put<JsonObject>(path, body);
+    return this.http.post<JsonObject>(path, body);
+  }
+
+  async createProgressionTestInstall(titleId: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/titles/${segment(titleId)}/progression/test-install`, { confirm: true });
+  }
+
+  async listPlayerStats(titleId: string, installId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/stats`);
+  }
+
+  async uploadAchievementIcon(titleId: string, input: { bytes: Uint8Array; fileName: string; mimeType: string }): Promise<JsonObject> {
+    const form = new FormData();
+    form.append("media", new Blob([input.bytes as BlobPart], { type: input.mimeType }), input.fileName);
+    form.append("confirm", "1");
+    return this.http.postMultipart<JsonObject>(`/titles/${segment(titleId)}/progression/icons`, form);
+  }
+
   async submitProgression(titleId: string, installId: string, body: JsonObject): Promise<JsonObject> {
     return this.http.post<JsonObject>(`/titles/${segment(titleId)}/installs/${segment(installId)}/submit`, body);
   }

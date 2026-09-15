@@ -17,7 +17,8 @@ export type GlitchErrorCode =
   | "rate_limited"
   | "upstream_timeout"
   | "upstream_error"
-  | "confirmation_required";
+  | "confirmation_required"
+  | "human_approval_required";
 
 export interface GlitchErrorDetails {
   readonly status?: number;
