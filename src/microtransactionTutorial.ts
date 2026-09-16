@@ -5,9 +5,15 @@ Minimum SDK for this player-runtime tutorial is 3.15.0. Check usable published p
 
 Authorized MCP settings/catalog tools manage the game directly without an extra confirmation/approval workflow. The optional browser revenue switches are on Pricing/monetization; the Microtransactions page manages catalog, required fields, Media and integration. Required product fields are SKU*, Name*, Type*, Prices* and Grants*; each price needs currency/country/integer minor units, each grant key/quantity/kind, and pass grants require duration_seconds.
 
-For 100 Timber spent constructing things, choose product type currency (or consumable), with a consumable grant {key:'timber',quantity:100,kind:'consumable'}. Durable means lasting ownership and cannot be spent. Do not configure building Timber as durable.
+For 100 Timber spent constructing things, use that title's actual consumable key. Keys are title-scoped, not globally reserved: another game may already use timber as consumable. Pass that exact key. The starter requires an explicit key of 1–100 letters, numbers, underscores, dots or hyphens; namespacing is optional. Validate its canonical kind from the title's catalog and server-verified inventory, not the display name. Preserve the per-title key/kind invariant and never convert durable ownership.
 
-The following complete browser-module example creates a small shop UI and defines every game helper it calls. Call installTimberShop with the real titleId, productId, apiBaseUrl and checkoutOrigin from that game's setup. environment defaults to sandbox; select approved local endpoints plus allowLocalDevelopment:true for local tests. Never put provider secrets, a developer/MCP token or an account JWT in these options.
+WOTW-specific migration proposal: WOTW (title ID prefix ad467, abbreviated) already has durable timber. For that title, coordinate a new consumable key and game-resource mapping; a new SKU cannot retype its existing key. wotw.resource.timber is one possible new key, not an existing catalog fact or a global naming rule. This proposal does not create/publish products or prices or authorize a catalog mutation. It does not restrict other titles' consumable keys.
+
+The following complete browser-module example creates a small shop UI and defines every game helper it calls. Call installTimberShop with the real titleId, productId, apiBaseUrl, checkoutOrigin, exact approved gameOrigin and actual consumable timberGrantKey from that title's catalog. Hosted sandbox testing requires HTTPS endpoints. HTTP loopback and allowLocalDevelopment:true require an explicitly configured local/testing backend; sandbox alone does not permit HTTP against hosted services. A path is not an origin boundary: shared S3/CDN hosts with different game paths share an origin. Use a separately approved per-game hostname, not an expanded allowlist. Never put provider secrets, a developer/MCP token or an account JWT in these options.
+
+A fresh SDK has no default auth. Config.setAuthToken and Requests.setAuthToken set shared global Authorization that Requests.processRoute inherits even on guest catalog/createCheckoutSession/createRestoreSession. playerToken overrides it per request; checkoutToken adds X-Checkout-Token without removing global auth. Keep guest commerce contexts credential-free; do not clear another context's auth, change credentials or inject an admin JWT to fix 401. SDK3.15.0 adds selected community_id as a query (except self-history); SDK4 excludes community context for commerce. Preserve account auth inside the hosted page and scoped player tokens per request. The backend fix is on limited guest entry, not quote/pay/inventory/finance authorization.
+
+Administrative/developer credentials, MCP tokens and provider secrets must never ship in a game. Existing supported install-purpose runtime tokens are separate: use them only for their documented install, validation, heartbeat and telemetry endpoints, never commerce authentication or paid ownership. Do not inject them into the guest commerce context. These commerce instructions do not require removing an unrelated allowed runtime token or changing global SDK auth; preserve the game's supported install/validation/heartbeat integration.
 
 The SDK validates the actual iframe origin/source/title/session/nonce, redeems the one-time claim at Glitch, then invokes onVerified. The callback sets the game's player profile ID, retains only the short-lived player token in memory and REPLACES inventory from the verified server result. A message, product quantity, ready notification or checkout close cannot independently grant anything.
 
@@ -18,8 +24,16 @@ import Glitch, {
   openMicrotransactionRestoreOverlay,
 } from 'glitch-javascript-sdk';
 
-export function installTimberShop({ titleId, productId, apiBaseUrl, checkoutOrigin,
+export function installTimberShop({ titleId, productId, apiBaseUrl, checkoutOrigin, gameOrigin, timberGrantKey,
   environment = 'sandbox', allowLocalDevelopment = false }) {
+  if (new URL(gameOrigin).origin !== gameOrigin || window.location.origin !== gameOrigin) {
+    throw new Error('Open the game on its exact approved gameOrigin; a path is not an origin.');
+  }
+  if (typeof timberGrantKey !== 'string' || timberGrantKey.length < 1 || timberGrantKey.length > 100
+      || /[^A-Za-z0-9_.-]/.test(timberGrantKey)) {
+    throw new Error('Supply an explicit grant key: 1–100 letters, numbers, underscores, dots or hyphens.');
+  }
+  // This game bundle must not configure global account/admin/MCP auth.
   Glitch.util.Requests.setBaseUrl(apiBaseUrl); // Set API location, NOT global auth.
   const api = Glitch.api.Microtransactions;
   const game = { playerId: null, inventory: [], paused: false };
@@ -33,15 +47,17 @@ export function installTimberShop({ titleId, productId, apiBaseUrl, checkoutOrig
   const say = text => { status.textContent = text; };
 
   function replaceInventoryInYourGame(entitlements) {
+    const resource = entitlements.find(x => x.key === timberGrantKey);
+    if (resource && resource.kind !== 'consumable') throw new Error('Timber grant kind mismatch.');
     game.inventory = entitlements; // REPLACE the snapshot. Never add 100 here.
-    timber.textContent = 'Timber: ' + (entitlements.find(x => x.key === 'timber')?.balance ?? 0);
+    timber.textContent = 'Timber: ' + (resource?.balance ?? 0);
   }
   function setGamePaused(paused) { game.paused = paused; }
   function onVerified(result) {
+    replaceInventoryInYourGame(result.entitlements); // Validate canonical kind before accepting this account.
     game.playerId = result.player_id; // Associate the game's profile with this player.
     playerToken = result.player_token; // Memory only; never a URL or global auth token.
     tokenExpiresAt = Date.parse(result.expires_at);
-    replaceInventoryInYourGame(result.entitlements); // Already verified by Glitch.
     say('Account connected. Your current inventory is ready.');
   }
   function playerOptions() {
@@ -62,7 +78,7 @@ export function installTimberShop({ titleId, productId, apiBaseUrl, checkoutOrig
     if (opening || overlay) return;
     opening = true;
     try {
-      const context = { return_origin: window.location.origin,
+      const context = { return_origin: gameOrigin,
         nonce: createMicrotransactionNonce(), environment };
       const response = restore
         ? await api.createRestoreSession(titleId, context)
@@ -92,12 +108,14 @@ export function installTimberShop({ titleId, productId, apiBaseUrl, checkoutOrig
   async function useTenTimber() {
     if (spending || game.paused) return;
     const options = playerOptions();
+    const resource = game.inventory.find(x => x.key === timberGrantKey);
+    if (!resource || resource.kind !== 'consumable') throw new Error('A verified consumable grant is required.');
     if (pendingUse && pendingUse.playerId !== game.playerId) {
       throw new Error('Restore the original account before retrying its pending action.');
     }
     // Create ONCE for this gameplay intent. A failed retry keeps this same object.
     pendingUse ??= { playerId: game.playerId, action_id: createMicrotransactionNonce(),
-      key: 'timber', quantity: 10 };
+      key: timberGrantKey, quantity: 10 };
     spending = true;
     try {
       await api.consume(titleId, { key: pendingUse.key, quantity: pendingUse.quantity,
@@ -124,6 +142,8 @@ export function installTimberShop({ titleId, productId, apiBaseUrl, checkoutOrig
 \`\`\`
 
 replaceInventoryInYourGame and setGamePaused are explicitly named example GAME functions, not Glitch SDK APIs. Their demo bodies update a displayed Timber count and the returned game object. Adapt those bodies to the real engine's inventory assignment and pause/input/audio controls. Never use += productQuantity: verified callbacks can repeat during close, restore or refresh. Purchase callbacks must not call consume.
+
+Pass timberGrantKey:'timber' when that title's canonical timber is consumable. The starter checks the returned entitlement kind before accepting an account or spending; backend validation remains authoritative. It never changes a grant kind.
 
 An expired scoped token requires authentication. Restore issues a new game token only if an eligible active purchase remains; an account with only fully refunded items may receive no_purchases_to_restore. Show that state clearly. Its owner JWT in a Glitch-authenticated context can still read all captured history, as can an existing valid scoped token, but do not promise universal token renewal, broaden paid-item handoff, expose the account JWT, repurchase for history access or invent a read-only-authsession API.
 

@@ -51,6 +51,33 @@ The adapter never trusts a credential locally — it forwards one to the hosted 
 
 In both modes the resolved bearer is the only thing sent upstream; the facade re-checks subscription, title scope, abilities, risk, and rate limits on every call.
 
+### Token alias shadowing (diagnose without changing credentials)
+
+`loadConfig` preserves the existing expression
+`optionalNonEmpty(GLITCH_API_TOKEN || GLITCH_MCP_TOKEN)`. A truthy
+`GLITCH_API_TOKEN` wins **before trimming**. If both aliases contain different
+tokens, the API alias shadows the MCP alias; changing only the latter may have
+no effect. An absent/empty-string API alias permits the MCP alias, while a
+whitespace-only API alias is truthy but trims to no token and still prevents that
+fallback. This is existing behavior, not a newly introduced precedence rule.
+
+In an authorized read-only diagnostic, inspect the effective environment of the
+actual adapter process/connection, not a different project or a conventional
+server name. Report only metadata such as alias presence, whether the selected
+value trims empty, whether both nonempty normalized values differ, and the name
+of the selected alias. If both differ, warn: **GLITCH_API_TOKEN shadows
+GLITCH_MCP_TOKEN; verify the intended credential source with the owner.** Never
+print either value, prefixes, hashes/fingerprints, lengths, or a copied config/env
+dump. Do not inspect unrelated credentials, rewrite global/project config, swap
+secrets, or automatically change precedence/retry with another identity on 403.
+No runtime warning or new diagnostic endpoint is added by this docs/test update.
+
+Tool availability is not credential scope: initialization/discovery can expose
+commerce tools even when that connection's credential lacks `commerce:read` or
+the requested title. Preserve the fresh 403 status/code and selected-connection
+metadata for authorization-scope diagnosis. This is independent of anonymous
+hosted sandbox entry and must never cause admin JWTs to be added to guest games.
+
 ## Title MCP Token Properties
 
 Title MCP tokens are not bypass tokens. They are scoped service credentials that still require active subscription state.

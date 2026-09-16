@@ -7,6 +7,17 @@
 
 ## Unreleased
 
+- Clarify hosted guest sandbox entry versus local/testing origins, inherited SDK
+  auth/community context, and separate MCP credential abilities from tool discovery.
+- Distinguish configuration readiness from optional sandbox payment/fulfillment/claim
+  evidence; retain absent fields for old backends, without claiming browser 3DS proof.
+- Require an explicit approved game origin and actual title-scoped consumable key
+  in the generated Timber starter. Existing consumable `timber` is valid;
+  namespacing is optional. Validate canonical kind and preserve durable ownership.
+  WOTW's distinct-key migration is a title-specific proposal, not a global rule.
+  No SDK4 upgrade is required just for an existing SDK3.15 player flow. These
+  corrections are unreleased; no hosted backend deployment was performed.
+
 - Added **game-service tools** that operate the game associated with the current title token (title_or_jwt public API), so the MCP/agent can run live game-backend actions, not just the agent/run surface:
   - Multiplayer: `glitch_list_multiplayer_lobbies`, `glitch_create_multiplayer_lobby`, `glitch_browse_multiplayer_servers`, `glitch_list_multiplayer_realms` (MMO).
   - Installs: `glitch_create_install`, `glitch_validate_install` (the install id keys cloud save, leaderboards, and achievements).

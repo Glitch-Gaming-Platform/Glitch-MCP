@@ -19,6 +19,17 @@ const definition = (name: string) => {
 const invoke = (name: string, client: GlitchClient, args: Record<string, unknown> = {}) => safeTool(() => definition(name).handler(client, args));
 
 describe("direct commerce management contracts", () => {
+  it("preserves absent/false/true integration proof separately from configuration readiness", async () => {
+    const legacy = { ready: true, status: "ready", blockers: [], providers: [], commission_basis_points: 1200 };
+    for (const result of [legacy, { ...legacy, configuration_ready: true, integration_verified: false }, { ...legacy, configuration_ready: true, integration_verified: true }]) {
+      const mock = createFetchMock(() => jsonResponse({ data: { operation: "readiness.get", result } }));
+      const response = await invoke("glitch_get_microtransaction_readiness", new GlitchClient(config, mock.fetch));
+      expect(response.isError).toBeUndefined();
+      expect((response.structuredContent?.data as any).result).toEqual(result);
+      expect(mock.requests).toHaveLength(1);
+      expectAuthorization(mock.requests[0]?.init, "test-scope-token");
+    }
+  });
   it("discovers later catalog pages and exact SKUs with a distinct 200-product default", async () => {
     const pagination = { page: 2, per_page: 1, total: 3, last_page: 3, has_more_pages: true };
     const mock = createFetchMock(() => jsonResponse({ data: { operation: "products.list", result: { products: [{ id: orderId, sku: "older.exact-sku" }], pagination } } }));

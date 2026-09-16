@@ -158,6 +158,12 @@ https://api.glitch.fun/api
 
 Create a **Title MCP Token** inside the Glitch subscription/security interface and use it as `GLITCH_API_TOKEN` or `GLITCH_MCP_TOKEN`.
 
+Prefer one configured alias. Existing precedence is `GLITCH_API_TOKEN ||
+GLITCH_MCP_TOKEN` before trimming: a truthy API alias shadows the MCP alias.
+If they differ, diagnose only presence/equality/selected-alias metadata with the
+owner; never print or automatically swap credentials. Tool discovery does not
+prove the token has commerce abilities. See [alias diagnostics](docs/auth.md#token-alias-shadowing-diagnose-without-changing-credentials).
+
 ```bash
 export GLITCH_API_BASE_URL="https://api.glitch.fun/api"
 export GLITCH_API_TOKEN="gl_mcp_..."

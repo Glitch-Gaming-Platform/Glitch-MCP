@@ -86,10 +86,28 @@ describe("microtransactions over the actual MCP protocol", () => {
     }
     expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("rejects MCP/install tokens and caller user_id/player_id");
     expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("Pricing/monetization");
-    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("Timber as durable");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("WOTW-specific migration proposal");
     expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("no_purchases_to_restore");
     expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("do not promise universal token renewal");
     expect(glitchToolDefinitions.some(tool => tool.name === "glitch_list_my_purchases")).toBe(false);
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("serves exact hosted/local origin, auth, readiness and immutable key guidance without API writes", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+    await connect(mock.fetch);
+    const resource = await client.readResource({ uri: "glitch://microtransactions/setup" });
+    const prompt = await client.getPrompt({ name: "glitch_setup_microtransactions", arguments: { title_id: "title-1" } });
+    for (const text of [JSON.stringify(resource.contents), JSON.stringify(prompt.messages), GLITCH_SERVER_INSTRUCTIONS]) {
+      for (const fragment of ["gameOrigin", "HTTPS", "HTTP loopback", "local/testing backend", "path is not an origin boundary", "S3", "Requests.processRoute", "Authorization", "community_id", "integration_verified", "configuration_ready", "403", "401", "key/kind invariant", "wotw.resource.timber", "ad467", "namespacing is optional", "not globally reserved"]) {
+        expect(text, fragment).toContain(fragment);
+      }
+      expect(text).not.toMatch(/parent review|parent-owned|let the parent|to the parent/i);
+    }
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("key: timberGrantKey");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("Pass timberGrantKey:'timber'");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).not.toContain("timberGrantKey === 'timber'");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).not.toContain("timberGrantKey.includes('.')");
     expect(mock.requests).toHaveLength(0);
   });
 

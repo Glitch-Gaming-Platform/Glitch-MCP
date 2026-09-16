@@ -43,6 +43,17 @@ describe("loadConfig", () => {
     expect(config.defaultTitleId).toBe("title_legacy");
   });
 
+  it.each([
+    [{ GLITCH_API_TOKEN: "test-api", GLITCH_MCP_TOKEN: "test-mcp" }, "test-api"],
+    [{ GLITCH_API_TOKEN: " test-same ", GLITCH_MCP_TOKEN: "test-same" }, "test-same"],
+    [{ GLITCH_API_TOKEN: "", GLITCH_MCP_TOKEN: "test-mcp" }, "test-mcp"],
+    [{ GLITCH_API_TOKEN: "   ", GLITCH_MCP_TOKEN: "test-mcp" }, undefined],
+  ])("retains raw alias precedence without changing caller environment %#", (env, expected) => {
+    const before = { ...env };
+    expect(loadConfig(Object.freeze(env)).token).toBe(expected);
+    expect(env).toEqual(before);
+  });
+
   it("rejects invalid URLs", () => {
     expect(() => loadConfig({ GLITCH_MCP_URL: "notaurl" })).toThrow(GlitchMcpError);
   });

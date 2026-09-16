@@ -21,6 +21,74 @@ Check current usable public versions independently before recommending an SDK
 install. An unpublished local candidate is for explicitly approved local QA, not
 proof of public publication or a reason to stop server-side configuration.
 
+## Guest runtime and supported testing
+
+The local backend guest-entry change is limited to catalog, checkout-session creation
+and restore-session creation. Hosted sandbox tests require the exact approved
+HTTPS `gameOrigin`, with session `return_origin` equal to the browser `Origin`.
+Sandbox catalog/checkout require enabled sandbox settings. Historical restore
+entry can remain available with commerce off but still binds to the owning account.
+Quote/pay/inventory/finance remain authenticated; anonymous entry is not ownership.
+No hosted backend deployment was performed for this update; verify the target
+backend's deployed contract before relying on the change.
+
+HTTP loopback requires an explicitly configured **local/testing backend** and
+approved local origins. `environment:sandbox` and `allowLocalDevelopment:true` do
+not relax the hosted backend's policy. Browsers supply Origin; use the actual
+`window.location.origin`, not a spoofed header or page URL. A path is not an origin
+boundary: shared S3/CDN game paths share an origin. Use separately approved
+per-game hostnames; do not broaden allowlists as a workaround.
+
+Fresh SDK contexts have no default auth. `Config.setAuthToken` and
+`Requests.setAuthToken` cause `Requests.processRoute` to inherit global
+Authorization, including on guest entry. `playerToken` overrides per request;
+`checkoutToken` adds `X-Checkout-Token` without removing global account auth.
+SDK3.15.0 also injects selected `community_id` as a query (not a body field), except
+on self-history. SDK4 excludes commerce community context. Neither implementation
+changes stored auth/context. Keep guest commerce contexts credential-free, hosted account
+auth inside Glitch and scoped player credentials per request. Never fix a guest
+401 by adding an admin JWT or clearing another context's global auth.
+
+Administrative/developer credentials, MCP tokens and provider secrets must never
+ship in a game. Existing supported install-purpose runtime tokens are separate:
+use them only for their documented install, validation, heartbeat and telemetry
+endpoints, never commerce authentication or paid ownership. Do not inject an
+install-purpose token into guest commerce. These instructions do not require
+removing an unrelated allowed runtime token or changing global SDK auth; preserve
+the game's supported install/validation/heartbeat integration.
+
+Tool availability is not credential scope. A missing-ability 403 from a connected
+MCP credential is separate from guest-entry 401. Preserve its status/code and check
+the effective connection's credential abilities. Do not change global connector credentials,
+providers or permissions in response to tool discovery.
+
+### Readiness is not a completed transaction
+
+`ready` and optional `configuration_ready` retain configuration semantics.
+Optional `readiness.integration_verified` means stored sandbox paid + fulfilled +
+claimed evidence. Absent means unknown on older backends; do not synthesize it
+from ready/configuration or treat absence as false. This evidence is not
+browser/3DS certification and does not prove that a new order is delivered.
+Record actual payment, fulfillment, claim and browser challenge evidence
+separately. Tests of DTO forwarding do not prove backend deployment or purchases.
+
+### Use the actual title's consumable key
+
+Keys are title-scoped, not globally reserved. Another game may already use
+consumable `timber` and should pass that exact key to the generic starter.
+`timberGrantKey` must be explicit and follow the existing 1–100 character
+alphanumeric/underscore/dot/hyphen grammar; namespacing is optional. Validate the
+canonical kind from that title's catalog and server-verified inventory. The starter
+rejects durable rows for the selected spendable resource; it never converts
+ownership. Preserve the per-title key/kind invariant, order snapshots and inventory.
+
+**WOTW-specific migration proposal:** WOTW (title ID prefix `ad467`, abbreviated)
+already has durable `timber`. For that title, coordinate a new consumable key and
+game-resource mapping; a new SKU cannot retype its existing key.
+`wotw.resource.timber` is one possible new key, not an existing catalog fact or a
+global naming rule. This proposal does not create/publish products or prices or
+authorize a catalog mutation. Other titles may use their own existing consumable keys.
+
 ## Complete tool surface
 
 Every operation is beneath `/mcp/v1/titles/{title_id}/microtransactions`.
@@ -255,25 +323,34 @@ The test also exercises page-two catalog discovery and exact SKU lookup. It keep
 the same real refund intent on repeat runs. Coordinate fixture cleanup with both
 MCP testing and browser QA; test refund calls do not prove browser 3DS completion.
 
-## Release candidate and independent checks
+## Published baseline and independent checks
 
 SDK `4.0.0` is a major administrative migration: required refund idempotency key,
 factual provider DTO replacing `approved`, pagination, and no custom confirmation
 workflow. Existing checkout/restore/self-history clients remain compatible.
-The MCP `0.5.0` candidate adds the complete commerce surface. Registry inspection
-on September 16, 2026 UTC found SDK `3.15.0` published and MCP latest `0.3.1`, whose
-integrity-verified tarball contained no commerce tools. Local MCP `0.4.1` was not
-published (registry E404); do not describe it as a published migration baseline.
-`0.5.0` uses a pre-1.0 minor release, not a patch, and distinguishes this reviewed
-direct-management candidate from the old local approval-based candidate. These
-observations are not a claim that the candidates have been published; query the
-registry again at release time.
+Registry verification on September 16, 2026 confirmed SDK `3.15.0`, SDK `4.0.0`
+and MCP `0.5.0` published. This supersedes the earlier same-day candidate-only
+observation. SDK4/MCP0.5 management remains separate from guest player entry;
+there is no SDK4 requirement merely to fix hosted sandbox 401. The additive
+readiness and tutorial corrections are unreleased; local validation does not
+establish hosted backend deployment.
+
+The SDK regression command `npm run test:commerce-compat -- --published` fetches
+the two pinned SDK tarballs from the public registry, verifies SHA-512 integrity,
+and executes their unmodified bundles against an in-memory browser transport.
+It checks guest bodies, auth/community inheritance, per-request credentials,
+hosted-account binding and old/additive readiness responses; no Glitch/provider
+requests or credentials are used. Published 3.15 CJS works, while its raw native
+ESM entry has a legacy `require('crypto-js')` initialization dependency. The test
+records that limitation and separately tests explicit CommonJS/bundler interop;
+it does not claim bare script-module compatibility. SDK4 native ESM/CJS pass.
 
 Before release, independently run SDK tests/typechecking, build, build-docs and
 package exports; MCP lint/tests/build and commerce-contract parity; then the real
-isolated Laravel stdio run. Update SDK package/lock versions only after build and
-build-docs succeed. Publishing remains an explicit release decision; use public
-access, verify the registry tarball, then update the frontend's registry dependency.
+isolated Laravel stdio run when explicitly authorized. SDK build and build-docs
+must succeed before updating package/lock versions for a release.
+Publishing and updating a frontend registry dependency are separate authorized
+release decisions; this SDK/MCP follow-up does neither.
 Do not replace that order with a local SDK install or an unreviewed publish.
 
 Run lint, the ordinary tests, build, and the backend capability parity audit after

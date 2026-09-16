@@ -81,6 +81,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GlitchMcpConfi
   };
 
   return withOptional(config, {
+    // Compatibility: raw truthy API_TOKEN wins before trimming. Do not silently
+    // swap aliases on 403; diagnose shadowing with presence/equality metadata only.
     token: optionalNonEmpty(env.GLITCH_API_TOKEN || env.GLITCH_MCP_TOKEN),
     defaultTitleId: optionalNonEmpty(env.GLITCH_TITLE_ID || env.GLITCH_MCP_DEFAULT_TITLE_ID),
     allowLocalFileReads: parseOptionalBoolean(env.GLITCH_MCP_ALLOW_LOCAL_FILE_READS),
