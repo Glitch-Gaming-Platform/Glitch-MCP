@@ -9,16 +9,21 @@ import {
   gameDevelopmentPromptUrl
 } from "./gameDevelopmentPrompts.js";
 import { GLITCH_MCP_VERSION } from "./version.js";
+import { readFile } from "node:fs/promises";
 
 export function registerGlitchResources(server: McpServer, client: GlitchClient): void {
+  server.registerResource("glitch-commerce-delivery-receiver", "glitch://microtransactions/delivery-receiver", {
+    title: "Ed25519 Commerce Delivery Receiver", mimeType: "text/javascript",
+    description: "Complete Node24+ raw-body signature verifier and durable notification inbox: pinned public key/key ID, 300-second timestamp tolerance, event/title/environment checks, persistent dedupe, ack only after commit. Never applies embedded aggregate inventory snapshots; an authorized game/player refreshes current entitlements."
+  }, async uri => ({ contents: [{ uri: uri.href, mimeType: "text/javascript", text: await readFile(new URL("../examples/commerce-delivery-receiver.mjs", import.meta.url), "utf8") }] }));
   server.registerResource("glitch-microtransaction-setup", "glitch://microtransactions/setup", {
     title: "Glitch Microtransaction Setup", mimeType: "text/markdown",
-    description: "Complete safe LLM workflow: product/media/branding schemas, 12% economics, title abilities, human approvals, white-label checkout, account handoff, restore and sandbox checks."
+    description: "Complete direct commerce workflow: catalog, provider setup, current availability, refund/reconciliation/delivery operations, 12% economics, title abilities, white-label game handoff and sandbox checks. Authorized writes do not require a separate approval workflow."
   }, async uri => ({ contents: [{ uri: uri.href, mimeType: "text/markdown", text: MICROTRANSACTION_SETUP_GUIDE }] }));
 
   server.registerResource("glitch-title-microtransaction-capabilities", new ResourceTemplate("glitch://titles/{title_id}/microtransactions/capabilities", { list: undefined }), {
     title: "Title Microtransaction Schemas", mimeType: "application/json",
-    description: "Authoritative live server JSON schemas, units, examples, abilities and approval requirements for this exact title; authenticated with the requesting MCP caller, never a shared operator or runtime title token."
+    description: "Authoritative server JSON schemas, units, examples, abilities, mutation metadata and factual provider capabilities for this exact title; authenticated with the requesting MCP caller, never a shared operator or runtime install token."
   }, async (uri, variables) => {
     const titleId = variables.title_id;
     if (typeof titleId !== "string" || !/^[A-Za-z0-9_:-]{1,160}$/.test(titleId)) throw new Error("A valid title identifier is required.");
@@ -46,7 +51,7 @@ export function registerGlitchResources(server: McpServer, client: GlitchClient)
               rich_experience: ["structured_results", "dashboard_deep_links", "mcp_apps_progressive_enhancement", "long_running_generation_progress"],
               game_development: ["public_prompt_library", "live_genre_taxonomy", "multi_genre_mechanics_and_core_loop_blueprints", "documentation_required"],
               analytics: ["canonical_dashboard_reports", "dynamic_report_catalog", "family_bundles", "partial_results", "agent_shared_contract"],
-              microtransactions: ["title_scoped_schema_discovery", "catalog_prices_grants", "existing_media_upload", "game_white_label_checkout", "one_time_scoped_account_handoff", "sandbox_readiness", "server_human_approval", "immutable_delivery_replay"],
+              microtransactions: ["title_scoped_schema_discovery", "direct_authorized_management", "catalog_prices_grants", "existing_media_upload", "factual_provider_capabilities", "idempotent_refunds", "order_reconciliation", "game_white_label_checkout", "one_time_scoped_account_handoff", "sandbox_readiness", "immutable_delivery_replay"],
               social: ["dynamic_operation_catalog", "title_scoped_primitives", "agent_shared_registry", "platform_capability_matrix"],
               safety: [
                 "subscription_checked_server_side",
@@ -54,7 +59,7 @@ export function registerGlitchResources(server: McpServer, client: GlitchClient)
                 "read_only_analytics_reports",
                 "bounded_analytics_queries",
                 "analytics_secrets_redacted",
-                "confirm_true_for_approval_and_execution",
+                "non_commerce_confirmation_rules_preserved",
                 "granular_social_abilities",
                 "social_credentials_rejected_and_redacted",
                 "no_private_planner_or_prompt_export",
@@ -87,12 +92,13 @@ export function registerGlitchResources(server: McpServer, client: GlitchClient)
             "",
             "- Glitch MCP is a public adapter, not the private Glitch Agent planner.",
             "- Tokens identify users, workspaces, titles, scopes, and subscription state.",
-            "- Every hosted call re-checks subscription, credits, title permissions, and action risk.",
+            "- Services re-check title permissions, resource scope and applicable billing policies. Direct commerce tools do not start a paid Agent run.",
             "- Public clients receive reports, cards, links, and artifacts, not private prompts or database access.",
             "- The AI Game Development Prompt library is intentionally public editorial guidance. It is separate from private Glitch Agent planner prompts and internal execution logic.",
             "- Analytics tools are read-only, title-scoped, bounded by report/date/page limits, and reuse the canonical dashboard calculations.",
             "- Social operations validate every resource against the selected title, reject credential-shaped input, and redact secrets recursively.",
-            "- Mutating tools require explicit confirmation and remain guarded by Glitch server policies."
+            "- Authorized title-scoped commerce writes execute directly without a custom confirmation or human-review workflow; validation, immutable financial rules and actual provider capabilities remain enforced.",
+            "- Non-commerce tools retain their separately documented confirmation and approval requirements."
           ].join("\n")
         }
       ]

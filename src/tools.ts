@@ -371,7 +371,7 @@ const uploadFileInput = z.object({
 });
 
 const uploadMicrotransactionMediaInput = uploadFileInput.omit({ agent_run_id: true }).extend({
-  confirm: z.boolean().default(false).describe("Explicit user approval to upload this image/video to the selected game's product media. No social post is created.")
+  confirm: z.boolean().optional().describe("Deprecated compatibility input, ignored. commerce:write authorizes this upload directly; no social post is created.")
 }).strict();
 
 const uploadAchievementIconInput = uploadFileInput.omit({ agent_run_id: true }).extend({
@@ -1431,8 +1431,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_upload_microtransaction_media", "Upload Microtransaction Media", "Upload a reviewed product image/video (maximum 50 MiB) through existing Glitch Media processing with trusted title/actor ownership. Requires commerce:write and confirm=true. Use file_path only on local stdio; HTTP uses content_base64 plus file_name. Accepted raster images/videos, not SVG/HTML/documents. Returns Media {id,url,mime_type,poster}; attach id to product.media_ids or branding.logo_media_id for the same title. Does not create a scheduler, title update or social post. Processing may be asynchronous; inspect media before publication. Cross-title/unowned media is rejected server-side.", uploadMicrotransactionMediaInput, false, async (client, input) => {
-    requireConfirmation(input.confirm, "Uploading game product media");
+  defineTool("glitch_upload_microtransaction_media", "Upload Microtransaction Media", "Upload a product image/video (maximum 50 MiB) directly with commerce:write through existing Glitch Media processing and trusted title/actor ownership; no confirmation or human-review step. Use file_path only on local stdio; HTTP uses content_base64 plus file_name. Accepted raster images/videos, not SVG/HTML/documents. Returns Media {id,url,mime_type,poster}; attach id to product.media_ids or branding.logo_media_id for the same title. Does not create a scheduler, title update or social post. Processing may be asynchronous; inspect actual media state. Cross-title/unowned media is rejected server-side.", uploadMicrotransactionMediaInput, false, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const { bytes, fileName } = await loadUploadBytes(client, input);
     const mimeType = inferMimeType(fileName, input.mime_type);

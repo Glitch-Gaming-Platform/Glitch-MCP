@@ -34,7 +34,9 @@ Title keys must be created, scoped, expired, audited, and revoked from the Glitc
 
 ## Required Server-Side Enforcement
 
-The hosted Glitch service must check these on every request:
+The hosted Glitch service must enforce authentication, title/resource scope and
+validation on every request, plus service-specific billing/approval policies
+where applicable (not a custom approval gate for direct commerce):
 
 ```text
 authentication
@@ -53,6 +55,17 @@ policy stopgates
 The public MCP package should never be trusted to enforce billing or permissions.
 
 ## Mutating Tool Safety
+
+Authorized title-scoped commerce operations execute directly without a custom
+confirmation or human-approval workflow. This does not grant missing
+`commerce:read/write/finance/fulfill` scope, change title ownership, fabricate
+external provider capability, permit player impersonation or bypass immutable
+payment/inventory rules. Refunds require stable caller-provided idempotency keys;
+uncertain results are reconciled through their original operation/provider.
+Write tools remain truthfully annotated as mutating. Commerce setup is separate
+from runtime SDK installation or publication.
+
+The following confirmation rules apply to the named **non-commerce** features:
 
 `glitch_approve_action` and `glitch_execute_action` require `confirm=true`. This is not a replacement for hosted Glitch guardrails. It is an extra local brake so a model cannot accidentally trigger an approval or execution from a vague prompt.
 

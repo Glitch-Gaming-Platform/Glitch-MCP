@@ -26,8 +26,8 @@ describe("microtransactions over the actual MCP protocol", () => {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   }
 
-  it("discovers complete schemas, scopes and approval guidance through tools, resources and prompts", async () => {
-    const catalog = { schema_version: "1.0", title_id: "title-1", operations: [{ operation: "products.create", ability: "commerce:write", requires_confirmation: true, requires_human_approval: true, input_schema: { type: "object", properties: { amount_minor: { type: "integer", description: "currency minor units" } } }, examples: [{ sku: "blue-cape" }], output_description: "Product with immutable version" }] };
+  it("discovers truthful mutation metadata and scopes without custom approval gates", async () => {
+    const catalog = { schema_version: 1, title_id: "title-1", operations: [{ operation: "products.create", ability: "commerce:write", http_method: "POST", mutates: true, requires_confirmation: false, requires_human_approval: false, input_schema: { type: "object", properties: { amount_minor: { type: "integer", description: "currency minor units" } } }, examples: [{ sku: "blue-cape" }], output_description: "Product with immutable version" }] };
     const mock = createFetchMock(() => jsonResponse({ data: catalog }));
     await connect(mock.fetch);
     const tools = await client.listTools();
@@ -37,6 +37,9 @@ describe("microtransactions over the actual MCP protocol", () => {
     expect(create.inputSchema.properties?.media_ids).toBeDefined();
     expect(JSON.stringify(create.inputSchema)).toContain("integer minor units");
     expect(create.annotations?.readOnlyHint).toBe(false);
+    expect(create.annotations?.destructiveHint).toBe(true);
+    expect(create.inputSchema.required || []).not.toContain("confirm");
+    expect(tools.tools.find(tool => tool.name === "glitch_refresh_microtransaction_provider")?.annotations?.readOnlyHint).toBe(false);
     expect(tools.tools.find(tool => tool.name === "glitch_get_microtransaction_readiness")?.annotations?.readOnlyHint).toBe(true);
     const result = await client.callTool({ name: "glitch_get_microtransaction_capabilities", arguments: {} });
     expect(result.structuredContent?.data).toEqual(catalog);
@@ -55,10 +58,10 @@ describe("microtransactions over the actual MCP protocol", () => {
   it("forwards exact nested catalog payload, defaults to draft, and preserves minor units", async () => {
     const mock = createFetchMock(() => jsonResponse({ data: { operation: "products.create", result: { id: "10000000-0000-4000-8000-000000000002", version: 1, status: "draft" } } }));
     await connect(mock.fetch);
-    const result = await client.callTool({ name: "glitch_create_microtransaction_product", arguments: { ...product, confirm: true } });
+    const result = await client.callTool({ name: "glitch_create_microtransaction_product", arguments: { ...product } });
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title-1/microtransactions/operations/products.create");
-    expect(mock.requests[0]?.body).toEqual({ arguments: { ...product, status: "draft", localizations: {}, max_per_order: 1 }, confirm: true });
+    expect(mock.requests[0]?.body).toEqual({ arguments: { ...product, status: "draft", localizations: {}, max_per_order: 1 } });
     expectAuthorization(mock.requests[0]?.init, "test-caller-token");
   });
 
@@ -69,9 +72,8 @@ describe("microtransactions over the actual MCP protocol", () => {
     const prompt = await client.getPrompt({ name: "glitch_setup_microtransactions", arguments: { title_id: "title-1" } });
     for (const content of [JSON.stringify(resource.contents), JSON.stringify(prompt.messages)]) {
       expect(content).toContain("export function installTimberShop");
-      expect(content).toContain("Minimum SDK for this tutorial is 3.15.0");
-      expect(content).toContain("approved local package");
-      expect(content).toContain("public latest 3.10.8, which lacks commerce");
+      expect(content).toContain("Minimum SDK for this player-runtime tutorial is 3.15.0");
+      expect(content).toContain("server-side catalog/provider configuration does not require");
       expect(content).toContain("game.playerId = result.player_id");
       expect(content).toContain("playerToken = result.player_token");
       expect(content).toContain("replaceInventoryInYourGame(result.entitlements)");
@@ -113,11 +115,10 @@ describe("microtransactions over the actual MCP protocol", () => {
     expect(mock.requests).toHaveLength(0);
   });
 
-  it("rejects unconfirmed mutations, fractional money, credentials and malformed title IDs without an HTTP request", async () => {
+  it("still rejects fractional money, credentials and malformed title IDs without an HTTP request", async () => {
     const mock = createFetchMock(() => jsonResponse({ data: {} }));
     await connect(mock.fetch);
     const inputs = [
-      { ...product },
       { ...product, confirm: true, prices: [{ currency: "USD", country: "*", amount_minor: 4.99 }] },
       { ...product, confirm: true, provider_secret: "test-should-never-forward" },
       { ...product, confirm: true, title_id: "../other-title" }
@@ -140,24 +141,24 @@ describe("microtransactions over the actual MCP protocol", () => {
     expectAuthorization(mock.requests[0]?.init, "test-caller-token");
   });
 
-  it("confirm does not bypass the server's financial human-approval gate", async () => {
-    const mock = createFetchMock(() => jsonResponse({ message: "Financial administrator must review and execute in Glitch.", code: "human_approval_required" }, 409));
+  it("removing confirmation does not bypass the server's financial scope requirement", async () => {
+    const mock = createFetchMock(() => jsonResponse({ message: "Missing commerce:finance scope.", code: "permission_denied" }, 403));
     await connect(mock.fetch);
-    const result = await client.callTool({ name: "glitch_request_microtransaction_refund", arguments: { order_id: "10000000-0000-4000-8000-000000000003", reason: "Player requested review", confirm: true } });
+    const result = await client.callTool({ name: "glitch_request_microtransaction_refund", arguments: { order_id: "10000000-0000-4000-8000-000000000003", reason: "Player requested refund", idempotency_key: "fixed-refund-intent-1" } });
     expect(result.isError).toBe(true);
-    expect(result.structuredContent?.code).toBe("human_approval_required");
-    expect(JSON.stringify(result.content)).toContain("human_approval_required");
+    expect(result.structuredContent?.code).toBe("permission_denied");
+    expect(JSON.stringify(result.content)).toContain("commerce:finance");
     expect(mock.requests).toHaveLength(1);
-    expect(mock.requests[0]?.body).toEqual({ arguments: { order_id: "10000000-0000-4000-8000-000000000003", reason: "Player requested review" }, confirm: true });
+    expect(mock.requests[0]?.body).toEqual({ arguments: { order_id: "10000000-0000-4000-8000-000000000003", reason: "Player requested refund", idempotency_key: "fixed-refund-intent-1" } });
   });
 
   it("partial settings/product updates never fill omitted fields with destructive defaults", async () => {
-    const mock = createFetchMock(() => jsonResponse({ data: { operation: "products.update", result: { id: "10000000-0000-4000-8000-000000000002" } } }));
+    const mock = createFetchMock(request => jsonResponse({ data: { operation: request.url.split("/").at(-1), result: { id: "10000000-0000-4000-8000-000000000002" } } }));
     await connect(mock.fetch);
     await client.callTool({ name: "glitch_update_microtransaction_product", arguments: { product_id: "10000000-0000-4000-8000-000000000002", name: "Renamed cape", confirm: true } });
-    expect(mock.requests[0]?.body).toEqual({ arguments: { product_id: "10000000-0000-4000-8000-000000000002", name: "Renamed cape" }, confirm: true });
+    expect(mock.requests[0]?.body).toEqual({ arguments: { product_id: "10000000-0000-4000-8000-000000000002", name: "Renamed cape" } });
     await client.callTool({ name: "glitch_update_microtransaction_settings", arguments: { branding: { accent_color: "#4455ff" }, confirm: true } });
-    expect(mock.requests[1]?.body).toEqual({ arguments: { branding: { accent_color: "#4455ff" } }, confirm: true });
+    expect(mock.requests[1]?.body).toEqual({ arguments: { branding: { accent_color: "#4455ff" } } });
   });
 
   it("uses the authorized Media pipeline with no scheduler/post fields and no local reads over HTTP", async () => {
@@ -171,7 +172,7 @@ describe("microtransactions over the actual MCP protocol", () => {
     const local = await client.callTool({ name: "glitch_upload_microtransaction_media", arguments: { file_path: "/not-readable.png", confirm: true } });
     expect(local.isError).toBe(true);
     expect(mock.requests).toHaveLength(0);
-    const result = await client.callTool({ name: "glitch_upload_microtransaction_media", arguments: { content_base64: Buffer.from("test-image").toString("base64"), file_name: "cape.png", confirm: true } });
+    const result = await client.callTool({ name: "glitch_upload_microtransaction_media", arguments: { content_base64: Buffer.from("test-image").toString("base64"), file_name: "cape.png" } });
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title-1/microtransactions/media");
     expectAuthorization(mock.requests[0]?.init, "test-caller-token");
@@ -193,27 +194,29 @@ describe("microtransactions over the actual MCP protocol", () => {
     await connect(mock.fetch);
     const result = await client.callTool({ name: "glitch_replay_microtransaction_delivery", arguments: { delivery_id: "10000000-0000-4000-8000-000000000005", confirm: true } });
     expect(result.isError).toBeUndefined();
-    expect(mock.requests[0]?.body).toEqual({ arguments: { delivery_id: "10000000-0000-4000-8000-000000000005" }, confirm: true });
+    expect(mock.requests[0]?.body).toEqual({ arguments: { delivery_id: "10000000-0000-4000-8000-000000000005" } });
     expect(MICROTRANSACTION_SETUP_GUIDE).toContain("No wildcard is implied");
     expect(MICROTRANSACTION_SETUP_GUIDE).toContain("payment_status, fulfillment_status");
   });
 });
 
 describe("commerce capability schemas independently of protocol defaults", () => {
-  it("validates every sensitive tool's confirmation before transport", async () => {
-    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+  it("executes authorized writes without confirmation while preserving mutation annotations", async () => {
+    const mock = createFetchMock(request => jsonResponse({ data: { operation: request.url.split("/").at(-1), result: { status: "pending" } } }));
     const client = new GlitchClient(config, mock.fetch);
     for (const [name, args] of [
       ["glitch_archive_microtransaction_product", { product_id: "10000000-0000-4000-8000-000000000002" }],
       ["glitch_update_microtransaction_settings", { environment: "live" }],
-      ["glitch_request_microtransaction_refund", { order_id: "10000000-0000-4000-8000-000000000003", reason: "Review refund" }],
+      ["glitch_request_microtransaction_refund", { order_id: "10000000-0000-4000-8000-000000000003", reason: "Refund request", idempotency_key: "stable-refund-key-1" }],
       ["glitch_replay_microtransaction_delivery", { delivery_id: "10000000-0000-4000-8000-000000000005" }]
     ] as const) {
       const tool = glitchToolDefinitions.find(tool => tool.name === name)!;
       const result = await safeTool(() => tool.handler(client, args));
-      expect(result.isError).toBe(true);
-      expect(result.structuredContent?.code).toBe("confirmation_required");
+      expect(result.isError).toBeUndefined();
+      expect(tool.readOnlyHint).toBe(false);
+      expect(tool.destructiveHint).toBe(true);
     }
-    expect(mock.requests).toHaveLength(0);
+    expect(mock.requests).toHaveLength(4);
+    expect(mock.requests.every(request => !Object.hasOwn(request.body as object, "confirm"))).toBe(true);
   });
 });

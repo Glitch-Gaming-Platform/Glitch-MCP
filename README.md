@@ -429,7 +429,7 @@ Full UX map: [docs/rich-ui.md](docs/rich-ui.md).
 - `reports:read` returns aggregate-safe reports; raw identity-level fields and
   identity filter values stay redacted unless the credential also has the
   narrowly scoped `reports:identity` ability.
-- Mutating tools require explicit confirmation.
+- Non-commerce mutating tools retain their explicit confirmation requirements. Authorized title-scoped commerce operations execute directly, with truthful write annotations and server-side permissions/invariants.
 - Social operations are title-scoped, reject credential-shaped input, and recursively remove OAuth tokens, secrets, passwords, API keys, and authorization data from responses.
 - Read-only, operator, and developer MCP tokens receive different social abilities; publishing, engagement, messaging, account changes, and destructive operations require the developer abilities.
 - Approval and execution are separate.
@@ -456,8 +456,8 @@ The tests mock the hosted Glitch facade and cover config loading, HTTP behavior,
 # Game microtransactions
 
 The adapter includes explicit schema-driven commerce tools for products, existing
-Media uploads, game-branded checkout setup, readiness and reviewed financial actions.
+Media uploads, provider setup, game-branded checkout, readiness and direct authorized financial operations.
 Start with `glitch_get_microtransaction_capabilities` and the
 `glitch://microtransactions/setup` resource. See
 [the MCP commerce guide](docs/microtransactions.md) for exact tools, units, scopes,
-approval boundaries and the verified game/account handoff workflow.
+title-scope boundaries, actual provider requirements and the verified game/account handoff workflow. No custom approval queue is required for commerce; server setup does not wait for runtime SDK publication.

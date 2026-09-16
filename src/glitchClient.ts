@@ -411,17 +411,35 @@ export class GlitchClient {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/social/capabilities`);
   }
 
-  /** Authoritative title-scoped schemas, abilities, units, and human-approval requirements. */
+  /** Authoritative title-scoped schemas, abilities, units, mutation metadata and provider facts. */
   async microtransactionCapabilities(titleId: string): Promise<JsonObject> {
-    return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/microtransactions/capabilities`);
+    const data = await this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/microtransactions/capabilities`);
+    if (!data || data.title_id !== titleId || !Array.isArray(data.operations) || data.operations.length === 0) {
+      throw new GlitchMcpError("upstream_error", "The commerce server returned an invalid or empty capability catalog for this title.");
+    }
+    return data;
   }
 
   /** Never substitutes runtime title tokens for MCP authorization; host enforces every title/ability. */
-  async microtransactionOperation(titleId: string, operation: string, args: JsonObject, confirm = false): Promise<JsonObject> {
-    return this.http.post<JsonObject>(
+  async microtransactionOperation(titleId: string, operation: string, args: JsonObject, _legacyConfirm?: boolean): Promise<JsonObject> {
+    const data = await this.http.post<JsonObject>(
       `/mcp/v1/titles/${segment(titleId)}/microtransactions/operations/${segment(operation)}`,
-      { arguments: args, confirm }
+      { arguments: args }
     );
+    if (!data || data.operation !== operation || !data.result || typeof data.result !== "object" || Array.isArray(data.result) || Object.keys(data.result).length === 0) {
+      throw new GlitchMcpError("upstream_error", "The commerce server did not return the expected non-empty operation result. Do not assume the action completed; inspect its existing resource or idempotency key before retrying.");
+    }
+    if (operation === "providers.onboarding") {
+      try {
+        const value = (data.result as JsonObject).onboarding_url;
+        if (typeof value !== "string") throw new Error();
+        const url = new URL(value);
+        if (url.protocol !== "https:" || url.hostname !== "connect.stripe.com" || url.username || url.password || (url.port && url.port !== "443")) throw new Error();
+      } catch {
+        throw new GlitchMcpError("upstream_error", "The provider returned an unexpected onboarding URL; do not open it or assume onboarding completed.");
+      }
+    }
+    return data;
   }
 
   /** Existing Media pipeline with explicit commerce title/actor ownership; never creates a social post. */

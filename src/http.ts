@@ -267,6 +267,7 @@ function errorForResponse(response: Response, payload: unknown): GlitchMcpError 
   const message = stringValue(objectPayload.message) || stringValue(objectPayload.error) || response.statusText || "Glitch MCP request failed.";
   const details = {
     status: response.status,
+    ...(typeof objectPayload.code === "string" && /^[a-zA-Z0-9_.:-]{1,120}$/.test(objectPayload.code) ? { upstreamCode: objectPayload.code } : {}),
     ...(retryAfter ? { retryAfterSeconds: Number.parseInt(retryAfter, 10) } : {}),
     ...(typeof objectPayload.billing_url === "string" ? { billingUrl: objectPayload.billing_url } : {}),
     ...(typeof objectPayload.dashboard_url === "string" ? { dashboardUrl: objectPayload.dashboard_url } : {}),

@@ -30,6 +30,8 @@ export interface GlitchErrorDetails {
   readonly failureStage?: string;
   readonly deploymentErrorCode?: string;
   readonly retryable?: boolean;
+  /** Safe server error identifier, never raw provider payload or credentials. */
+  readonly upstreamCode?: string;
 }
 
 /**

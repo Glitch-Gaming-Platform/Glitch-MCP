@@ -1,6 +1,6 @@
 {
   "name": "glitch-mcp",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Public MCP adapter for Glitch game development prompts, design tools, analytics, hosting, and the hosted Glitch Agent service.",
   "type": "module",
   "publishConfig": {

@@ -1,9 +1,9 @@
 /** Beginner runtime tutorial mirrored from the SDK guide; no credentials or user impersonation tools. */
 export const MICROTRANSACTION_CALLBACK_TUTORIAL = `# Beginner callback: make the purchase work in the running game
 
-Minimum SDK for this tutorial is 3.15.0: use a confirmed published 3.15.0+ release or an approved local package. Registry verification on September 15, 2026 showed public latest 3.10.8, which lacks commerce. Plain public npm installation at that point cannot run this example. Until 3.15.0 is actually published, use the reviewed local 3.15.0 tarball for testing; never claim a local build is a published release.
+Minimum SDK for this player-runtime tutorial is 3.15.0. Check usable published package versions independently when implementing client code; 3.15.0 is published. New administrative direct-management wrappers use the major4.0 contract. MCP server-side catalog/provider configuration does not require installing or publishing either SDK version, so perform authorized server setup without waiting on runtime package work. A reviewed local package is for local verification, not proof of publication.
 
-Use the game's Pricing/monetization page for Enable in-game purchases and Show ads. The Microtransactions page configures the catalog, required fields, Media and integration. Required product fields are SKU*, Name*, Type*, Prices* and Grants*; each price needs currency/country/integer minor units, each grant key/quantity/kind, and pass grants require duration_seconds.
+Authorized MCP settings/catalog tools manage the game directly without an extra confirmation/approval workflow. The optional browser revenue switches are on Pricing/monetization; the Microtransactions page manages catalog, required fields, Media and integration. Required product fields are SKU*, Name*, Type*, Prices* and Grants*; each price needs currency/country/integer minor units, each grant key/quantity/kind, and pass grants require duration_seconds.
 
 For 100 Timber spent constructing things, choose product type currency (or consumable), with a consumable grant {key:'timber',quantity:100,kind:'consumable'}. Durable means lasting ownership and cannot be spent. Do not configure building Timber as durable.
 
