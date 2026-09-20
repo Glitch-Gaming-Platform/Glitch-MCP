@@ -9,16 +9,21 @@ import {
   gameDevelopmentPromptUrl
 } from "./gameDevelopmentPrompts.js";
 import { GLITCH_MCP_VERSION } from "./version.js";
+import { COMMERCE_REST_STARTER_SOURCE } from "./commerceRestStarter.js";
 import { readFile } from "node:fs/promises";
 
 export function registerGlitchResources(server: McpServer, client: GlitchClient): void {
+  server.registerResource("glitch-commerce-rest-starter", "glitch://microtransactions/rest-starter", {
+    title: "Dependency-free REST Game Shop", mimeType: "text/javascript",
+    description: "Copyable plain browser JavaScript factory createGlitchRestShop(config), mirrored from the game AI setup. Uses native fetch with guest/no bearer entry, exact iframe/source/origin/session/nonce, one-use claim, memory-only scoped player token, fresh inventory replacement, restore and stable consumption. No npm/SDK prerequisite. Read setup for configuration and game-adapter examples."
+  }, async uri => ({ contents: [{ uri: uri.href, mimeType: "text/javascript", text: COMMERCE_REST_STARTER_SOURCE }] }));
   server.registerResource("glitch-commerce-delivery-receiver", "glitch://microtransactions/delivery-receiver", {
     title: "Ed25519 Commerce Delivery Receiver", mimeType: "text/javascript",
     description: "Complete Node24+ raw-body signature verifier and durable notification inbox: pinned public key/key ID, 300-second timestamp tolerance, event/title/environment checks, persistent dedupe, ack only after commit. Never applies embedded aggregate inventory snapshots; an authorized game/player refreshes current entitlements."
   }, async uri => ({ contents: [{ uri: uri.href, mimeType: "text/javascript", text: await readFile(new URL("../examples/commerce-delivery-receiver.mjs", import.meta.url), "utf8") }] }));
   server.registerResource("glitch-microtransaction-setup", "glitch://microtransactions/setup", {
     title: "Glitch Microtransaction Setup", mimeType: "text/markdown",
-    description: "Complete direct commerce workflow: catalog, provider setup, current availability, refund/reconciliation/delivery operations, 12% economics, title abilities, white-label game handoff and sandbox checks. Authorized writes do not require a separate approval workflow."
+    description: "REST-first commerce setup with copyable native fetch/HTTP and complete in-game verified callback starter; no npm/SDK prerequisite. Sandbox proof is optional QA, not a live-activation prerequisite. Covers commerce-only media, catalog/providers, refunds/delivery, 12% economics, title abilities and guest/restore/3DS checks. Authorized writes need no separate approval workflow; SDK is optional."
   }, async uri => ({ contents: [{ uri: uri.href, mimeType: "text/markdown", text: MICROTRANSACTION_SETUP_GUIDE }] }));
 
   server.registerResource("glitch-title-microtransaction-capabilities", new ResourceTemplate("glitch://titles/{title_id}/microtransactions/capabilities", { list: undefined }), {
@@ -51,7 +56,7 @@ export function registerGlitchResources(server: McpServer, client: GlitchClient)
               rich_experience: ["structured_results", "dashboard_deep_links", "mcp_apps_progressive_enhancement", "long_running_generation_progress"],
               game_development: ["public_prompt_library", "live_genre_taxonomy", "multi_genre_mechanics_and_core_loop_blueprints", "documentation_required"],
               analytics: ["canonical_dashboard_reports", "dynamic_report_catalog", "family_bundles", "partial_results", "agent_shared_contract"],
-              microtransactions: ["title_scoped_schema_discovery", "direct_authorized_management", "catalog_prices_grants", "existing_media_upload", "factual_provider_capabilities", "idempotent_refunds", "order_reconciliation", "game_white_label_checkout", "one_time_scoped_account_handoff", "sandbox_readiness", "immutable_delivery_replay"],
+              microtransactions: ["title_scoped_schema_discovery", "direct_authorized_management", "rest_first_fetch_examples", "optional_javascript_sdk", "catalog_prices_grants", "commerce_only_media_upload", "factual_provider_capabilities", "idempotent_refunds", "order_reconciliation", "game_white_label_checkout", "one_time_scoped_account_handoff", "sandbox_readiness", "immutable_delivery_replay"],
               social: ["dynamic_operation_catalog", "title_scoped_primitives", "agent_shared_registry", "platform_capability_matrix"],
               safety: [
                 "subscription_checked_server_side",

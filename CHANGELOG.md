@@ -5,6 +5,32 @@
 - Added secure game-hosting management tools and complete hosting deployment guidance.
 - Synchronized the runtime MCP version with the public package version.
 
+## 0.5.2 — September 20, 2026
+
+- Make sandbox integration proof explicitly optional QA, not a prerequisite for
+  enabling purchases or live sales. Preserve truthful evidence and the opt-in
+  verifier's real paid/fulfilled/claimed checks, plus actual provider/revenue rules.
+- Explain Glitch-managed Stripe Tax preferences versus actual platform processing
+  account setup, the platform-support/refresh workflow, route classification versus
+  registration, separate payout onboarding, and tax-status/filing/liability limits.
+- Document rollout-gated, player-opt-in saved-card controls confined to hosted
+  checkout, account/provider/environment binding and unchanged legacy retries;
+  no game/MCP card API, off-session consent or unsupported-provider promise.
+- Clarify that otherwise-eligible customer collection can proceed without a ready
+  payout recipient while proceeds remain held under the existing ledger rules.
+
+## 0.5.1 — September 20, 2026
+
+- Prefer direct REST/fetch/HTTP for microtransaction game integration, with no
+  npm/SDK prerequisite. Serve the same dependency-free modal/verified-callback
+  starter as the frontend AI export; retain the JavaScript SDK as an option.
+- Document commerce-only product/branding media: reuse processing without
+  title/gallery/preview/social imagery, and require same-title commerce Media IDs.
+- Execute the copied REST source in tests for guest headers, exact frame binding,
+  one-use claim replay, real DTO shapes, deferred close, own-player history,
+  restored sessions, durable ownership and stable consumption retries. Preserve
+  direct authorized MCP management and truthful mutation/scope metadata.
+
 ## Unreleased
 
 - Clarify hosted guest sandbox entry versus local/testing origins, inherited SDK

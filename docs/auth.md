@@ -78,6 +78,23 @@ the requested title. Preserve the fresh 403 status/code and selected-connection
 metadata for authorization-scope diagnosis. This is independent of anonymous
 hosted sandbox entry and must never cause admin JWTs to be added to guest games.
 
+### Commerce REST-first runtime
+
+Prefer the direct fetch/HTTP example in `glitch://microtransactions/setup`; no npm
+or SDK installation is required. Guest catalog, checkout-session creation and
+restore-session creation use `credentials:'omit'` and no Authorization header.
+Browsers supply Origin automatically: never attempt to set it in browser fetch.
+The real origin must be approved and session `return_origin` must match it.
+Sandbox catalog/new checkout also require enabled matching sandbox settings.
+
+Hosted account creation/login and payment work remain inside Glitch. Game code
+can read limited session status with `X-Checkout-Token`, then exchange a checked
+one-use event code at `/handoffs/claim`. Keep the resulting own-player token in
+memory and send it only in per-request Authorization for that title/environment;
+never ship an account JWT, MCP token or provider credential in game code. The
+optional SDK must obey the same separation without changing global auth. Existing
+unrelated install/heartbeat credentials remain untouched.
+
 ## Title MCP Token Properties
 
 Title MCP tokens are not bypass tokens. They are scoped service credentials that still require active subscription state.

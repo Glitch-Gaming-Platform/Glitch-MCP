@@ -8,6 +8,7 @@ import { glitchToolDefinitions } from "../src/tools.js";
 import { MICROTRANSACTION_SETUP_GUIDE } from "../src/microtransactionTools.js";
 import { GLITCH_SERVER_INSTRUCTIONS } from "../src/instructions.js";
 import { MICROTRANSACTION_CALLBACK_TUTORIAL } from "../src/microtransactionTutorial.js";
+import { COMMERCE_REST_STARTER_SOURCE } from "../src/commerceRestStarter.js";
 import { createFetchMock, expectAuthorization, jsonResponse } from "./helpers.js";
 
 const config = { apiBaseUrl: "https://mcp.example.test", dashboardBaseUrl: "https://app.example.test", timeoutMs: 1000, clientName: "test-client", defaultTitleId: "title-1", token: "test-config-token" };
@@ -51,7 +52,7 @@ describe("microtransactions over the actual MCP protocol", () => {
     const guide = await client.readResource({ uri: "glitch://microtransactions/setup" });
     expect(JSON.stringify(guide.contents)).toContain("1200bp");
     const prompt = await client.getPrompt({ name: "glitch_setup_microtransactions", arguments: { title_id: "title-1" } });
-    expect(JSON.stringify(prompt)).toContain("claimHandoff");
+    expect(JSON.stringify(prompt)).toContain("/handoffs/claim");
     expect(mock.requests).toHaveLength(2);
   });
 
@@ -69,15 +70,19 @@ describe("microtransactions over the actual MCP protocol", () => {
     const mock = createFetchMock(() => jsonResponse({ data: {} }));
     await connect(mock.fetch);
     const resource = await client.readResource({ uri: "glitch://microtransactions/setup" });
+    const starter = await client.readResource({ uri: "glitch://microtransactions/rest-starter" });
+    expect(starter.contents[0]?.text).toBe(COMMERCE_REST_STARTER_SOURCE);
+    expect(starter.contents[0]?.mimeType).toBe("text/javascript");
     const prompt = await client.getPrompt({ name: "glitch_setup_microtransactions", arguments: { title_id: "title-1" } });
     for (const content of [JSON.stringify(resource.contents), JSON.stringify(prompt.messages)]) {
-      expect(content).toContain("export function installTimberShop");
-      expect(content).toContain("Minimum SDK for this player-runtime tutorial is 3.15.0");
-      expect(content).toContain("server-side catalog/provider configuration does not require");
-      expect(content).toContain("game.playerId = result.player_id");
-      expect(content).toContain("playerToken = result.player_token");
-      expect(content).toContain("replaceInventoryInYourGame(result.entitlements)");
-      expect(content).toContain("pendingUse ??=");
+      expect(content.includes("function createGlitchRestShop(config)")).toBe(true);
+      expect(content.includes("No npm package, SDK import or SDK version is required")).toBe(true);
+      expect(content.includes("game.playerId = playerId")).toBe(true);
+      expect(content.includes("game.purchasedInventory = entitlements")).toBe(true);
+      expect(content.includes("onInventory: replacePurchasedInventory")).toBe(true);
+      expect(content.includes("token: result.player_token")).toBe(true);
+      expect(content.includes("action_id: nonce()")).toBe(true);
+      expect(content).not.toMatch(/import Glitch|Minimum SDK for this player-runtime/);
       expect(content).toContain("page, per_page: 20");
       expect(content).toContain("purchased_quantity");
       expect(content).toContain("granted_quantity");
@@ -99,15 +104,15 @@ describe("microtransactions over the actual MCP protocol", () => {
     const resource = await client.readResource({ uri: "glitch://microtransactions/setup" });
     const prompt = await client.getPrompt({ name: "glitch_setup_microtransactions", arguments: { title_id: "title-1" } });
     for (const text of [JSON.stringify(resource.contents), JSON.stringify(prompt.messages), GLITCH_SERVER_INSTRUCTIONS]) {
-      for (const fragment of ["gameOrigin", "HTTPS", "HTTP loopback", "local/testing backend", "path is not an origin boundary", "S3", "Requests.processRoute", "Authorization", "community_id", "integration_verified", "configuration_ready", "403", "401", "key/kind invariant", "wotw.resource.timber", "ad467", "namespacing is optional", "not globally reserved"]) {
-        expect(text, fragment).toContain(fragment);
+      for (const fragment of ["gameOrigin", "HTTPS", "HTTP loopback", "local/testing backend", "S3", "Authorization", "community_id", "integration_verified", "configuration_ready", "403", "401", "key/kind invariant", "wotw.resource.timber", "ad467", "namespacing is optional", "not globally reserved", "credentials:", "Origin"]) {
+        expect(text.includes(fragment), fragment).toBe(true);
       }
       expect(text).not.toMatch(/parent review|parent-owned|let the parent|to the parent/i);
     }
-    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("key: timberGrantKey");
-    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("Pass timberGrantKey:'timber'");
-    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).not.toContain("timberGrantKey === 'timber'");
-    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).not.toContain("timberGrantKey.includes('.')");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("key: config.spendKey");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("Pass spendKey:'timber'");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).not.toContain("spendKey === 'timber'");
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).not.toContain("spendKey.includes('.')");
     expect(mock.requests).toHaveLength(0);
   });
 
@@ -118,8 +123,7 @@ describe("microtransactions over the actual MCP protocol", () => {
     const prompt = await client.getPrompt({ name: "glitch_setup_microtransactions", arguments: { title_id: "title-1" } });
     for (const text of [JSON.stringify(resource.contents), JSON.stringify(prompt.messages), GLITCH_SERVER_INSTRUCTIONS]) {
       expect(text).toContain("glitch.microtransaction.ready");
-      expect(text).toContain("frameLoadTimeoutMs");
-      expect(text).toContain("20 seconds");
+      expect(text).toContain("bounded");
       expect(text).toContain("Retry/Close");
       expect(text).toContain("checkout_session_id");
       expect(text).toContain("nonce");
@@ -130,6 +134,31 @@ describe("microtransactions over the actual MCP protocol", () => {
     expect(MICROTRANSACTION_SETUP_GUIDE).toContain("verified ready/claim and close clear the timers");
     expect(MICROTRANSACTION_SETUP_GUIDE).toContain("direct API capture test cannot replace browser 3DS evidence");
     expect(MICROTRANSACTION_SETUP_GUIDE).toContain("verification pending until actually observed");
+    expect(mock.requests).toHaveLength(0);
+  });
+
+  it("serves optional QA without an activation gate and precise platform Tax setup boundaries", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+    await connect(mock.fetch);
+    const guide = await client.readResource({ uri: "glitch://microtransactions/setup" });
+    const prompt = await client.getPrompt({ name: "glitch_setup_microtransactions", arguments: { title_id: "title-1" } });
+    for (const text of [JSON.stringify(guide.contents), JSON.stringify(prompt.messages), GLITCH_SERVER_INSTRUCTIONS]) {
+      for (const fragment of ["not required to enable purchases or activate live sales", "optional QA", "integration_verified",
+        "actual", "evidence", "https://docs.stripe.com/tax/set-up", "platform processing account", "head_office",
+        "platform_tax_settings", "platform operations/support", "tax_mode=automatic", "tax_code", "registration ID",
+        "cannot write platform Tax settings", "filing", "liability", "Xsolla"]) {
+        expect(text.includes(fragment), fragment).toBe(true);
+      }
+      for (const fragment of ["migration", "backend rollout", "new marked Stripe orders", "save/remove", "off-session/autopay",
+        "processing account", "No", "customer IDs", "3DS", "does not block otherwise-eligible customer payment collection", "held", "historical recipients"]) {
+        expect(text.includes(fragment), fragment).toBe(true);
+      }
+    }
+    expect(MICROTRANSACTION_CALLBACK_TUTORIAL).toContain("not required to enable purchases or activate live sales");
+    const tools = await client.listTools();
+    for (const name of ["glitch_update_microtransaction_settings", "glitch_get_microtransaction_readiness", "glitch_verify_microtransaction_integration"]) {
+      expect(tools.tools.find(tool => tool.name === name)?.description).toContain("not required to enable purchases or activate live sales");
+    }
     expect(mock.requests).toHaveLength(0);
   });
 

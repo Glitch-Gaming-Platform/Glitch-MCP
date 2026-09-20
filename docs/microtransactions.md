@@ -13,13 +13,48 @@ Start with `glitch_get_microtransaction_capabilities` and
 `input_schema`, examples, required `ability`, `http_method`, `mutates` and output
 description; both custom approval flags are false.
 
-**Server setup does not wait for a game SDK.** Use MCP now to configure the
-catalog/providers/settings supported by the server. Existing game checkout and
-own-player history use SDK3.15+, which is published. New administrative wrappers
-use SDK4.0's breaking contract (required refund keys and factual Provider DTO).
-Check current usable public versions independently before recommending an SDK
-install. An unpublished local candidate is for explicitly approved local QA, not
-proof of public publication or a reason to stop server-side configuration.
+**Prefer direct REST API access. No npm or SDK prerequisite.** Use MCP to configure
+the catalog/providers/settings, then use the native fetch/HTTP starter in
+`glitch://microtransactions/setup` for the game. Both server setup and the full
+runtime flow work independently of SDK installation/publication. The JavaScript
+SDK remains an optional convenience; preserve an existing working SDK integration.
+Only check package compatibility when that option is requested. An unpublished
+local candidate is not proof of public publication or a reason to stop REST work.
+
+For code-only copying, read `glitch://microtransactions/rest-starter`; it returns
+the same `createGlitchRestShop(config)` factory as the frontend AI export. The
+setup resource adds configuration and named game-adapter examples. Both are
+secret-free reference code, not permission to execute purchases during setup.
+
+The API base ends in `/api`; commerce routes are beneath
+`/titles/{title_id}/microtransactions`. Native fetch returns JSON `{data:...}`:
+use `payload.data`, not Axios-style `response.data.data`. The setup resource has
+the complete dependency-free in-game modal, claim verification, restore, own
+history and stable consumption example; the short request below is catalog-only:
+
+```js
+// Supply these from the game's configured integration, never from a window message.
+const base = apiBaseUrl.replace(/\/$/, '') + '/titles/'
+  + encodeURIComponent(titleId) + '/microtransactions';
+const response = await fetch(base + '/catalog?environment=sandbox&country=US&currency=USD', {
+  credentials: 'omit', redirect: 'error', headers: { Accept: 'application/json' },
+}); // Browser supplies Origin automatically. No Authorization or manual Origin.
+const payload = await response.json();
+if (!response.ok || !payload.data) throw new Error('Catalog unavailable: ' + response.status);
+const catalog = payload.data; // Display only; this cannot grant items or prove payment.
+```
+
+Equivalent diagnostic HTTP (curl may set Origin; browser JavaScript must not):
+
+```sh
+curl --fail-with-body \
+  "$API_BASE_URL/titles/$TITLE_ID/microtransactions/catalog?environment=sandbox&country=US&currency=USD" \
+  -H 'Accept: application/json' -H "Origin: $APPROVED_GAME_ORIGIN"
+```
+
+`API_BASE_URL`, `TITLE_ID` and `APPROVED_GAME_ORIGIN` are your nonsecret configured
+values. Do not add a bearer token to guest ingress or interpret curl success as
+browser, account, payment or 3DS verification.
 
 ## Guest runtime and supported testing
 
@@ -39,15 +74,17 @@ not relax the hosted backend's policy. Browsers supply Origin; use the actual
 boundary: shared S3/CDN game paths share an origin. Use separately approved
 per-game hostnames; do not broaden allowlists as a workaround.
 
-Fresh SDK contexts have no default auth. `Config.setAuthToken` and
-`Requests.setAuthToken` cause `Requests.processRoute` to inherit global
-Authorization, including on guest entry. `playerToken` overrides per request;
-`checkoutToken` adds `X-Checkout-Token` without removing global account auth.
-SDK3.15.0 also injects selected `community_id` as a query (not a body field), except
-on self-history. SDK4 excludes commerce community context. Neither implementation
-changes stored auth/context. Keep guest commerce contexts credential-free, hosted account
-auth inside Glitch and scoped player credentials per request. Never fix a guest
-401 by adding an admin JWT or clearing another context's global auth.
+Use native fetch with `credentials:'omit'`, no inherited Authorization, and no
+unrelated `community_id` on guest catalog/session/restore requests. After the
+one-use claim exchange, send only the scoped player token in a per-request
+`Authorization: Bearer ...` header for own-player APIs. `X-Checkout-Token` is a
+limited checkout-status capability, not inventory authority. Hosted account JWTs
+and Stripe authentication stay inside Glitch. Never fix guest401 by adding an
+admin JWT or clearing/replacing another integration's global authentication.
+
+If a developer chooses the optional SDK, account for its existing global auth
+inheritance and per-request credentials. That implementation detail does not
+make a SDK mandatory or change the direct REST credential matrix.
 
 Administrative/developer credentials, MCP tokens and provider secrets must never
 ship in a game. Existing supported install-purpose runtime tokens are separate:
@@ -64,10 +101,19 @@ providers or permissions in response to tool discovery.
 
 ### Readiness is not a completed transaction
 
+**Sandbox proof is optional QA, not required to enable purchases or activate live
+sales.** Authorized developers can use normal settings without a sandbox order
+or `integration.verify` call. Actual provider/account/market/tax, revenue,
+payment and fulfillment rules still apply. If optional QA is chosen, the verifier
+still requires a real paid sandbox order, fulfilled inventory and a claimed game
+handoff; do not fake evidence or silently clear any real readiness blocker.
+
 `ready` and optional `configuration_ready` retain configuration semantics.
 Optional `readiness.integration_verified` means stored sandbox paid + fulfilled +
 claimed evidence. Absent means unknown on older backends; do not synthesize it
-from ready/configuration or treat absence as false. This evidence is not
+from ready/configuration or treat absence as false. False/absent evidence is not
+an activation prerequisite. Enabling purchases must not manufacture a true flag.
+This evidence is not
 browser/3DS certification and does not prove that a new order is delivered.
 Record actual payment, fulfillment, claim and browser challenge evidence
 separately. Tests of DTO forwarding do not prove backend deployment or purchases.
@@ -125,7 +171,7 @@ human-readable results. Empty/malformed success envelopes are errors, not succes
 | glitch_acknowledge_microtransaction_delivery | deliveries.acknowledge | commerce:fulfill | Acknowledge durable handling |
 | glitch_list_microtransaction_payouts | payouts.list | commerce:finance | Paginated transfer/bank facts |
 | glitch_get_microtransaction_integration | integration.get | commerce:read | Actual title/SKU instructions |
-| glitch_verify_microtransaction_integration | integration.verify | commerce:write | Verify real sandbox evidence |
+| glitch_verify_microtransaction_integration | integration.verify | commerce:write | Optional QA: verify real sandbox evidence, not required for activation |
 | glitch_upload_microtransaction_media | POST media | commerce:write | Title-owned Media upload |
 
 A title token never escapes its title even when its creator owns another game.
@@ -144,6 +190,11 @@ API keys. Provider output distinguishes:
 
 Never label the game's payouts ready because the platform account has payouts
 enabled. No developer-writable `approved` or `available` field exists.
+
+An unavailable payout recipient does not block otherwise-eligible customer payment
+collection. Developer proceeds remain held under existing ledger/payout rules
+after the 12% commission and actual fees. Payout setup is separate from tax setup;
+current onboarding must not reassign historical recipients or release old holds.
 
 Provider update requires environment and supports enabled, priority0–100,
 countries, supported currencies, integer minimum amounts, tax mode/code, owned
@@ -174,6 +225,31 @@ The legacy `settings.update.webhook_url` alias needs **both commerce:write and
 commerce:fulfill**. Prefer `delivery.settings.get/update` as authoritative delivery
 configuration; a write-only catalog credential cannot change delivery URLs.
 
+### Stripe Tax: what to configure and who owns it
+
+Read the [official Stripe Tax setup guide](https://docs.stripe.com/tax/set-up).
+For Glitch commerce, Checkout and `tax.settings` use the **platform processing
+account**. The connected payout account is only a proceeds destination. Linking
+a personal Stripe account or changing `payout_source` does not fix platform Tax.
+
+`tax_mode:automatic` saves a Glitch-managed preference; it is not self-service
+activation of external Tax settings. Read provider `tax.status` and
+`missing_fields`. Pending `head_office` or `platform_tax_settings` requires
+**Glitch platform operations/support** to configure that actual processing account:
+confirm its legitimate head-office details, preset product classification/default
+tax behavior, applicable registrations, and separate filing/remittance setup.
+Send support the title, environment and safe status details—not keys or invented
+addresses/registrations. After resolution, use
+`glitch_refresh_microtransaction_provider` for the same provider/environment.
+
+MCP may read facts, save the existing tax preferences and refresh them; it cannot
+write platform Tax settings. `tax_code` is optional route-wide classification,
+not a registration ID; omitted/null uses the platform default when available.
+Compare requested/effective `tax_collection` modes and fallback reasons. An active
+tax status does not certify registrations, filing or liability; zero collected
+tax is not necessarily an error or zero tax owed. Payout onboarding is separate,
+and Xsolla has a distinct tax model—do not apply Stripe setup assumptions to it.
+
 ## Catalog and revenue
 
 MCP can update the game's authorized revenue settings directly. The optional
@@ -196,9 +272,14 @@ create. Products sort by created_at DESC, id DESC. This 200-record default diffe
 from orders/refunds/deliveries/payouts (25, maximum 100) and own-player purchase
 history (20, maximum 100).
 
-Uploads reuse the existing Media pipeline and trusted title/actor ownership.
-No scheduler/social post is created. Attach same-title Media IDs, not arbitrary
-URLs or unowned IDs. Read existing products before retrying an uncertain create;
+Uploads reuse the existing Media pipeline with **commerce-only** title/actor
+ownership. They must not appear in title/game preview, gallery, cover or social
+imagery. No title-gallery association or scheduler/social post is created.
+Use `POST /titles/{title_id}/microtransactions/media` with multipart field `media`,
+or `glitch_upload_microtransaction_media`, then attach returned same-title commerce
+Media IDs to products/branding. Generic, title-gallery and social-library media
+must be uploaded separately through commerce; do not relink them. Read existing
+products before retrying an uncertain create;
 name-only updates must not reset omitted status/media/prices/defaults.
 
 ## Orders, refunds and delivery recovery
@@ -273,7 +354,29 @@ downgrades based on untrusted headers.
 
 ## Player runtime is separate
 
-The setup resource/prompt includes a complete beginner `onVerified` example.
+### Saved cards: optional hosted convenience, gated on rollout
+
+After the `commerce_customer_bindings` migration and matching backend rollout,
+new marked Stripe orders can offer native optional save/remove controls in
+Glitch-hosted payment. See the [provider's embedded-checkout reference](https://docs.stripe.com/payments/checkout/save-during-payment?payment-ui=embedded-page).
+Do not promise this for older deployments or legacy orders; it is not a purchase
+activation prerequisite and adds no game SDK route or MCP payment-method tool.
+
+The server binds the customer to the Glitch user/provider/actual processing
+account/environment; the same user may reuse within that scope across games.
+Initial preparation may contact the provider Customer API, but is not a charge.
+The binding and Checkout payload are frozen before submission. Existing orders
+keep their original payload/binding; a deleted customer may be replaced for a new
+purchase only, not silently for an old retry.
+
+The player explicitly opts in inside the hosted form. Saving is not permission
+for off-session/autopay: later purchases need user confirmation and may require
+3DS. Cards cannot cross providers or sandbox/live environments; Xsolla support is
+not implied. Raw card data, customer IDs and payment-method details must not enter
+game/admin/MCP APIs. A unit/backend test does not prove real browser save/reuse or
+removal; report that evidence separately.
+
+The setup resource/prompt includes a complete beginner direct-REST callback example.
 The callback associates the player profile, retains the short-lived player token
 only in memory, and replaces verified inventory. It never adds product quantity
 or automatically consumes. Explicit consumption retains its action ID across
@@ -284,13 +387,23 @@ origin/source/session/nonce checks protect ready/close/claim messages. UI ready
 does not prove payment or provider-frame usability. Keep browser3DS success/cancel
 evidence separate from API tests.
 
-Own-player history is `listMyPurchases`, not an arbitrary-player MCP tool. It is
+Own-player history is `GET /titles/{title_id}/microtransactions/me/purchases`
+(`listMyPurchases` in the optional SDK), not an arbitrary-player MCP tool. It is
 self-authenticated, page-based, and distinguishes promised/granted/consumed/
 refunded/expired units; durable/pass is_used is null. Existing valid player tokens
 or the owning account JWT in Glitch can read history; never expose account JWTs
 to a game to bypass expired restore restrictions.
 
 ## Verification and development
+
+The ordinary suite executes the packaged REST starter without an SDK against
+deterministic fetch/DOM fixtures: guest headers, origin/source/session/nonce
+rejection, one-use claim replay, real receipt DTO shapes, deferred close, restore,
+own history, durable ownership and retry-stable consumption. Source equality
+with the frontend starter and the backend integration.get fetch example are
+also tested when their sibling checkouts exist; standalone MCP checkouts report
+those cross-repository checks as skipped, not passed. These are protocol/code
+tests, not live browser or provider3DS certification.
 
 Ordinary adapter tests use local protocol/HTTP fixtures. The opt-in
 `microtransactions.local.e2e.test.ts` requires a separately verified isolated
@@ -323,7 +436,7 @@ The test also exercises page-two catalog discovery and exact SKU lookup. It keep
 the same real refund intent on repeat runs. Coordinate fixture cleanup with both
 MCP testing and browser QA; test refund calls do not prove browser 3DS completion.
 
-## Published baseline and independent checks
+## Optional SDK compatibility and independent checks
 
 SDK `4.0.0` is a major administrative migration: required refund idempotency key,
 factual provider DTO replacing `approved`, pagination, and no custom confirmation
@@ -331,9 +444,10 @@ workflow. Existing checkout/restore/self-history clients remain compatible.
 Registry verification on September 16, 2026 confirmed SDK `3.15.0`, SDK `4.0.0`
 and MCP `0.5.0` published. This supersedes the earlier same-day candidate-only
 observation. SDK4/MCP0.5 management remains separate from guest player entry;
-there is no SDK4 requirement merely to fix hosted sandbox 401. The additive
-readiness and tutorial corrections are unreleased; local validation does not
-establish hosted backend deployment.
+there is no SDK4 requirement merely to fix hosted sandbox 401.
+SDK `4.0.1` also provides additive readiness/collection fields and overlay fixes.
+Direct REST needs none of these package versions. Local validation of the
+September20 guidance/media change does not establish hosted backend deployment.
 
 The SDK regression command `npm run test:commerce-compat -- --published` fetches
 the two pinned SDK tarballs from the public registry, verifies SHA-512 integrity,

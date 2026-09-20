@@ -30,6 +30,30 @@ describe("direct commerce management contracts", () => {
       expectAuthorization(mock.requests[0]?.init, "test-scope-token");
     }
   });
+
+  it("forwards an authorized live enable without a proof preflight or manufacturing evidence", async () => {
+    const result = { enabled: true, environment: "live", integration_verified: false };
+    const mock = createFetchMock(() => jsonResponse({ data: { operation: "settings.update", result } }));
+    const response = await invoke("glitch_update_microtransaction_settings", new GlitchClient(config, mock.fetch), { enabled: true, environment: "live" });
+    expect(response.isError).toBeUndefined();
+    expect((response.structuredContent?.data as any).result).toEqual(result);
+    expect(mock.requests).toHaveLength(1);
+    expect(mock.requests[0]?.url).toContain("/operations/settings.update");
+    expect(mock.requests[0]?.body).toEqual({ arguments: { enabled: true, environment: "live" } });
+    expect(definition("glitch_update_microtransaction_settings").readOnlyHint).toBe(false);
+  });
+
+  it("retains required real-evidence input and errors when optional verification is requested", async () => {
+    const mock = createFetchMock(() => jsonResponse({ message: "Actual sandbox payment, fulfillment and handoff evidence is required." }, 409));
+    const client = new GlitchClient(config, mock.fetch);
+    expect((await invoke("glitch_verify_microtransaction_integration", client)).isError).toBe(true);
+    expect(mock.requests).toHaveLength(0);
+    expect((await invoke("glitch_verify_microtransaction_integration", client, { order_id: orderId })).isError).toBe(true);
+    expect(mock.requests).toHaveLength(1);
+    expect(mock.requests[0]?.body).toEqual({ arguments: { order_id: orderId } });
+    expect(definition("glitch_verify_microtransaction_integration").description).toContain("Optional QA");
+    expect(definition("glitch_verify_microtransaction_integration").readOnlyHint).toBe(false);
+  });
   it("discovers later catalog pages and exact SKUs with a distinct 200-product default", async () => {
     const pagination = { page: 2, per_page: 1, total: 3, last_page: 3, has_more_pages: true };
     const mock = createFetchMock(() => jsonResponse({ data: { operation: "products.list", result: { products: [{ id: orderId, sku: "older.exact-sku" }], pagination } } }));

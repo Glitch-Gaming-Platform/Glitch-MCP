@@ -13,7 +13,7 @@ const optionalTitleArgs = {
 export function registerGlitchPrompts(server: McpServer): void {
   server.registerPrompt("glitch_setup_microtransactions", {
     title: "Set Up Game Microtransactions",
-    description: "Directly manage authorized title-scoped catalog, provider settings, readiness, orders, refunds, delivery and game handoff using exact server schemas. No separate confirmation/human-review workflow; genuine provider prerequisites and financial invariants remain enforced.",
+    description: "Set up commerce directly and implement game handoff REST-first with copyable native fetch/HTTP; no npm/SDK prerequisite, SDK optional. Sandbox proof is optional QA, not a live-activation prerequisite. Use exact title schemas for catalog, commerce-only media, providers, refunds and delivery. No separate confirmation/human-review workflow; genuine provider prerequisites and financial invariants remain enforced.",
     argsSchema: { ...optionalTitleArgs }
   }, async ({ title_id }) => ({ messages: [{ role: "user", content: { type: "text", text: `${title_id ? `Selected title: ${title_id}` : "List titles and ask which game I want to configure."}\n\n${MICROTRANSACTION_SETUP_GUIDE}` } }] }));
   server.registerPrompt(

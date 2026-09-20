@@ -466,4 +466,9 @@ Media uploads, provider setup, game-branded checkout, readiness and direct autho
 Start with `glitch_get_microtransaction_capabilities` and the
 `glitch://microtransactions/setup` resource. See
 [the MCP commerce guide](docs/microtransactions.md) for exact tools, units, scopes,
-title-scope boundaries, actual provider requirements and the verified game/account handoff workflow. No custom approval queue is required for commerce; server setup does not wait for runtime SDK publication.
+title-scope boundaries, actual provider requirements and the verified game/account handoff workflow. AI setup prefers direct REST/fetch/HTTP with a complete dependency-free browser starter: no npm/SDK prerequisite. The JavaScript SDK is optional and existing frontend integrations remain supported. Commerce media is isolated from title/game previews and galleries. No custom approval queue is required for commerce.
+
+Sandbox proof is optional QA, not required to enable purchases or activate live sales.
+The `integration_verified` flag remains truthful evidence, and opt-in verification
+still checks real payment, fulfillment and handoff facts. Actual provider/account,
+market and revenue rules remain enforced.
