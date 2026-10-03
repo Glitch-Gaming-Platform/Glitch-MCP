@@ -39,6 +39,7 @@ import {
 } from "./present.js";
 import { safeTool, toolSuccess } from "./result.js";
 import { microtransactionToolDefinitions } from "./microtransactionTools.js";
+import { preorderToolDefinitions } from "./preorderTools.js";
 import { progressionToolDefinitions } from "./progressionTools.js";
 
 /** Maximum upload size (50 MB), matching the hosted facade's limit. */
@@ -971,6 +972,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   ),
 
   ...microtransactionToolDefinitions,
+  ...preorderToolDefinitions,
 
   defineTool("glitch_start_agent_run", "Start Agent Run", "Start a paid Glitch Agent run for a title. Subscription and title permissions are enforced by Glitch.", startRunInput, false, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);

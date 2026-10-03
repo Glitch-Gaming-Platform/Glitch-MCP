@@ -64,6 +64,8 @@ describe("Glitch MCP tools", () => {
       "glitch_list_microtransaction_payouts",
       "glitch_get_microtransaction_integration",
       "glitch_verify_microtransaction_integration",
+      "glitch_get_preorder_capabilities",
+      "glitch_preorder_operation",
       "glitch_start_agent_run",
       "glitch_get_agent_run",
       "glitch_wait_for_agent_run",

@@ -420,6 +420,25 @@ export class GlitchClient {
     return data;
   }
 
+  async preorderCapabilities(titleId: string): Promise<JsonObject> {
+    const data = await this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/preorders/capabilities`);
+    if (!data || !Array.isArray(data.operations) || data.operations.length === 0) {
+      throw new GlitchMcpError("upstream_error", "The preorder server returned an invalid or empty capability catalog for this title.");
+    }
+    return data;
+  }
+
+  async preorderOperation(titleId: string, operation: string, args: JsonObject): Promise<JsonObject> {
+    const data = await this.http.post<JsonObject>(
+      `/mcp/v1/titles/${segment(titleId)}/preorders/operations/${segment(operation)}`,
+      { arguments: args }
+    );
+    if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length === 0) {
+      throw new GlitchMcpError("upstream_error", "The preorder server returned an empty operation result. Inspect the existing offer or order before retrying a mutation.");
+    }
+    return data;
+  }
+
   /** Never substitutes runtime title tokens for MCP authorization; host enforces every title/ability. */
   async microtransactionOperation(titleId: string, operation: string, args: JsonObject, _legacyConfirm?: boolean): Promise<JsonObject> {
     const data = await this.http.post<JsonObject>(
