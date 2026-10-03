@@ -13,7 +13,7 @@ const preorderOperationName = z.enum([
   "keys.inventory", "keys.import", "keys.retire",
   "orders.list", "orders.get", "orders.refund",
   "readiness.get", "fulfillment.retry", "payments.reconcile",
-  "emails.resend_receipt", "emails.resend_access"
+  "emails.resend_receipt", "emails.resend_access", "hosting.integration.get"
 ]);
 
 const capabilitiesInput = z.object({ title_id: titleId }).strict();
@@ -21,7 +21,7 @@ const operationInput = z.object({
   title_id: titleId,
   operation: preorderOperationName.describe("Operation from glitch_get_preorder_capabilities."),
   arguments: z.record(z.string(), z.unknown()).default({}).describe(
-    "Operation-specific arguments. Use integer minor-unit prices, ISO timestamps, HTTPS links, and exact same-title IDs. keys.import accepts keys:string[] and never returns unused plaintext keys."
+    "Operation-specific arguments. settings.update accepts hosted_checkout_enabled:boolean for direct checkout on live Glitch-hosted domains. Use integer minor-unit prices, ISO timestamps, HTTPS links, and exact same-title IDs. keys.import accepts keys:string[] and never returns unused plaintext keys."
   )
 }).strict();
 
@@ -50,7 +50,7 @@ export const preorderToolDefinitions: GlitchToolDefinition[] = [
   {
     name: "glitch_get_preorder_capabilities",
     title: "Get Preorder Capabilities",
-    description: "Discover the complete title-scoped preorder lifecycle and required commerce abilities. Covers settings, platform offers and prices, encrypted external-key inventory, orders, refunds, release readiness, reconciliation, fulfillment retries, and receipt/access-email resend. Read this before mutations. Unused plaintext keys are never returned.",
+    description: "Discover the complete title-scoped preorder lifecycle and required commerce abilities. Covers settings, platform offers and prices, encrypted external-key inventory, orders, refunds, release readiness, hosted-website checkout integration, reconciliation, fulfillment retries, and receipt/access-email resend. Read this before mutations. Unused plaintext keys are never returned.",
     inputSchema: capabilitiesInput.shape,
     validationSchema: capabilitiesInput,
     readOnlyHint: true,
@@ -65,7 +65,7 @@ export const preorderToolDefinitions: GlitchToolDefinition[] = [
   {
     name: "glitch_preorder_operation",
     title: "Manage Preorders",
-    description: "Run one deterministic preorder operation for the selected title. Use glitch_get_preorder_capabilities first. Supports settings, offer create/update/activate/pause/archive, key inventory/import, order listing/refund, readiness, payment reconciliation, fulfillment retry, and receipt/access-email resend. External keys supplied to keys.import are write-only; never place keys in logs, summaries, or retry under a different title.",
+    description: "Run one deterministic preorder operation for the selected title. Use glitch_get_preorder_capabilities first. Supports settings including hosted checkout opt-in, offer create/update/activate/pause/archive, key inventory/import, order listing/refund, readiness, hosted integration instructions, payment reconciliation, fulfillment retry, and receipt/access-email resend. External keys supplied to keys.import are write-only; never place keys in logs, summaries, or retry under a different title.",
     inputSchema: operationInput.shape,
     validationSchema: operationInput,
     readOnlyHint: false,

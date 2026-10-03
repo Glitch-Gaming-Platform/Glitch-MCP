@@ -30,7 +30,7 @@ describe("preorder MCP contracts", () => {
       "settings.get", "settings.update", "offers.list", "offers.get", "offers.create", "offers.update",
       "offers.activate", "offers.pause", "offers.archive", "keys.inventory", "keys.import", "keys.retire",
       "orders.list", "orders.get", "orders.refund", "readiness.get", "fulfillment.retry",
-      "payments.reconcile", "emails.resend_receipt", "emails.resend_access"
+      "payments.reconcile", "emails.resend_receipt", "emails.resend_access", "hosting.integration.get"
     ];
     const mock = createFetchMock(() => jsonResponse({ data: {
       version: 1,
