@@ -488,7 +488,22 @@ describe("Glitch MCP tools", () => {
         return jsonResponse({ data: [{ id: "release_1", status: "ready" }] });
       }
       if (request.url.endsWith("/hosting/sites/site_1/releases/release_1/promote")) {
-        return jsonResponse({ data: { id: "site_1", status: "live", url: "https://neon.pixel.glitch.fun" } });
+        return jsonResponse({ data: {
+          id: "site_1",
+          status: "live",
+          url: "https://neon.pixel.glitch.fun",
+          generated_hostname: "neon.pixel.glitch.fun"
+        } });
+      }
+      if (request.url === "https://neon.pixel.glitch.fun/") {
+        return new Response("<!doctype html><title>Neon Pixel</title>", {
+          status: 200,
+          headers: {
+            "content-type": "text/html",
+            "x-glitch-hosting-site": "site_1",
+            "x-glitch-hosting-release": "release_1"
+          }
+        });
       }
       return jsonResponse({ message: "Unexpected request" }, 500);
     });
@@ -505,9 +520,54 @@ describe("Glitch MCP tools", () => {
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent?.data).toMatchObject({
       site: { id: "site_1", status: "live" },
-      release: { id: "release_1", status: "ready" }
+      release: { id: "release_1", status: "ready" },
+      public_verification: {
+        url: "https://neon.pixel.glitch.fun/",
+        status: 200,
+        hosting_site_id: "site_1",
+        hosting_release_id: "release_1"
+      }
     });
     expect(mock.requests.some((request) => request.url.endsWith("/hosting/sites/site_1/releases/release_1/promote"))).toBe(true);
+    expect(mock.requests.some((request) => request.url === "https://neon.pixel.glitch.fun/")).toBe(true);
+  });
+
+  it("publishes an existing hosting release only after the public hostname proves the expected site", async () => {
+    const mock = createFetchMock((request) => {
+      if (request.url.endsWith("/hosting/sites/site_1/releases/release_1/promote")) {
+        return jsonResponse({ data: {
+          id: "site_1",
+          status: "live",
+          generated_hostname: "neon.pixel.glitch.fun"
+        } });
+      }
+      if (request.url === "https://neon.pixel.glitch.fun/") {
+        return new Response("ok", {
+          status: 200,
+          headers: {
+            "x-glitch-hosting-site": "site_1",
+            "x-glitch-hosting-release": "release_1"
+          }
+        });
+      }
+      return jsonResponse({ message: "Unexpected request" }, 500);
+    });
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_promote_hosting_release", client, {
+      site_id: "site_1",
+      release_id: "release_1",
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent?.data).toMatchObject({
+      id: "site_1",
+      status: "live",
+      public_verification: {
+        hosting_site_id: "site_1",
+        hosting_release_id: "release_1"
+      }
+    });
   });
 
   it("resumes a processing game build and waits for ready without activating it", async () => {

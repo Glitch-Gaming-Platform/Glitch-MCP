@@ -72,6 +72,29 @@ export class GlitchHttpClient {
    * must be sent without it. Returns the raw Response so callers can read the
    * ETag header. The per-call timeout is applied via AbortController.
    */
+  async getPublic(absoluteUrl: string, timeoutMs = this.config.timeoutMs): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await this.fetchFn(absoluteUrl, {
+        method: "GET",
+        redirect: "follow",
+        headers: {
+          "User-Agent": `glitch-mcp/${GLITCH_MCP_VERSION}`,
+          "X-Glitch-MCP-Client": this.config.clientName
+        },
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new GlitchMcpError("upstream_timeout", "The public hosted-site verification timed out.", { status: 408 });
+      }
+      throw new GlitchMcpError("upstream_error", "Unable to reach the public hosted website.");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async putBinary(absoluteUrl: string, body: Uint8Array, contentType = "application/octet-stream"): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.config.timeoutMs);

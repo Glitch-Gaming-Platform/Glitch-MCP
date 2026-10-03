@@ -245,6 +245,55 @@ export class GlitchClient {
     );
   }
 
+  async waitForHostingPublicRoute(
+    hostname: string,
+    expectedSiteId: string,
+    timeoutMs = 60_000,
+    pollIntervalMs = 2_000
+  ): Promise<JsonObject> {
+    const normalizedHost = hostname.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+    if (!normalizedHost || normalizedHost.includes("/") || !normalizedHost.includes(".")) {
+      throw new GlitchMcpError("validation_error", "Glitch returned an invalid hosted-game hostname.");
+    }
+
+    const deadline = Date.now() + Math.max(1_000, timeoutMs);
+    let lastStatus: number | undefined;
+    let lastSiteHeader: string | null = null;
+
+    while (Date.now() < deadline) {
+      try {
+        const response = await this.http.getPublic(
+          `https://${normalizedHost}/`,
+          Math.min(15_000, Math.max(1_000, deadline - Date.now()))
+        );
+        lastStatus = response.status;
+        lastSiteHeader = response.headers.get("x-glitch-hosting-site");
+
+        if (response.ok && lastSiteHeader === expectedSiteId) {
+          return {
+            url: `https://${normalizedHost}/`,
+            status: response.status,
+            hosting_site_id: lastSiteHeader,
+            hosting_release_id: response.headers.get("x-glitch-hosting-release") || undefined
+          };
+        }
+      } catch (error) {
+        if (error instanceof GlitchMcpError && error.code !== "upstream_timeout" && error.code !== "upstream_error") {
+          throw error;
+        }
+      }
+
+      if (Date.now() < deadline) {
+        await sleep(Math.min(pollIntervalMs, Math.max(1, deadline - Date.now())));
+      }
+    }
+
+    throw new GlitchMcpError(
+      "upstream_error",
+      `Glitch promoted the hosting release, but public verification did not prove that https://${normalizedHost}/ is routing to hosting site ${expectedSiteId}. Last HTTP status: ${lastStatus ?? "unreachable"}; hosting site header: ${lastSiteHeader || "missing"}. Retry publishing the same release after routing finishes propagating; do not create a duplicate release.`
+    );
+  }
+
   async connectHostingDomain(titleId: string, siteId: string, hostname: string): Promise<JsonObject> {
     return this.http.post<JsonObject>(`/titles/${segment(titleId)}/hosting/sites/${segment(siteId)}/domains`, { hostname });
   }

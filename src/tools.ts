@@ -1616,7 +1616,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     }
 
     const readyRelease = await client.waitForHostingReleaseReady(titleId, siteId, releaseId, input.timeout_ms, input.poll_interval_ms);
-    await ctx?.progress?.(1, input.publish ? 2 : 1, "Hosting release is ready");
+    await ctx?.progress?.(1, input.publish ? 3 : 1, "Hosting release is ready");
 
     if (!input.publish) {
       return toolSuccess({
@@ -1628,11 +1628,22 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     }
 
     const publishedSite = await client.promoteHostingRelease(titleId, siteId, releaseId);
-    await ctx?.progress?.(2, 2, "Hosted website published");
+    await ctx?.progress?.(2, 3, "Hosting release promoted; verifying public hostname");
+    const publishedHost = String(publishedSite.generated_hostname || "").trim();
+    if (!publishedHost) {
+      throw new GlitchMcpError("upstream_error", "Glitch promoted the hosting release but did not return its generated hostname, so public routing could not be verified.");
+    }
+    const publicVerification = await client.waitForHostingPublicRoute(
+      publishedHost,
+      siteId,
+      Math.min(input.timeout_ms, 120_000),
+      Math.max(1_000, Math.min(input.poll_interval_ms, 5_000))
+    );
+    await ctx?.progress?.(3, 3, "Hosted website publicly verified");
     return toolSuccess({
       title: "Hosted game published",
-      summary: `Published hosting release ${releaseId}. Store distribution remains independent.`,
-      data: { site: publishedSite, build, release: readyRelease },
+      summary: `Published and publicly verified hosting release ${releaseId}. Store distribution remains independent.`,
+      data: { site: publishedSite, build, release: readyRelease, public_verification: publicVerification },
       links: [
         { name: "Open hosted game", url: String(publishedSite.url || `https://${publishedSite.generated_hostname || ""}`) },
         { name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }
@@ -1644,10 +1655,15 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     requireConfirmation(input.confirm, "Changing the live hosted website release");
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.promoteHostingRelease(titleId, input.site_id, input.release_id);
+    const publishedHost = String(data.generated_hostname || "").trim();
+    if (!publishedHost) {
+      throw new GlitchMcpError("upstream_error", "Glitch promoted the hosting release but did not return its generated hostname, so public routing could not be verified.");
+    }
+    const publicVerification = await client.waitForHostingPublicRoute(publishedHost, input.site_id, 60_000, 2_000);
     return toolSuccess({
       title: "Hosted release published",
-      summary: `Hosting site ${input.site_id} now uses release ${input.release_id}.`,
-      data,
+      summary: `Hosting site ${input.site_id} now uses release ${input.release_id}, and the public hostname was verified.`,
+      data: { ...data, public_verification: publicVerification },
       links: [
         { name: "Open hosted game", url: String(data.url || `https://${data.generated_hostname || ""}`) },
         { name: "Open Hosting", url: client.dashboardUrl("hosting", { titleId }) }
