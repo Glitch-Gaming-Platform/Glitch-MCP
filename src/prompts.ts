@@ -652,7 +652,7 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
     name: "glitch_apply_hosting_services",
     title: "Glitch Deploy Hosting Services",
     description: "Deploy a metered multi-service game Hosting release.",
-    guidance: ["List current services and estimate the proposed stack first.", "Reuse ready container builds; one image may run several services with different commands.", "Show the monthly floor and usage rates, then use the exact confirmation only after approval.", "Never send secret values through MCP; name the secrets the developer must add in Hosting."]
+    guidance: ["List current services and estimate the proposed stack first.", "Use Glitch-managed service placement. The consolidated Docker VM is an operator-managed legacy migration target, not a self-service choice; never provision it via Azure CLI for creator builds.", "Reuse ready container builds; one image may run several services with different commands.", "Show the monthly floor and usage rates, then use the exact confirmation only after approval.", "Do not claim a running replacement is a cutover: verify the active release and final HTTPS URL, runtime health, and actual game play.", "Never send secret values through MCP; name the secrets the developer must add in Hosting."]
   },
   {
     name: "glitch_open_dashboard",

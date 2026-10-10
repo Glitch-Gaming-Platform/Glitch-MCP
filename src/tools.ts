@@ -1787,7 +1787,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_apply_hosting_services", "Deploy Hosting Services", "Queue an immutable multi-service Hosting release from a ready container build. Requires exact confirmation of the estimated monthly floor; publishing remains separate.", applyHostingServicesInput, false, async (client, input) => {
+  defineTool("glitch_apply_hosting_services", "Deploy Hosting Services", "Queue an immutable multi-service Hosting release from a ready container build on Glitch-managed infrastructure, not the operator-only legacy Docker consolidation VM. Requires exact confirmation of the estimated monthly floor; publishing and live HTTPS/gameplay verification remain separate.", applyHostingServicesInput, false, async (client, input) => {
     requireConfirmation(input.confirm, "Deploying a metered Hosting service stack");
     requireExactConfirmation(
       input.billing_confirmation,
