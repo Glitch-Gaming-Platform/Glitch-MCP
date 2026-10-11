@@ -171,6 +171,13 @@ export class GlitchClient {
     };
   }
 
+  async influencerCampaignOperation(titleId: string, operation: string, args: JsonObject): Promise<JsonObject> {
+    const path = `/mcp/v1/titles/${segment(titleId)}/influencer-campaigns/${segment(operation)}`;
+    return ["list", "get", "templates.list", "templates.get", "invitations.list"].includes(operation)
+      ? this.http.get<JsonObject>(path, args)
+      : this.http.post<JsonObject>(path, args);
+  }
+
   async titleContext(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/context`);
   }

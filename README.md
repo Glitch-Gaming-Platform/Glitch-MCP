@@ -472,3 +472,48 @@ Sandbox proof is optional QA, not required to enable purchases or activate live 
 The `integration_verified` flag remains truthful evidence, and opt-in verification
 still checks real payment, fulfillment and handoff facts. Actual provider/account,
 market and revenue rules remain enforced.
+
+
+### Direct influencer campaign MCP operations
+
+Use `glitch_influencer_campaign_operation` with `title_id` and one of
+`list`, `get`, `update`, `pause`, `templates.list`, `templates.get`,
+`templates.create`, `templates.update`, `templates.delete`,
+`template.assign`, or `invitations.list`. A campaign UUID is required
+for operations other than `list`; template operations on a particular template
+also require `template_id`. Mutations require `confirm=true`.
+The existing `social:read` and `social:write` MCP permissions authorize reads and mutations respectively; no campaign-specific token scopes are required.
+Campaign-specific templates do not change any other campaign. MCP can enable automatic invitations, daily outreach, and resume campaigns. Campaign activation uses the same backend checks as the existing dashboard.
+
+#### Outreach placeholder catalog and preflight
+
+Before creating or changing campaign invitation copy, call
+`glitch_influencer_campaign_operation` with `operation: "placeholders.list"`.
+No title or campaign identifier is needed for this read-only catalog. Its
+response includes all **32 exact placeholders** from the Glitch outreach
+editor, additional renderer aliases, value sources and fallback rules. The
+full catalog is available in both the text output and structured data.
+
+Call the same tool with `operation: "templates.validate"` and a `fields`
+object to check a draft before saving. This operation is read-only and warns
+about unrecognized or incorrectly spaced `{{tokens}}`. On
+`templates.create` and `templates.update`, warnings are returned alongside
+the backend response; the MCP does not silently rewrite the user's copy or
+add an authorization gate.
+
+For example, an invitation can use
+`"Hi {{dynamic_name}}, you are invited to play {{game_title}}. {{campaign_link}}"`.
+`{{dynamic_name}}` resolves per creator at delivery time; `{{campaign_link}}`
+uses the personalized invite link when a recipient/invitation exists, or a
+general campaign page otherwise. `{{access_key}}` is not a guaranteed game
+key: when no assigned key is available, the renderer can substitute a fallback
+message. `{{campaign_name}}` means the human-readable campaign label, while
+`{{game_title}}` means the game's name. The original template should preserve
+these tokens unchanged.
+
+Email #1 uses `subject`, `text_version` and `html_version`. Follow-up
+emails #1 through #4 use `email_touch_point_2_*` through
+`email_touch_point_5_*`. Social messages use supported
+`<platform>_touch_point_<number>_content` fields. This feature uses the
+existing `social:read` and `social:write` abilities and changes no
+automatic invitation policy.

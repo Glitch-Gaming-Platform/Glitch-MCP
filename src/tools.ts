@@ -40,6 +40,7 @@ import {
 import { safeTool, toolSuccess } from "./result.js";
 import { microtransactionToolDefinitions } from "./microtransactionTools.js";
 import { preorderToolDefinitions } from "./preorderTools.js";
+import { influencerCampaignToolDefinitions } from "./influencerCampaignTools.js";
 import { progressionToolDefinitions } from "./progressionTools.js";
 
 /** Maximum upload size (50 MB), matching the hosted facade's limit. */
@@ -2337,7 +2338,8 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
         await source.close();
       }
     }
-  )
+  ),
+  ...influencerCampaignToolDefinitions
 ];
 
 export function registerGlitchTools(server: McpServer, client: GlitchClient): void {

@@ -144,7 +144,8 @@ describe("Glitch MCP tools", () => {
       "glitch_list_player_achievements",
       "glitch_list_deployments",
       "glitch_update_deployment_status",
-      "glitch_deploy_game_build"
+      "glitch_deploy_game_build",
+      "glitch_influencer_campaign_operation"
     ]);
   });
 
