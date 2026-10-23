@@ -7,7 +7,7 @@ import { campaignEditorPlaceholders, campaignAdditionalPlaceholders, campaignPla
 const uuid = z.uuid();
 const title_id = uuid.optional().describe("Title UUID; otherwise the selected title.");
 const op = z.enum([
-  "placeholders.list", "templates.validate", "list", "get", "update", "pause", "resume",
+  "placeholders.list", "templates.validate", "list", "get", "create", "update", "pause", "resume",
   "templates.list", "templates.get", "templates.create", "templates.update",
   "templates.delete", "template.assign", "invitations.list"
 ]);
@@ -37,7 +37,7 @@ export const influencerCampaignToolDefinitions: GlitchToolDefinition[] = [
   {
     name: "glitch_influencer_campaign_operation",
     title: "Manage Influencer Campaign",
-    description: "Manage title-scoped influencer campaigns. Before drafting email or DM outreach, call operation=placeholders.list to obtain ALL exact Glitch campaign/influencer/game/access-key placeholders with their real sources, fallback rules and examples. Call templates.validate with fields for a dry-run token check; unknown/malformed placeholders are reported. Then use templates.create/update/assign to save, preserving literal {{tokens}} for recipient-specific substitution. Supports list/get/update/pause/resume and invitations.list. Existing social:read/social:write permissions, no added scopes or MCP-only auto-invite restrictions.",
+    description: "Manage title-scoped influencer campaigns. Before drafting email or DM outreach, call operation=placeholders.list to obtain ALL exact Glitch campaign/influencer/game/access-key placeholders with their real sources, fallback rules and examples. Call templates.validate with fields for a dry-run token check; unknown/malformed placeholders are reported. Then use templates.create/update/assign to save, preserving literal {{tokens}} for recipient-specific substitution. Supports draft create with game title context, deliverables and optional compensation, plus list/get/update/pause/resume and invitations.list. Existing social:read/social:write permissions, no added scopes or MCP-only auto-invite restrictions.",
     inputSchema: request.shape,
     validationSchema: request,
     readOnlyHint: false,

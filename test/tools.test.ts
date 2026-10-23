@@ -145,7 +145,9 @@ describe("Glitch MCP tools", () => {
       "glitch_list_deployments",
       "glitch_update_deployment_status",
       "glitch_deploy_game_build",
-      "glitch_influencer_campaign_operation"
+      "glitch_influencer_campaign_operation",
+      "glitch_get_marketing_capabilities",
+      "glitch_marketing_operation"
     ]);
   });
 

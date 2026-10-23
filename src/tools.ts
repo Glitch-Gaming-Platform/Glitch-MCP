@@ -41,6 +41,7 @@ import { safeTool, toolSuccess } from "./result.js";
 import { microtransactionToolDefinitions } from "./microtransactionTools.js";
 import { preorderToolDefinitions } from "./preorderTools.js";
 import { influencerCampaignToolDefinitions } from "./influencerCampaignTools.js";
+import { marketingToolDefinitions } from "./marketingTools.js";
 import { progressionToolDefinitions } from "./progressionTools.js";
 
 /** Maximum upload size (50 MB), matching the hosted facade's limit. */
@@ -692,7 +693,7 @@ const confirmHostingCheckoutInput = z.object({
 
 const deployHostingBuildInput = z.object({
   ...optionalTitleShape,
-  game_build_id: idSchema.describe("Existing compatible Glitch game build id. It may be processing or ready; this tool waits for ready. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists."),
+  game_build_id: idSchema.describe("Existing compatible Glitch Store game build id. The tool waits for a processing build to become ready. Standalone static marketing/preorder sites use the separate Glitch Hosting CLI directly instead of uploading them as Store game builds."),
   site_id: idSchema.optional().describe("Hosting site id. When omitted, the only existing site is used, or a new site is created from site_name/site_slug."),
   site_name: z.string().trim().min(1).max(120).optional(),
   site_slug: z.string().trim().min(1).max(63).regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/).optional(),
@@ -1564,7 +1565,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     });
   }),
 
-  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn an existing compatible Glitch game build into an independent hosted website release using a proven entry path from the finished artifact. The build may already be processing; the tool resumes by id and waits for build and release readiness before publishing. Call glitch_list_deployments first and upload a local ZIP only when no compatible build exists. Never activate a processing Store build. Ready is not live; publish must also complete HTTPS and final public-site verification.", deployHostingBuildInput, false, async (client, input, ctx) => {
+  defineTool("glitch_deploy_hosting_build", "Deploy Build To Game Hosting", "Turn an existing compatible Glitch game build into an independent hosted website release using a proven entry path from the finished artifact. The build may already be processing; the tool resumes by id and waits for build and release readiness before publishing. Call glitch_list_deployments first. A standalone static website uses the Glitch Hosting CLI, not the Store game-build upload workflow. Never activate a processing Store build. Ready is not live; publish must also complete HTTPS and final public-site verification.", deployHostingBuildInput, false, async (client, input, ctx) => {
     requireConfirmation(input.confirm, input.publish ? "Deploying and publishing a hosted game website" : "Creating a hosted game website release");
     const titleId = client.resolveTitleId(input.title_id);
 
@@ -2339,7 +2340,8 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
       }
     }
   ),
-  ...influencerCampaignToolDefinitions
+  ...influencerCampaignToolDefinitions,
+  ...marketingToolDefinitions
 ];
 
 export function registerGlitchTools(server: McpServer, client: GlitchClient): void {

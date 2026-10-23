@@ -463,6 +463,17 @@ export class GlitchClient {
     throw new GlitchMcpError("upstream_timeout", `Timed out waiting for hosting release ${releaseId} to become ready.`, { status: 408 });
   }
 
+  async marketingCapabilities(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>("/mcp/v1/titles/" + segment(titleId) + "/marketing/capabilities");
+  }
+
+  async marketingOperation(titleId: string, operation: string, args: JsonObject, confirm = false): Promise<JsonObject> {
+    return this.http.post<JsonObject>(
+      "/mcp/v1/titles/" + segment(titleId) + "/marketing/operations/" + segment(operation),
+      { arguments: args, confirm }
+    );
+  }
+
   async socialCapabilities(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/social/capabilities`);
   }
