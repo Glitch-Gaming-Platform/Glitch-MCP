@@ -25,6 +25,22 @@ describe("Marketing tools", () => {
     expect(mock.requests[0]?.url).toContain("/marketing/capabilities");
   });
 
+  it("exposes read-only Reddit CAPI pixel discovery without requiring confirmation", async () => {
+    const mock = createFetchMock(() => jsonResponse({
+      data: { platform: "reddit", model: "pixel_events", pixels: [{ id: "pixel123" }], supported_standard_events: [] }
+    }));
+    const client = new GlitchClient(config, mock.fetch);
+    const tool = glitchToolDefinitions.find((t) => t.name === "glitch_marketing_operation")!;
+    const result = await tool.handler(client, {
+      operation: "conversions.sources",
+      arguments: { scheduler_id: titleId, platform: "reddit" }
+    });
+    expect(result.isError).toBeUndefined();
+    expect(JSON.stringify(result.structuredContent)).toContain("pixel_events");
+    expect(mock.requests[0]?.url).toContain("conversions.sources");
+    expect(mock.requests).toHaveLength(1);
+  });
+
   it("requires confirmation before any mutating ad or conversion operation", async () => {
     const mock = createFetchMock(() => jsonResponse({ data: {} }));
     const client = new GlitchClient(config, mock.fetch);

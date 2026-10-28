@@ -173,7 +173,7 @@ export class GlitchClient {
 
   async influencerCampaignOperation(titleId: string, operation: string, args: JsonObject): Promise<JsonObject> {
     const path = `/mcp/v1/titles/${segment(titleId)}/influencer-campaigns/${segment(operation)}`;
-    return ["list", "get", "templates.list", "templates.get", "invitations.list"].includes(operation)
+    return ["list", "get", "templates.list", "templates.get", "invitations.list", "replies.list", "replies.get"].includes(operation)
       ? this.http.get<JsonObject>(path, args)
       : this.http.post<JsonObject>(path, args);
   }
@@ -719,8 +719,9 @@ export class GlitchClient {
 
   /**
    * Upload a developer-selected screenshot, clip, trailer, or marketing export as
-   * first-class Glitch Media so existing AI media processing and social library
-   * workflows can handle it.
+   * first-class Glitch Media. Saved original assets immediately enter the
+   * scheduler library when requested; optional AI enrichment runs in the
+   * background and does not gate scheduling.
    */
   async uploadMediaAsset(
     titleId: string,

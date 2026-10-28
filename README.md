@@ -370,6 +370,11 @@ Glitch MCP can handle the complete website deployment flow with one scoped MCP t
 
 1. Use `glitch_list_deployments` and select a compatible processing or ready game build already uploaded on Deploy Game.
 2. Preserve that build id. If it is processing, resume waiting on it; never activate it or upload the unchanged artifact again. Only when no compatible build exists, use `glitch_deploy_game_build` once and persist the returned id.
+
+Standalone static websites (including pre-order/marketing pages) are not Store
+game builds. Use the independent Glitch Hosting CLI (`glitch host <dir> --entry
+index.html` with a Hosting token and site ID) rather than manufacturing a Store
+game build for such a page. This applies to every Glitch title.
 3. Use `glitch_deploy_hosting_build` with the selected build id. It waits for game-build and release processing, selects or creates the hosting site, creates an immutable release, and publishes it when `publish=true`.
 4. Use `glitch_promote_hosting_release` to roll back to an earlier release.
 

@@ -9,13 +9,15 @@ const title_id = uuid.optional().describe("Title UUID; otherwise the selected ti
 const op = z.enum([
   "placeholders.list", "templates.validate", "list", "get", "create", "update", "pause", "resume",
   "templates.list", "templates.get", "templates.create", "templates.update",
-  "templates.delete", "template.assign", "invitations.list"
+  "templates.delete", "template.assign", "invitations.list", "replies.list", "replies.get", "replies.send"
 ]);
 const request = z.object({
   title_id,
   operation: op,
   campaign_id: uuid.optional(),
   template_id: uuid.optional(),
+  reply_id: uuid.optional().describe("Inbound reply UUID obtained from replies.list."),
+  client_message_id: uuid.optional().describe("New UUID for idempotent email send; reuse on retry."),
   fields: z.record(z.string(), z.unknown()).optional(),
   confirm: z.boolean().default(false)
 }).strict();
@@ -31,13 +33,13 @@ ${lines.join("\n")}`;
   + campaignAdditionalPlaceholders.map((item) => `- \`${item.token}\` — ${item.usage}`).join("\n")
   + "\n\n### Correct use\n" + campaignPlaceholderGuidance.map((item) => `- ${item}`).join("\n");
 
-const readonly = new Set(["placeholders.list", "templates.validate", "list", "get", "templates.list", "templates.get", "invitations.list"]);
+const readonly = new Set(["placeholders.list", "templates.validate", "list", "get", "templates.list", "templates.get", "invitations.list", "replies.list", "replies.get"]);
 
 export const influencerCampaignToolDefinitions: GlitchToolDefinition[] = [
   {
     name: "glitch_influencer_campaign_operation",
     title: "Manage Influencer Campaign",
-    description: "Manage title-scoped influencer campaigns. Before drafting email or DM outreach, call operation=placeholders.list to obtain ALL exact Glitch campaign/influencer/game/access-key placeholders with their real sources, fallback rules and examples. Call templates.validate with fields for a dry-run token check; unknown/malformed placeholders are reported. Then use templates.create/update/assign to save, preserving literal {{tokens}} for recipient-specific substitution. Supports draft create with game title context, deliverables and optional compensation, plus list/get/update/pause/resume and invitations.list. Existing social:read/social:write permissions, no added scopes or MCP-only auto-invite restrictions.",
+    description: "Manage title-scoped influencer campaigns. Before drafting email or DM outreach, call operation=placeholders.list to obtain ALL exact Glitch campaign/influencer/game/access-key placeholders with their real sources, fallback rules and examples. Call templates.validate with fields for a dry-run token check; unknown/malformed placeholders are reported. Then use templates.create/update/assign to save, preserving literal {{tokens}} for recipient-specific substitution. Supports draft create with game title context, deliverables and optional compensation, plus list/get/update/pause/resume, invitations.list, and replies.list/get/send. Email replies are tracked and returned only for the selected campaign. replies.send sends a REAL email via Glitch's configured mail transport, requires confirm=true, a reply_id and an idempotent client_message_id UUID. It does not claim final delivery. Existing social:read/social:write permissions, no added scopes or MCP-only auto-invite restrictions.",
     inputSchema: request.shape,
     validationSchema: request,
     readOnlyHint: false,
@@ -47,6 +49,11 @@ export const influencerCampaignToolDefinitions: GlitchToolDefinition[] = [
       const parsed = request.parse(input);
       if (!readonly.has(parsed.operation) && !parsed.confirm) {
         throw new Error("Set confirm=true to approve this campaign mutation.");
+      }
+      if (parsed.operation === "replies.send" && (!parsed.campaign_id || !parsed.reply_id ||
+          !parsed.client_message_id || !parsed.fields || typeof parsed.fields.body !== "string" ||
+          !parsed.fields.body.trim())) {
+        throw new Error("replies.send requires campaign_id, reply_id, client_message_id UUID and non-empty fields.body.");
       }
       if (parsed.operation === "placeholders.list") {
         return toolSuccess({
@@ -75,6 +82,9 @@ export const influencerCampaignToolDefinitions: GlitchToolDefinition[] = [
       const data = await client.influencerCampaignOperation(titleId, parsed.operation, {
         ...(parsed.campaign_id ? { campaign_id: parsed.campaign_id } : {}),
         ...(parsed.template_id ? { template_id: parsed.template_id } : {}),
+        ...(parsed.reply_id ? { reply_id: parsed.reply_id } : {}),
+        ...(parsed.client_message_id ? { client_message_id: parsed.client_message_id } : {}),
+        ...(parsed.confirm ? { confirm: true } : {}),
         ...(parsed.fields ? { fields: parsed.fields } : {})
       } as JsonObject);
       return toolSuccess({

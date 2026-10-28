@@ -964,11 +964,29 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     async (client, input) => {
       const titleId = client.resolveTitleId(input.title_id);
       const data = await client.socialOperation(titleId, input.operation, input.arguments, input.confirm);
+      // Expose an explicit, one-time provider consent link for OAuth.
+      const payload = (data.result || (data.data as JsonObject | undefined)?.result || {}) as JsonObject;
+      const rawConnectUrl = payload.connect_url;
+      let connectUrl: string | null = null;
+      if (input.operation === "oauth.connect.start" && typeof rawConnectUrl === "string") {
+        try {
+          const url = new URL(rawConnectUrl);
+          if (url.protocol === "https:" && url.pathname === "/auth/mcp/social/connect") {
+            connectUrl = url.toString();
+          }
+        } catch {
+          // Invalid links are never rendered as clickable redirects.
+        }
+      }
       return toolSuccess({
         title: "Glitch social operation",
-        summary: `Glitch completed social operation ${input.operation}.`,
+        summary: input.operation === "oauth.connect.start"
+          ? "Provider consent is pending. Open the link to authorize; the social account is not connected yet."
+          : "Glitch completed social operation " + input.operation + ".",
         data,
-        links: [{ name: "Open social workspace", url: client.dashboardUrl("title", { titleId }) }]
+        links: connectUrl
+          ? [{ name: "Authorize social account", url: connectUrl }]
+          : [{ name: "Open social workspace", url: client.dashboardUrl("title", { titleId }) }]
       });
     }
   ),

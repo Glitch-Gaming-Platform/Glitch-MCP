@@ -12,7 +12,7 @@ const request = z.object({
 
 const readOnly = new Set([
   "campaigns.list", "campaigns.get", "groups.list", "groups.get",
-  "creatives.list", "creatives.get", "conversions.status",
+  "creatives.list", "creatives.get", "conversions.status", "conversions.actions", "conversions.sources",
   "conversions.events", "conversions.report",
   "reports.summary", "reports.spend_delivery", "reports.platform_comparison",
   "reports.creative_performance", "reports.time_performance", "reports.detailed_breakdown"
@@ -36,7 +36,7 @@ export const marketingToolDefinitions: GlitchToolDefinition[] = [
   {
     name: "glitch_marketing_operation",
     title: "Manage Advertising and Conversion Tracking",
-    description: "Use operations discovered by glitch_get_marketing_capabilities. Manage title-owned ad campaigns, groups, creatives and 90-day reports; configure non-secret pixel IDs/event mappings, inspect conversion health and delivery. All mutations need confirm=true. Does not accept provider credentials: complete OAuth using Glitch. Always inspect remote sync status before claiming a campaign is live.",
+    description: "Use operations discovered by glitch_get_marketing_capabilities. Manage title-owned ad campaigns, groups, creatives and 90-day reports; configure non-secret pixel IDs/event mappings, inspect conversion health and delivery, and use conversions.sources (or conversions.actions) to discover Google conversion actions, Meta/TikTok/Reddit pixels, or X web-event tags from a connected Ads account (never proof of delivery). Set platform to google, meta, tiktok, reddit, or twitter and supply account_id where required. All mutations need confirm=true. Does not accept provider credentials: complete OAuth using Glitch. Always inspect remote sync status before claiming a campaign is live.",
     inputSchema: request.shape,
     validationSchema: request,
     destructiveHint: true,

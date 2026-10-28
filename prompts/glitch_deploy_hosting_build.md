@@ -6,6 +6,14 @@ Use Glitch MCP tool `glitch_deploy_hosting_build` to deploy this game as an inde
 
 Deployment placement: use only the public Glitch Hosting placement contract for new creator game builds. The consolidated Azure Docker VM is an operator-managed migration for existing reviewed games, not a self-service Hosting target. A healthy container or ready build does not prove traffic cutover; require a published active release, final public HTTPS/gameplay checks, and data/authoritative-writer verification for stateful migrations. Never switch Azure revision traffic or deactivate old servers from an ordinary Hosting MCP workflow.
 
+For standalone static websites, marketing pages and preorder landing pages
+that are not the same artifact as a Store game build, do **not** force the
+page through `glitch_deploy_game_build`. Use the public `glitch-cli-deploy`
+Hosting CLI (`glitch host <directory-or-zip> --entry index.html`) with a
+Hosting token and explicit site ID. This publishes directly to Hosting and
+works for any title; the MCP `glitch_deploy_hosting_build` tool is for
+reusing a compatible existing **game build**, not a local standalone site.
+
 Call `glitch_list_deployments` first and reuse a compatible processing or ready build. If the build is processing, preserve its id and pass that id to `glitch_deploy_hosting_build`; the tool waits for it to become ready. Never call `glitch_update_deployment_status` with `ready` while processing—Glitch returns HTTP 400. If the client restarts, list deployments and resume the same build id instead of re-uploading the unchanged artifact.
 
 No developer-authored smoke-test suite is required. Glitch runs mandatory deployment-type acceptance gates that build variables cannot disable. While waiting, report `processing_stage`; on failure, report the build id, `error_code`, `failure_stage`, `retryable`, `error_message`, and `remediation`.

@@ -213,12 +213,12 @@ export function registerGlitchPrompts(server: McpServer): void {
     "glitch_upload_local_social_assets",
     {
       title: "Glitch Upload Local Social Assets",
-      description: "Upload reviewed local social candidates as Glitch Media for AI processing and scheduler library creation.",
+      description: "Upload reviewed local social candidates as Glitch Media and create immediately schedulable library entries; optional Media AI runs independently.",
       argsSchema: {
         ...optionalTitleArgs,
         project_root: z.string().optional().describe("Local game project root on the machine running the stdio MCP."),
         candidate_ids: z.string().optional().describe("Comma-separated candidate ids from the latest scan manifest."),
-        title_promotion_schedule_id: z.string().optional().describe("Required scheduler id that should receive generated TitleUpdates after Media AI processing.")
+        title_promotion_schedule_id: z.string().optional().describe("Required scheduler id for immediate library TitleUpdates; Media AI processing is optional and asynchronous.")
       }
     },
     async ({ title_id, project_root, candidate_ids, title_promotion_schedule_id }) => ({
@@ -234,7 +234,7 @@ export function registerGlitchPrompts(server: McpServer): void {
               candidate_ids ? `Candidate ids to upload: ${candidate_ids}` : "Use the latest scan manifest and ask me which candidate ids to upload.",
               title_promotion_schedule_id ? `Title promotion schedule id: ${title_promotion_schedule_id}` : "Ask me for the title_promotion_schedule_id before uploading assets that should create scheduler library TitleUpdates.",
               "Call glitch_upload_social_asset_candidates only after explicit approval and with confirm=true.",
-              "These uploads should become Media first. After Media AI analysis completes, Glitch can create scheduler library TitleUpdates and use the existing OpenAIApiService social copy system for platform-specific text."
+              "Immediately after the original media is saved, verify the returned title_update_id. Only when the user explicitly requests and confirms scheduling, schedule eligible connected destinations without waiting for Media AI. AI processing remains optional enrichment; write or edit platform-specific captions independently, and report disconnected platforms as skipped rather than blocking connected ones."
             ].join("\n")
           }
         }
@@ -521,7 +521,7 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
     name: "glitch_social_operation",
     title: "Glitch Social Operation",
     description: "Run one deterministic operation from the hosted social operation catalog.",
-    guidance: ["Call glitch_get_social_capabilities first when the exact operation or required arguments are not already known.", "Map the user's arguments to the operation's required_arguments.", "Set confirm=true only when the user explicitly asked for the mutation, publish, engagement, message, sync, disconnect, or destructive action.", "Never pass OAuth tokens, passwords, API keys, or credentials."]
+    guidance: ["Call glitch_get_social_capabilities first when the exact operation or required arguments are not already known.", "Map the user's arguments to the operation's required_arguments.", "Set confirm=true only when the user explicitly asked for the mutation, publish, engagement, message, sync, disconnect, or destructive action.", "For new connections use oauth.connect.start (confirm=true, scheduler_id, platform), give the user connect_url, and check oauth.connect.status (attempt_id) once provider consent is complete. No Glitch dashboard is required.", "Never pass OAuth tokens, passwords, API keys, or credentials."]
   },
   {
     name: "glitch_start_agent_run",
@@ -646,7 +646,7 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
     name: "glitch_deploy_hosting_build",
     title: "Glitch Deploy Hosting Build",
     description: "Deploy a ready game build as an independent hosted website.",
-    guidance: ["Call glitch_list_deployments first and reuse a compatible processing or ready build. If it is processing, keep its id and let glitch_deploy_hosting_build wait; never call glitch_update_deployment_status with ready during processing.", "No developer-authored smoke suite is required. Glitch runs mandatory deployment-type acceptance gates that cannot be disabled. Surface processing_stage while waiting and error_code, failure_stage, retryable, error_message, and remediation on failure.", "For Node builds, require package.json, the executable production entry, and a production Dockerfile in the same build context. Bind 0.0.0.0 and align HOST, PORT, Dockerfile EXPOSE, and target_port on one explicit port.", "For Store-embedded pages, verify the canonical Aegis bridge. Static HTML/HTM and standard Pixel Streaming player pages are patched automatically; Node/SSR, streamed-native/noVNC, generic container, non-HTML static, and custom Pixel Streaming frontends must add https://api.glitch.fun/js/aegis-bridge.js once in their browser layout.", "Use glitch_deploy_game_build only when no compatible build exists and the build is local. Persist the returned build id so interrupted runs resume instead of re-uploading.", "Use the only existing hosting site automatically; ask for site_id when multiple sites exist, or site_name and site_slug when none exists.", "Set confirm=true only after explicit approval and publish=false when the user did not ask to go live."]
+    guidance: ["For a standalone static site (including a marketing or preorder landing page) that is not a Store game build, use the public Glitch Hosting CLI with the Hosting token and explicit site ID, not glitch_deploy_game_build. This MCP tool is only for an existing compatible game build.", "Call glitch_list_deployments first and reuse a compatible processing or ready build. If it is processing, keep its id and let glitch_deploy_hosting_build wait; never call glitch_update_deployment_status with ready during processing.", "No developer-authored smoke suite is required. Glitch runs mandatory deployment-type acceptance gates that cannot be disabled. Surface processing_stage while waiting and error_code, failure_stage, retryable, error_message, and remediation on failure.", "For Node builds, require package.json, the executable production entry, and a production Dockerfile in the same build context. Bind 0.0.0.0 and align HOST, PORT, Dockerfile EXPOSE, and target_port on one explicit port.", "For Store-embedded pages, verify the canonical Aegis bridge. Static HTML/HTM and standard Pixel Streaming player pages are patched automatically; Node/SSR, streamed-native/noVNC, generic container, non-HTML static, and custom Pixel Streaming frontends must add https://api.glitch.fun/js/aegis-bridge.js once in their browser layout.", "Use glitch_deploy_game_build only when no compatible build exists and the build is local. Persist the returned build id so interrupted runs resume instead of re-uploading.", "Use the only existing hosting site automatically; ask for site_id when multiple sites exist, or site_name and site_slug when none exists.", "Set confirm=true only after explicit approval and publish=false when the user did not ask to go live."]
   },
   {
     name: "glitch_apply_hosting_services",

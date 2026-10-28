@@ -406,6 +406,25 @@ describe("Glitch MCP tools", () => {
     });
   });
 
+  it("returns a direct social OAuth consent link without opening the dashboard", async () => {
+    const consentUrl = "https://api.glitch.fun/auth/mcp/social/connect?ticket=temporary-opaque-connection-link";
+    const mock = createFetchMock(() =>
+      jsonResponse({ data: { operation: "oauth.connect.start", result: {
+        status: "awaiting_user", attempt_id: "test-attempt", connect_url: consentUrl
+      } } })
+    );
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_social_operation", client, {
+      operation: "oauth.connect.start",
+      arguments: { scheduler_id: "scheduler-1", platform: "twitter" },
+      confirm: true
+    });
+    expect(result.isError).toBeUndefined();
+    expect(JSON.stringify(result)).toContain("Authorize social account");
+    expect(JSON.stringify(result)).toContain(consentUrl);
+    expect(mock.requests[0]?.body).toMatchObject({ confirm: true });
+  });
+
   it("can wait for a started run when requested", async () => {
     vi.useFakeTimers();
     const mock = createFetchMock((_request, index) => {

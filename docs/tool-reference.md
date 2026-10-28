@@ -845,7 +845,7 @@ Input:
 
 ### glitch_upload_social_asset_candidates
 
-Uploads reviewed local candidates as first-class Glitch `Media`, not run attachments. Glitch queues Media AI processing first. After AI metadata is available, eligible uploads can create scheduler-owned `TitleUpdate` library items and write platform-specific social text through the existing `OpenAIApiService` social copy system.
+Uploads reviewed local candidates as first-class Glitch Media, not run attachments. After the original image/video is safely stored, an eligible scheduler-owned TitleUpdate is created immediately and returned with title_update_id; Media AI is asynchronous and optional. Platform-specific draft captions remain editable. Disconnected destinations (for example X) are skipped individually without blocking connected destinations (for example Instagram).
 
 Input:
 
@@ -935,3 +935,49 @@ run
 action
 billing
 ```
+
+### Reddit Ads conversion discovery
+
+Use glitch_marketing_operation with the read-only conversions.sources (or conversions.actions) operation
+and a title-owned scheduler_id to inspect Reddit pixel data sources and
+supported conversion event types. This does not send events or verify delivery.
+See [Reddit conversion discovery](./reddit-conversion-discovery.md).
+
+### Influencer email replies
+
+Use the title-scoped glitch_influencer_campaign_operation with replies.list to
+retrieve up to 100 tracked, campaign-attributed inbound influencer emails.
+Use replies.get with campaign_id and reply_id to read the message. Both are
+read-only operations with existing social:read permissions.
+
+Use replies.send to respond by email through Glitch's configured outbound mail
+transport. This operation requires social:write, confirm=true, campaign_id,
+reply_id, a stable client_message_id UUID (reuse on retries), and fields.body.
+The backend verifies that the email was received from the original invited
+recipient, refuses unsubscribed creators, auto replies, forwarded and ignored
+mail, and preserves email threading headers. A durable pre-send reservation
+prevents an ambiguous provider timeout or crash from triggering a duplicate
+message on retry; delivery_unknown requires manual provider verification. The result means the configured
+email transport accepted the message, not that the recipient read or received
+it. Sending is never part of replies.list or replies.get.
+
+See [all ad platform conversion discovery](./ad-conversion-sources.md).
+
+### Social OAuth through MCP without navigating the Glitch dashboard
+
+Use glitch_social_operation with oauth.connect.start. Provide the scheduler_id
+and platform and set confirm=true; requires social:accounts permission. It
+returns a 15-minute, single-use connect_url and an attempt_id. Open that link,
+click Continue to provider and grant access on the provider consent screen.
+The browser is never logged into the Glitch dashboard, and provider
+credentials are never sent to MCP.
+
+Use oauth.connect.status with attempt_id to check awaiting_user,
+awaiting_provider, connected, failed or expired. Results are scoped to
+the same title and user. Connected confirms credentials were saved, not
+that posting was verified with a real provider request.
+
+Supported: X/Twitter, Reddit, Reddit Ads, Facebook, Instagram, TikTok,
+TikTok Ads, TikTok Business, YouTube, Google Ads, Discord, Bluesky and Twitch. Telegram's
+bot-token setup and any other non-OAuth integrations are separate. Provider
+consent cannot be bypassed.
