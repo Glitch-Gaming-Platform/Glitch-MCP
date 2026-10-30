@@ -186,7 +186,7 @@ env_vars = ["GLITCH_API_BASE_URL", "GLITCH_API_TOKEN", "GLITCH_TITLE_ID"]
 default_tools_approval_mode = "prompt"
 ```
 
-Future hosted Streamable HTTP deployments should stay on the same API domain, for example `https://api.glitch.fun/mcp`.
+Hosted Streamable HTTP connector is provided on the same API domain at `https://api.glitch.fun/mcp`.
 
 Local development stdio proxy:
 

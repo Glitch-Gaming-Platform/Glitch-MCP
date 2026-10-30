@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { GlitchMcpConfig } from "./config.js";
 import { GlitchClient } from "./glitchClient.js";
 import { GLITCH_SERVER_INSTRUCTIONS } from "./instructions.js";
@@ -88,6 +89,9 @@ export async function runHttpServer(options: HttpServerOptions): Promise<void> {
   });
 
   const rateLimiter = createFixedWindowRateLimiter(config.rateLimitPerMinute ?? 0);
+  // The shared HTTP endpoint must never inherit a global operator token.
+  const { token: _operatorToken, defaultTitleId: _operatorTitle, ...publicConfig } = config;
+  const callerConfig: GlitchMcpConfig = { ...publicConfig, allowLocalFileReads: false };
   const resourceUrl = config.oauthResourceUrl || `http://${options.host}:${options.port}/mcp`;
   const metadataUrl = `${trimTrailingSlash(originFromResource(resourceUrl))}${PROTECTED_RESOURCE_METADATA_PATH}`;
 
@@ -100,7 +104,9 @@ export async function runHttpServer(options: HttpServerOptions): Promise<void> {
   app.post("/mcp", async (req: any, res: any) => {
     const authToken = bearerFromAuthorization(req.headers?.authorization);
 
-    const limit = rateLimiter.check(authToken || clientIp(req));
+    const limit = rateLimiter.check(authToken
+      ? createHash("sha256").update(authToken).digest("hex")
+      : clientIp(req));
     if (!limit.allowed) {
       res.setHeader("Retry-After", String(limit.retryAfterSeconds));
       res.status(429).json({
@@ -111,23 +117,35 @@ export async function runHttpServer(options: HttpServerOptions): Promise<void> {
       return;
     }
 
-    // Optional OAuth challenge: only when OAuth is enabled AND no token was sent.
-    if (config.oauthEnabled && !authToken) {
-      res.setHeader("WWW-Authenticate", wwwAuthenticateHeader(metadataUrl));
+    // No shared credentials. Clients must supply their own account/title token.
+    if (!authToken) {
+      res.setHeader("WWW-Authenticate", config.oauthEnabled
+        ? wwwAuthenticateHeader(metadataUrl)
+        : 'Bearer realm="Glitch MCP"');
       res.status(401).json({
         jsonrpc: "2.0",
-        error: { code: -32001, message: "Authentication required. Authenticate via OAuth or send a bearer token." },
+        error: { code: -32001, message: "A per-user Glitch MCP bearer token is required." },
         id: null
       });
       return;
     }
 
-    // HTTP runs on a shared host, so the upload tool must not read the server's
-    // filesystem from a tool argument unless explicitly enabled.
+    // Validate initialize/tools/list as well as tool calls, so revoked
+    // credentials cannot enumerate tools without API authorization.
+    if (!await verifyHttpCaller(callerConfig, authToken)) {
+      res.setHeader("WWW-Authenticate", 'Bearer realm="Glitch MCP", error="invalid_token"');
+      res.status(401).json({
+        jsonrpc: "2.0",
+        error: { code: -32001, message: "Glitch token invalid, revoked or expired." },
+        id: null
+      });
+      return;
+    }
+
     const server = createGlitchMcpServer({
-      config,
-      localFileAccess: config.allowLocalFileReads ?? false,
-      ...(authToken ? { authToken } : {})
+      config: callerConfig,
+      authToken,
+      localFileAccess: false
     });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined
@@ -142,7 +160,7 @@ export async function runHttpServer(options: HttpServerOptions): Promise<void> {
           jsonrpc: "2.0",
           error: {
             code: -32603,
-            message: error instanceof Error ? error.message : "Internal Glitch MCP server error"
+            message: "Internal Glitch MCP server error"
           },
           id: null
         });
@@ -175,6 +193,28 @@ export async function runHttpServer(options: HttpServerOptions): Promise<void> {
     server.once("error", reject);
     server.listen(options.port, options.host, () => resolve());
   });
+}
+
+/** Fail closed when the API is unavailable or the caller is unauthenticated. */
+export async function verifyHttpCaller(
+  config: GlitchMcpConfig,
+  token: string,
+  fetchFn: typeof fetch = fetch
+): Promise<boolean> {
+  if (!token || token.length > 8192) return false;
+  try {
+    const response = await fetchFn(config.apiBaseUrl + "/mcp/v1/auth/status", {
+      method: "GET",
+      headers: { Authorization: "Bearer " + token, Accept: "application/json" },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!response.ok) return false;
+    const payload: unknown = await response.json();
+    return Boolean(payload && typeof payload === "object"
+      && (payload as { data?: { authenticated?: unknown } }).data?.authenticated === true);
+  } catch {
+    return false;
+  }
 }
 
 function clientIp(req: any): string {

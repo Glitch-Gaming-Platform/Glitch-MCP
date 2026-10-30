@@ -256,3 +256,28 @@ Recommended Glitch UI actions:
 3. Rotate connected platform credentials if a risky action executed.
 4. Create a new key with the minimum scope required.
 5. Prefer OAuth for future use.
+
+
+## Public Claude / remote MCP connector
+
+Endpoint: https://api.glitch.fun/mcp (Streamable HTTP, POST).
+Use a per-user Glitch user bearer token or a title-scoped MCP token.
+The HTTP endpoint validates each bearer with the hosted Glitch API,
+including on initialize and tools/list. Revoked, invalid or missing
+credentials are rejected. Never share an operator token between users.
+
+In Claude: add a custom connector named Glitch at the endpoint above.
+Under Authentication select No sign in and configure the fixed
+request header Authorization: Bearer YOUR_GLITCH_MCP_TOKEN.
+This is API-key/bearer authentication, not OAuth. A browser-based
+Glitch OAuth issuer is not yet part of this endpoint;
+do not select Claude's automatic OAuth sign-in.
+
+If the Glitch token is title-scoped, it remains bound to that title and
+its abilities; other titles cannot be accessed by changing tool arguments.
+Revoke the token using Glitch's title security interface when access
+is no longer desired.
+
+Production deployment uses the existing backend API container's loopback
+MCP adapter behind Nginx, with no newly exposed external port.
+Local filesystem uploads are permanently disabled for remote HTTP.
