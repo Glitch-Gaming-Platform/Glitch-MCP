@@ -26,7 +26,8 @@
     "test:commerce-contract": "npm run build && node scripts/check-microtransaction-contract.mjs",
     "prepack": "npm run build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:http-integration": "npm run build && node scripts/verify-remote-http.mjs"
   },
   "keywords": [
     "glitch",

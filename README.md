@@ -146,6 +146,7 @@ For local development from this repository:
 npm install
 npm run build
 npm test
+npm run test:http-integration  # starts a local mock upstream; no production credentials
 ```
 
 ## Auth Model
@@ -170,7 +171,7 @@ export GLITCH_API_TOKEN="gl_mcp_..."
 export GLITCH_TITLE_ID="title_..."
 ```
 
-Title MCP tokens are still checked server-side for subscription, title access, scopes, rate limits, and action risk. Over the HTTP transport the adapter forwards each caller's own bearer token, so one hosted endpoint serves many developers safely. Hosted **OAuth** is also supported but optional (`GLITCH_MCP_OAUTH_ENABLED`); bearer-token auth works with it off.
+Title MCP tokens are still checked server-side for subscription, title access, scopes, rate limits, and action risk. Over the HTTP transport the adapter forwards each caller's own bearer token, so one hosted endpoint serves many developers safely. Optional protected-resource **OAuth discovery metadata** is supported, but it does not implement an authorization server or interactive OAuth login. Production currently uses per-user bearer tokens, with fixed request headers in remote MCP clients. Do not enable OAuth discovery without a working Glitch OAuth issuer.
 
 More detail: [docs/auth.md](docs/auth.md).
 

@@ -47,7 +47,7 @@ Token verification still happens at the hosted Glitch facade — the adapter onl
 The adapter never trusts a credential locally — it forwards one to the hosted facade, which performs every check.
 
 - **stdio mode** (one developer, one process): the token comes from `GLITCH_API_TOKEN` / `GLITCH_MCP_TOKEN` and is sent as `Authorization: Bearer <token>` on every hosted call.
-- **Streamable HTTP mode** (`glitch-mcp http`, multi-caller): the adapter reads the **incoming request's** `Authorization: Bearer` header and forwards *that* token to Glitch for the duration of the request. This makes the HTTP transport multi-tenant safe — each caller authenticates as themselves rather than sharing the operator's configured token. If a request omits the header, the adapter falls back to the configured token (handy for a single-tenant self-hosted proxy) and otherwise the hosted facade returns `authentication_required`.
+- **Streamable HTTP mode** (`glitch-mcp http`, multi-caller): the adapter reads the **incoming request's** `Authorization: Bearer` header and forwards *that* token to Glitch for the duration of the request. This makes the HTTP transport multi-tenant safe — each caller authenticates as themselves rather than sharing the operator's configured token. If a request omits the header, HTTP always returns 401; it never inherits a server operator token.
 
 In both modes the resolved bearer is the only thing sent upstream; the facade re-checks subscription, title scope, abilities, risk, and rate limits on every call.
 
@@ -281,3 +281,10 @@ is no longer desired.
 Production deployment uses the existing backend API container's loopback
 MCP adapter behind Nginx, with no newly exposed external port.
 Local filesystem uploads are permanently disabled for remote HTTP.
+
+
+### Connector gateway integration test
+
+Run `npm run test:http-integration` from `Glitch-MCP` to start a disposable HTTP gateway and a simulated Glitch API. It checks missing/invalid/revoked credentials, isolation of two callers, MCP initialize and tools/list, malformed JSON, and no token reflection. This test does not prove that production is deployed or that a browser-based OAuth login works.
+
+For Claude custom connectors, select **No sign in**, then provide an `Authorization` request header with `Bearer <your own Glitch MCP token>`. The URL is `https://api.glitch.fun/mcp`. A true OAuth sign-in requires a separately implemented, properly configured Glitch authorization server and must not be advertised until verified.
