@@ -981,3 +981,28 @@ Supported: X/Twitter, Reddit, Reddit Ads, Facebook, Instagram, TikTok,
 TikTok Ads, TikTok Business, YouTube, Google Ads, Discord, Bluesky and Twitch. Telegram's
 bot-token setup and any other non-OAuth integrations are separate. Provider
 consent cannot be bypassed.
+
+## TikTok hashtag discovery via MCP
+
+The existing `glitch_social_operation` tool provides read-only TikTok hashtag lookup; no additional TikTok credential is accepted in MCP inputs. First call `glitch_get_social_capabilities` with the title ID to discover owned schedulers and the authoritative operation list.
+
+For **organic caption hashtags**, use `glitch_social_operation` with:
+
+```json
+{
+  "title_id": "<your-title-id>",
+  "operation": "tiktok.hashtags",
+  "arguments": {
+    "scheduler_id": "<owned-scheduler-id>",
+    "keyword": "indie games",
+    "language": "en"
+  },
+  "confirm": false
+}
+```
+
+This calls the TikTok Business Account `GET /open_api/v1.3/business/hashtag/suggestion/` endpoint using the *connected scheduler's* TikTok Business OAuth token and open ID. `keyword` is required; `language` is optional and defaults to English. Results are actual TikTok suggestions, not guaranteed trending rankings. Missing TikTok Business authorization returns a reconnect error; provider failures are not silently reported as zero suggestions. No post or mutation occurs.
+
+For **trending hashtags**, use `operation: "tiktok.trending_hashtags"` and `arguments: {"scheduler_id": "...", "country_code": "US", "category_name": "ALL", "date_range": "7DAY"}`. This separate Discovery API requires a connected TikTok Ads advertiser ID and OAuth token; a TikTok Business Account connection alone is insufficient. `tiktok.hashtag_detail` adds `hashtag_id` for a discovered hashtag. Search/ad targeting hashtag recommendations are distinct from organic caption suggestions.
+
+Credentials remain server-side, `social:read` is required, and cross-title scheduler IDs are rejected. Check returned provider and HTTP status before describing data as current.
