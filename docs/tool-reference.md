@@ -1006,3 +1006,26 @@ This calls the TikTok Business Account `GET /open_api/v1.3/business/hashtag/sugg
 For **trending hashtags**, use `operation: "tiktok.trending_hashtags"` and `arguments: {"scheduler_id": "...", "country_code": "US", "category_name": "ALL", "date_range": "7DAY"}`. This separate Discovery API requires a connected TikTok Ads advertiser ID and OAuth token; a TikTok Business Account connection alone is insufficient. `tiktok.hashtag_detail` adds `hashtag_id` for a discovered hashtag. Search/ad targeting hashtag recommendations are distinct from organic caption suggestions.
 
 Credentials remain server-side, `social:read` is required, and cross-title scheduler IDs are rejected. Check returned provider and HTTP status before describing data as current.
+
+## Game premium-only access and license details
+
+- `glitch_get_game_monetization` reads current pricing, subscription eligibility,
+  `premium_purchase_required_for_full_game`, and the `version` concurrency token.
+- `glitch_update_game_monetization` requires `commerce:write` plus current title
+  administration, `expected_version`, and `confirm=true`. Set
+  `premium_purchase_required_for_full_game=true` only with Premium enabled, a valid
+  sale price, Subscription enabled, and new rentals disabled. Changed versions
+  return 409 and must be re-read, not automatically overwritten.
+- When enabled, a production session for a subscriber without a premium license
+  returns `PREMIUM_PURCHASE_REQUIRED` (403) before game launch. Demo and
+  approved playtest builds remain non-revenue previews. Existing active rentals
+  purchased before activation are honored until their expiration.
+- `glitch_validate_install` retains its existing `license_type` string for older
+  games and adds `license` (exact `type`, `source`, `status`,
+  `acquired_at`, `purchased_at`, `expires_at`, `is_permanent`, and
+  `price_paid`) and `access` (effective policy). Historical paid amounts
+  are null unless a verified price snapshot exists. No payment processor
+  transaction IDs, payment methods, or provider credentials are returned.
+- Never use a title-scoped developer/MCP credential to distribute player data
+  to unrelated users. Production games should validate using the dedicated
+  title install token at startup and handle 403/404 as no access.

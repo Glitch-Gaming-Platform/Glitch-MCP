@@ -925,6 +925,44 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   analyticsFamilyTool("glitch_get_attribution_reports", "Get Attribution Reports", "attribution", "Get title, ad, UTM, influencer, social-post, conversion-event, install-journey, and paid-media attribution reports."),
   analyticsFamilyTool("glitch_get_cross_device_reports", "Get Cross-Device Reports", "cross_device", "Get identity, journey, attribution-funnel, device-environment, geography, fraud, pixel, and conversion-correlation reports."),
 
+  defineTool(
+    "glitch_get_game_monetization",
+    "Get Game Monetization Settings",
+    "Read title-scoped premium, rental and subscription prices, and the optional premium-purchase-required policy. Returns a version token for safe concurrent updates.",
+    z.object({ ...optionalTitleShape }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.gameMonetization(titleId);
+      return toolSuccess({ title: "Game monetization settings", data });
+    }
+  ),
+
+  defineTool(
+    "glitch_update_game_monetization",
+    "Update Game Monetization Settings",
+    "Change title-owned premium/rental/subscription options or enable the premium-only production lock. Requires a developer-authorized commerce:write credential, confirm=true, and the current expected_version from glitch_get_game_monetization. Strict mode requires premium and subscription enabled with valid premium price and new rentals disabled. Demo/playtest access remains separate. This never creates purchases or charges.",
+    z.object({
+      ...optionalTitleShape,
+      expected_version: z.string().regex(/^[0-9a-f]{64}$/),
+      confirm: z.literal(true),
+      is_premium: z.boolean().optional(),
+      premium_price: z.number().min(0).max(999999).nullable().optional(),
+      is_rental: z.boolean().optional(),
+      rental_price: z.number().min(0).max(999999).nullable().optional(),
+      rental_duration_hours: z.number().int().min(1).max(8760).optional(),
+      is_subscription_eligible: z.boolean().optional(),
+      premium_purchase_required_for_full_game: z.boolean().optional()
+    }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const { title_id: _title, ...settings } = input;
+      const data = await client.updateGameMonetization(titleId, omitUndefined(settings));
+      return toolSuccess({ title: "Game monetization updated", summary: "Policy and pricing were saved after authoritative backend validation.", data });
+    }
+  ),
+
   defineTool("glitch_get_billing_status", "Get Billing Status", "Check subscription, trial, plan, and credit state for a title.", billingInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.billingStatus(titleId);

@@ -325,6 +325,7 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_get_cross_device_reports`
 - `glitch_get_billing_status`
 - `glitch_social_operation` supports TikTok `tiktok.hashtags` (connected Business Account, keyword + optional language), `tiktok.trending_hashtags` (connected TikTok Ads account), and `tiktok.hashtag_detail`. See [TikTok hashtag discovery](docs/tool-reference.md#tiktok-hashtag-discovery-via-mcp).
+- `glitch_get_game_monetization` and `glitch_update_game_monetization` manage premium, rental, subscription pricing and the optional full-game premium purchase lock with confirmation and version checks. The validation tool exposes exact license metadata. See [premium-only access](docs/tool-reference.md#game-premium-only-access-and-license-details).
 - `glitch_get_social_capabilities` — list the authoritative platform matrix, connected schedulers, granular abilities, and every supported social operation
 - `glitch_social_operation` — execute a deterministic social read or explicitly confirmed mutation using an operation returned by the capability catalog
 - `glitch_start_agent_run`

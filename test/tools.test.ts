@@ -32,6 +32,8 @@ describe("Glitch MCP tools", () => {
       "glitch_get_earnings_reports",
       "glitch_get_attribution_reports",
       "glitch_get_cross_device_reports",
+      "glitch_get_game_monetization",
+      "glitch_update_game_monetization",
       "glitch_get_billing_status",
       "glitch_get_social_capabilities",
       "glitch_social_operation",

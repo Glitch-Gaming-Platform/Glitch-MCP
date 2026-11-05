@@ -210,6 +210,14 @@ export class GlitchClient {
     return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/analytics/query`, body);
   }
 
+  async gameMonetization(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/monetization`);
+  }
+
+  async updateGameMonetization(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.put<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/monetization`, body);
+  }
+
   async billingStatus(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/billing`);
   }
