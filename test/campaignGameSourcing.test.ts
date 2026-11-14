@@ -18,6 +18,7 @@ describe("campaign game and Twitch sourcing MCP", () => {
     expect(assign.destructiveHint).toBe(true);
     expect(research.description).toContain("seven days");
     expect(assign.description).toContain("automatic invitations");
+    expect(assign.description).toContain("NOT in the campaign");
   });
 
   it("forwards search, recent and live research through the title-scoped JSON API with no mutation", async () => {
@@ -30,15 +31,16 @@ describe("campaign game and Twitch sourcing MCP", () => {
       { operation: "similar", campaign_id: campaign, igdb_id: 239, limit: 20 },
       { operation: "active-lookalikes", campaign_id: campaign, igdb_id: 239, limit: 25 },
       { operation: "live-streams", campaign_id: campaign, igdb_ids: [239, 445], limit: 20 },
+      { operation: "verify-games", campaign_id: campaign, igdb_ids: [239, 445], limit: 20 },
     ]) {
       const result = await research.handler(client, input);
       expect(result.isError).toBeUndefined();
       expect(JSON.stringify(result.structuredContent)).toContain("Mech Game");
     }
-    expect(mock.requests).toHaveLength(5);
+    expect(mock.requests).toHaveLength(6);
     expect(mock.requests.every(req => req.init?.method === "POST")).toBe(true);
     expect(mock.requests.map(req => req.url.split("/").at(-1))).toEqual([
-      "sourcing.settings", "sourcing.search", "sourcing.similar", "sourcing.active-lookalikes", "sourcing.live-streams"
+      "sourcing.settings", "sourcing.search", "sourcing.similar", "sourcing.active-lookalikes", "sourcing.live-streams", "sourcing.verify-games"
     ]);
     expect(mock.requests[4]?.body).toMatchObject({ campaign_id: campaign, igdb_ids: [239, 445] });
     expect(mock.requests.every(req => req.url.includes(title))).toBe(true);
@@ -57,7 +59,7 @@ describe("campaign game and Twitch sourcing MCP", () => {
       campaign_id: campaign, igdb_ids: [239], expected_version: "bad", confirm: true
     })).rejects.toThrow();
     await expect(research.handler(client, { operation: "live-streams", campaign_id: campaign }))
-      .rejects.toThrow("requires igdb_ids");
+      .rejects.toThrow("require igdb_ids");
     expect(mock.requests).toHaveLength(0);
   });
 
@@ -68,7 +70,7 @@ describe("campaign game and Twitch sourcing MCP", () => {
     const client = new GlitchClient(config, mock.fetch);
     const result = await assign.handler(client, {
       campaign_id: campaign, igdb_ids: [239, 445],
-      expected_version: version, confirm: true, confirm_outreach_impact: true
+      expected_version: version, confirm: true, confirm_curated_relevance: true, confirm_outreach_impact: true
     });
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toContain("sourcing.assign-lookalikes");
@@ -78,6 +80,7 @@ describe("campaign game and Twitch sourcing MCP", () => {
       igdb_ids: [239, 445],
       expected_version: version,
       confirm: true,
+      confirm_curated_relevance: true,
       confirm_outreach_impact: true
     });
   });

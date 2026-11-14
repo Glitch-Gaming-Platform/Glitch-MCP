@@ -150,6 +150,8 @@ describe("Glitch MCP tools", () => {
       "glitch_influencer_campaign_operation",
       "glitch_research_campaign_lookalike_games",
       "glitch_assign_campaign_lookalike_games",
+      "glitch_get_campaign_budget_caps",
+      "glitch_update_campaign_budget_caps",
       "glitch_get_marketing_capabilities",
       "glitch_marketing_operation"
     ]);
