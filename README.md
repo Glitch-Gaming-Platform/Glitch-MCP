@@ -525,3 +525,9 @@ emails #1 through #4 use `email_touch_point_2_*` through
 `<platform>_touch_point_<number>_content` fields. This feature uses the
 existing `social:read` and `social:write` abilities and changes no
 automatic invitation policy.
+
+## Twitch lookalike research and campaign game assignment
+
+Use `glitch_research_campaign_lookalike_games` (`settings`, `search`, `similar`, `active-lookalikes`, `live-streams`) to inspect IGDB lookalike games and their Twitch activity through the existing authorized title-scoped MCP token. Use `glitch_assign_campaign_lookalike_games` to save 1–25 verified game IDs after confirmation and stale-selection checks. **Assignment may queue campaign creator sourcing and, if auto-invites are enabled, future invitations.** It does not initiate a paid Agent run or require browser session cookies.
+
+See [Twitch game sourcing for influencer campaigns](docs/campaign-twitch-game-sourcing.md) for the complete research/assignment flow and activity-window caveats.

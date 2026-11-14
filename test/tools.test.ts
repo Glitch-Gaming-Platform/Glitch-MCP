@@ -148,6 +148,8 @@ describe("Glitch MCP tools", () => {
       "glitch_update_deployment_status",
       "glitch_deploy_game_build",
       "glitch_influencer_campaign_operation",
+      "glitch_research_campaign_lookalike_games",
+      "glitch_assign_campaign_lookalike_games",
       "glitch_get_marketing_capabilities",
       "glitch_marketing_operation"
     ]);

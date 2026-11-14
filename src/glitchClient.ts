@@ -173,6 +173,8 @@ export class GlitchClient {
 
   async influencerCampaignOperation(titleId: string, operation: string, args: JsonObject): Promise<JsonObject> {
     const path = `/mcp/v1/titles/${segment(titleId)}/influencer-campaigns/${segment(operation)}`;
+    // Sourcing research uses POST with a read-only backend ability so array IDs
+    // are passed as JSON rather than ambiguous query-string encodings.
     return ["list", "get", "templates.list", "templates.get", "invitations.list", "replies.list", "replies.get"].includes(operation)
       ? this.http.get<JsonObject>(path, args)
       : this.http.post<JsonObject>(path, args);

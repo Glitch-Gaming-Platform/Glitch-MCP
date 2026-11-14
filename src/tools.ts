@@ -41,6 +41,7 @@ import { safeTool, toolSuccess } from "./result.js";
 import { microtransactionToolDefinitions } from "./microtransactionTools.js";
 import { preorderToolDefinitions } from "./preorderTools.js";
 import { influencerCampaignToolDefinitions } from "./influencerCampaignTools.js";
+import { campaignGameSourcingToolDefinitions } from "./campaignGameSourcingTools.js";
 import { marketingToolDefinitions } from "./marketingTools.js";
 import { progressionToolDefinitions } from "./progressionTools.js";
 
@@ -2397,6 +2398,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     }
   ),
   ...influencerCampaignToolDefinitions,
+  ...campaignGameSourcingToolDefinitions,
   ...marketingToolDefinitions
 ];
 
