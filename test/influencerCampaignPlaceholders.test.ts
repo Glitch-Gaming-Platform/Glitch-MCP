@@ -93,4 +93,24 @@ describe("Influencer campaign placeholders", () => {
       fields: { subject: "Hi {{typo}} and {{game_title}}" }
     });
   });
+
+  it("tells the client AI to write the invitation and follow-up emails after creating a campaign", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { campaign: { id: "5ac4483b-9088-4762-9ab1-9df21a2fc002" }, status: "draft" } }));
+    const client = new GlitchClient({
+      apiBaseUrl: "https://mcp.example.test", dashboardBaseUrl: "https://app.example.test",
+      timeoutMs: 1000, clientName: "test-client",
+      defaultTitleId: "b7614555-f88b-4c55-a296-1376c08c4d24"
+    }, mock.fetch);
+    const operation = glitchToolDefinitions.find((x) => x.name === "glitch_influencer_campaign_operation")!;
+    expect(operation.description).toContain("AFTER operation=create you MUST write");
+    const result = await operation.handler(client, {
+      operation: "create", confirm: true,
+      fields: { deliverables: "One gameplay clip", payment_method: "none" }
+    });
+    const text = result.content[0]?.text ?? "";
+    expect(text).toContain("write the outreach and follow-up emails");
+    expect(text).toContain("email_touch_point_N_text");
+    expect(text).toContain("template.assign");
+    expect(mock.requests).toHaveLength(1);
+  });
 });
