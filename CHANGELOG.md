@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.9 — November 17, 2026
+
+- `glitch_influencer_campaign_operation` now manages creators who joined a
+  campaign on the Glitch website: `influencers.list` (accepted, pending,
+  rejected or all, with emails, socials and status counts), `influencers.get`,
+  and confirmed `influencers.accept`, `influencers.reject` and
+  `influencers.review`.
+- After `create`, the tool tells the client AI to write the invitation and every
+  follow-up email, and a `/glitch_create_influencer_campaign` prompt runs the
+  flow with developer approval.
+- New `/glitch_manage_campaign_influencers` prompt.
+
 ## 0.1.9
 
 - Added secure game-hosting management tools and complete hosting deployment guidance.

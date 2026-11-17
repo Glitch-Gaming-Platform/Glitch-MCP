@@ -113,4 +113,31 @@ describe("Influencer campaign placeholders", () => {
     expect(text).toContain("template.assign");
     expect(mock.requests).toHaveLength(1);
   });
+
+  it("manages creators who joined on the website: filtered GET reads and confirmed status changes", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { summary: { accepted: 1, pending: 2, rejected: 0 }, items: [] } }));
+    const client = new GlitchClient({
+      apiBaseUrl: "https://mcp.example.test", dashboardBaseUrl: "https://app.example.test",
+      timeoutMs: 1000, clientName: "test-client",
+      defaultTitleId: "b7614555-f88b-4c55-a296-1376c08c4d24"
+    }, mock.fetch);
+    const operation = glitchToolDefinitions.find((x) => x.name === "glitch_influencer_campaign_operation")!;
+    expect(operation.description).toContain("influencers.list");
+    const campaign_id = "5ac4483b-9088-4762-9ab1-9df21a2fc002";
+    const user_id = "0f3b1d0c-2c55-4f8e-9a51-6d7c3a2b9e10";
+
+    await operation.handler(client, { operation: "influencers.list", campaign_id, status: "accepted", search: "creator", per_page: 25 });
+    expect(mock.requests[0]?.init?.method ?? "GET").toBe("GET");
+    expect(mock.requests[0]?.url).toContain("/influencer-campaigns/influencers.list");
+    expect(mock.requests[0]?.url).toContain("status=accepted");
+    expect(mock.requests[0]?.url).toContain("per_page=25");
+
+    await expect(operation.handler(client, { operation: "influencers.accept", campaign_id, user_id }))
+      .rejects.toThrow("confirm=true");
+    expect(mock.requests).toHaveLength(1);
+
+    await operation.handler(client, { operation: "influencers.accept", campaign_id, user_id, confirm: true });
+    expect(mock.requests[1]?.init?.method).toBe("POST");
+    expect(mock.requests[1]?.body).toMatchObject({ campaign_id, user_id, confirm: true });
+  });
 });

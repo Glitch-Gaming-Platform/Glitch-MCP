@@ -943,6 +943,28 @@ and a title-owned scheduler_id to inspect Reddit pixel data sources and
 supported conversion event types. This does not send events or verify delivery.
 See [Reddit conversion discovery](./reddit-conversion-discovery.md).
 
+### Website campaign signups (accepted, pending, rejected)
+
+Creators who join a campaign through the Glitch website are separate from email
+outreach invitations. Manage them with `glitch_influencer_campaign_operation`:
+
+- `influencers.list` with `campaign_id` and optional `status`
+  (`accepted`, `pending`, `rejected`, `all`), `search` (email, username or
+  display name), `page` and `per_page` (max 100). Each item includes the
+  creator's `user_id`, `email`, `status`, the exact `acceptance_status_label`,
+  join and acceptance dates and connected socials with follower counts. The
+  response also returns `summary` counts per status. Read-only, `social:read`.
+- `influencers.get` with `campaign_id` and `user_id`.
+- `influencers.accept`, `influencers.reject`, `influencers.review` with
+  `campaign_id`, `user_id` and `confirm=true` (`social:write`). Accepting
+  behaves exactly like the dashboard: Glitch emails the creator their
+  acceptance, creates their tracking links and sends onboarding when the
+  campaign has auto-onboarding. Reject and review change status only and send
+  no email.
+
+Status groups: `accepted` = approved; `pending` = unapproved, in review,
+pending, needs more information, probation; `rejected` = denied, banned.
+
 ### Influencer email replies
 
 Use the title-scoped glitch_influencer_campaign_operation with replies.list to
