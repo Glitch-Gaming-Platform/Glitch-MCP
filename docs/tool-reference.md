@@ -965,6 +965,27 @@ outreach invitations. Manage them with `glitch_influencer_campaign_operation`:
 Status groups: `accepted` = approved; `pending` = unapproved, in review,
 pending, needs more information, probation; `rejected` = denied, banned.
 
+### Onboarding email, campaign settings and tracking links
+
+- Write the onboarding email with `templates.create` and `fields.purpose = "onboarding"`
+  (same placeholders as outreach). Attach it with `onboarding.assign`
+  (`template_id`, optional `fields.auto_send_onboarding`). Do not use
+  `template.assign` for it: that sets the outreach invitation email, and the
+  backend refuses onboarding templates there. `onboarding.get` shows the
+  assigned template, the auto-send flag and available onboarding templates.
+- `influencers.send_onboarding` (`user_id`, optional `template_id`,
+  `confirm=true`) sends the onboarding email to one website signup now. With
+  `auto_send_onboarding` on, accepting a creator sends it automatically.
+- `get` returns every campaign setting (provider secrets excluded) and
+  `editable_fields`. `update` accepts any editable field; unknown or protected
+  fields are rejected with a 422 listing them. Templates, spend caps and
+  lookalike games keep their own guarded operations.
+- `influencers.get` includes each creator's personal `tracking_links`;
+  `links.list` returns the campaign's tracking destinations.
+- `invitations.list` pages email invitations (`page`, `per_page` up to 100,
+  `invite_status` all|sent|unsent|responded|accepted|rejected|unsubscribed|bounced,
+  `search`) and includes each invitee's email.
+
 ### Influencer email replies
 
 Use the title-scoped glitch_influencer_campaign_operation with replies.list to

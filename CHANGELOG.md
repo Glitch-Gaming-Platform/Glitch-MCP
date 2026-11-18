@@ -11,6 +11,12 @@
   follow-up email, and a `/glitch_create_influencer_campaign` prompt runs the
   flow with developer approval.
 - New `/glitch_manage_campaign_influencers` prompt.
+- Onboarding email management: `onboarding.get`, `onboarding.assign`, and
+  confirmed `influencers.send_onboarding`; `template.assign` no longer accepts
+  onboarding templates.
+- `get` returns every campaign setting and `update` accepts any editable one.
+- `influencers.get` returns personal tracking links; new `links.list`.
+- `invitations.list` is paged and filterable and includes invitee emails.
 
 ## 0.1.9
 

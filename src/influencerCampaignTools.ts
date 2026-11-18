@@ -10,7 +10,8 @@ const op = z.enum([
   "placeholders.list", "templates.validate", "list", "get", "create", "update", "pause", "resume",
   "templates.list", "templates.get", "templates.create", "templates.update",
   "templates.delete", "template.assign", "invitations.list", "replies.list", "replies.get", "replies.send",
-  "influencers.list", "influencers.get", "influencers.accept", "influencers.reject", "influencers.review"
+  "influencers.list", "influencers.get", "influencers.accept", "influencers.reject", "influencers.review",
+  "influencers.send_onboarding", "onboarding.get", "onboarding.assign", "links.list"
 ]);
 const request = z.object({
   title_id,
@@ -22,6 +23,8 @@ const request = z.object({
   user_id: uuid.optional().describe("Glitch user UUID of a creator who joined the campaign on the website (from influencers.list)."),
   status: z.enum(["accepted", "pending", "rejected", "all"]).optional().describe("influencers.list filter; default all."),
   search: z.string().max(120).optional().describe("influencers.list: match creator email, username or display name."),
+  invite_status: z.enum(["all", "sent", "unsent", "responded", "accepted", "rejected", "unsubscribed", "bounced"]).optional()
+    .describe("invitations.list filter; default all."),
   page: z.number().int().min(1).optional(),
   per_page: z.number().int().min(1).max(100).optional(),
   fields: z.record(z.string(), z.unknown()).optional(),
@@ -50,13 +53,13 @@ export const campaignFollowUpNextSteps = [
 ];
 
 const readonly = new Set(["placeholders.list", "templates.validate", "list", "get", "templates.list", "templates.get", "invitations.list", "replies.list", "replies.get",
-  "influencers.list", "influencers.get"]);
+  "influencers.list", "influencers.get", "onboarding.get", "links.list"]);
 
 export const influencerCampaignToolDefinitions: GlitchToolDefinition[] = [
   {
     name: "glitch_influencer_campaign_operation",
     title: "Manage Influencer Campaign",
-    description: "Manage title-scoped influencer campaigns. Before drafting email or DM outreach, call operation=placeholders.list to obtain ALL exact Glitch campaign/influencer/game/access-key placeholders with their real sources, fallback rules and examples. Call templates.validate with fields for a dry-run token check; unknown/malformed placeholders are reported. Then use templates.create/update/assign to save, preserving literal {{tokens}} for recipient-specific substitution. Supports draft create with game title context, deliverables and optional compensation. AFTER operation=create you MUST write the creator outreach sequence for the developer: the first invitation email plus a follow-up email for every touch point from 2 up to the campaign email_limit (default 5). Follow-ups are sent as replies about two days apart, so keep each short, reference the earlier email and add one new reason to play. Show the draft to the developer, run templates.validate, then templates.create and template.assign on the new campaign; saving never sends email. Also supports list/get/update/pause/resume, invitations.list, and replies.list/get/send. Creators who joined the campaign through the Glitch website (separate from email invitations) are managed with influencers.list (status accepted|pending|rejected|all, search, page, per_page; returns each creator's email, status and socials plus status counts), influencers.get (user_id), and influencers.accept/reject/review (user_id, confirm=true). influencers.accept emails the creator their acceptance and creates their tracking links, exactly like accepting in the dashboard; reject and review send no email. Email replies are tracked and returned only for the selected campaign. replies.send sends a REAL email via Glitch's configured mail transport, requires confirm=true, a reply_id and an idempotent client_message_id UUID. It does not claim final delivery. Use glitch_research_campaign_lookalike_games and glitch_assign_campaign_lookalike_games for IGDB and Twitch research/assignment. Existing social:read/social:write permissions, no new scopes.",
+    description: "Manage title-scoped influencer campaigns. Before drafting email or DM outreach, call operation=placeholders.list to obtain ALL exact Glitch campaign/influencer/game/access-key placeholders with their real sources, fallback rules and examples. Call templates.validate with fields for a dry-run token check; unknown/malformed placeholders are reported. Then use templates.create/update/assign to save, preserving literal {{tokens}} for recipient-specific substitution. Supports draft create with game title context, deliverables and optional compensation. AFTER operation=create you MUST write the creator outreach sequence for the developer: the first invitation email plus a follow-up email for every touch point from 2 up to the campaign email_limit (default 5). Follow-ups are sent as replies about two days apart, so keep each short, reference the earlier email and add one new reason to play. Show the draft to the developer, run templates.validate, then templates.create and template.assign on the new campaign; saving never sends email. Also supports list/get/update/pause/resume, invitations.list, and replies.list/get/send. Creators who joined the campaign through the Glitch website (separate from email invitations) are managed with influencers.list (status accepted|pending|rejected|all, search, page, per_page; returns each creator's email, status and socials plus status counts), influencers.get (user_id), and influencers.accept/reject/review (user_id, confirm=true). influencers.accept emails the creator their acceptance and creates their tracking links, exactly like accepting in the dashboard; reject and review send no email. influencers.get also returns the creator's personal tracking links. Onboarding email: write it with templates.create (fields.purpose='onboarding'), attach it with onboarding.assign (template_id, optional fields.auto_send_onboarding) — never template.assign, which is the outreach invitation — inspect it with onboarding.get, and send it to one creator with influencers.send_onboarding (user_id, optional template_id, confirm=true; sends a real email). get returns every campaign setting plus editable_fields; update accepts any of those editable fields (provider secrets, templates, spend caps and lookalike selections have their own operations). links.list returns the campaign's tracking destinations. invitations.list pages email invitations (page, per_page up to 100, invite_status, search) with each creator's email. Email replies are tracked and returned only for the selected campaign. replies.send sends a REAL email via Glitch's configured mail transport, requires confirm=true, a reply_id and an idempotent client_message_id UUID. It does not claim final delivery. Use glitch_research_campaign_lookalike_games and glitch_assign_campaign_lookalike_games for IGDB and Twitch research/assignment. Existing social:read/social:write permissions, no new scopes.",
     inputSchema: request.shape,
     validationSchema: request,
     readOnlyHint: false,
@@ -104,6 +107,7 @@ export const influencerCampaignToolDefinitions: GlitchToolDefinition[] = [
         ...(parsed.user_id ? { user_id: parsed.user_id } : {}),
         ...(parsed.status ? { status: parsed.status } : {}),
         ...(parsed.search ? { search: parsed.search } : {}),
+        ...(parsed.invite_status ? { invite_status: parsed.invite_status } : {}),
         ...(parsed.page ? { page: parsed.page } : {}),
         ...(parsed.per_page ? { per_page: parsed.per_page } : {}),
         ...(parsed.confirm ? { confirm: true } : {}),

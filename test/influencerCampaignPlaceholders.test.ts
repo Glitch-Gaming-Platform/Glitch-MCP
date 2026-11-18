@@ -140,4 +140,31 @@ describe("Influencer campaign placeholders", () => {
     expect(mock.requests[1]?.init?.method).toBe("POST");
     expect(mock.requests[1]?.body).toMatchObject({ campaign_id, user_id, confirm: true });
   });
+
+  it("manages the onboarding email and pages invitations", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+    const client = new GlitchClient({
+      apiBaseUrl: "https://mcp.example.test", dashboardBaseUrl: "https://app.example.test",
+      timeoutMs: 1000, clientName: "test-client",
+      defaultTitleId: "b7614555-f88b-4c55-a296-1376c08c4d24"
+    }, mock.fetch);
+    const operation = glitchToolDefinitions.find((x) => x.name === "glitch_influencer_campaign_operation")!;
+    expect(operation.description).toContain("onboarding.assign");
+    const campaign_id = "5ac4483b-9088-4762-9ab1-9df21a2fc002";
+    const template_id = "9b2f8c4e-1a3d-4e5f-8a6b-7c8d9e0f1a2b";
+    const user_id = "0f3b1d0c-2c55-4f8e-9a51-6d7c3a2b9e10";
+
+    await operation.handler(client, { operation: "onboarding.get", campaign_id });
+    expect(mock.requests[0]?.init?.method ?? "GET").toBe("GET");
+    await operation.handler(client, { operation: "invitations.list", campaign_id, invite_status: "unsent", page: 2, per_page: 100 });
+    expect(mock.requests[1]?.url).toContain("invite_status=unsent");
+    expect(mock.requests[1]?.url).toContain("page=2");
+
+    await expect(operation.handler(client, { operation: "influencers.send_onboarding", campaign_id, user_id }))
+      .rejects.toThrow("confirm=true");
+    await operation.handler(client, { operation: "onboarding.assign", campaign_id, template_id, confirm: true,
+      fields: { auto_send_onboarding: true } });
+    expect(mock.requests[2]?.init?.method).toBe("POST");
+    expect(mock.requests[2]?.body).toMatchObject({ campaign_id, template_id, fields: { auto_send_onboarding: true } });
+  });
 });
