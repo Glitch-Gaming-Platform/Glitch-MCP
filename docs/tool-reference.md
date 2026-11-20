@@ -965,6 +965,18 @@ outreach invitations. Manage them with `glitch_influencer_campaign_operation`:
 Status groups: `accepted` = approved; `pending` = unapproved, in review,
 pending, needs more information, probation; `rejected` = denied, banned.
 
+### Create a social media scheduler
+
+`glitch_social_operation` with `operation=schedulers.create`,
+`arguments = { name, posts_per_week?, ...scheduler settings }` and
+`confirm=true` (`social:write`). Only `name` is required; `posts_per_week`
+defaults to 1 and `email_reminders_per_week` to 0. The scheduler is always
+created for the selected title and the calling user, whatever `title_id` or
+`user_id` is passed. Connect accounts next with `oauth.connect.start`
+(`scheduler_id`, `platform`, `confirm=true`), then manage it with
+`schedulers.get`, `schedulers.update` and `schedulers.list`. The
+`/glitch_create_social_scheduler` prompt runs the whole setup.
+
 ### Onboarding email, campaign settings and tracking links
 
 - Write the onboarding email with `templates.create` and `fields.purpose = "onboarding"`

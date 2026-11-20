@@ -998,7 +998,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_social_operation",
     "Run Social Operation",
-    "Run a deterministic title-scoped Glitch social operation. Call glitch_get_social_capabilities first to discover operation names, permissions, confirmation requirements, platform support, and required arguments. OAuth credentials are never accepted or returned.",
+    "Run a deterministic title-scoped Glitch social operation. Call glitch_get_social_capabilities first to discover operation names, permissions, confirmation requirements, platform support, and required arguments. Create a social media scheduler with operation=schedulers.create, arguments { name, optional posts_per_week (default 1) and other scheduler settings } and confirm=true; it is always created for the selected title. Then connect accounts with oauth.connect.start. OAuth credentials are never accepted or returned.",
     socialOperationInput,
     false,
     async (client, input) => {
@@ -1018,11 +1018,19 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
           // Invalid links are never rendered as clickable redirects.
         }
       }
+      const createdSchedulerId = input.operation === "schedulers.create" && typeof payload.id === "string" ? payload.id : null;
       return toolSuccess({
         title: "Glitch social operation",
         summary: input.operation === "oauth.connect.start"
           ? "Provider consent is pending. Open the link to authorize; the social account is not connected yet."
-          : "Glitch completed social operation " + input.operation + ".",
+          : createdSchedulerId
+            ? "Social media scheduler created (" + createdSchedulerId + "). Next, connect its social accounts."
+            : "Glitch completed social operation " + input.operation + ".",
+        ...(createdSchedulerId ? { bodyMarkdown: [
+          "### Next: connect social accounts",
+          "The scheduler cannot post until accounts are connected. For each platform the developer wants (for example twitter, bluesky, tiktok, reddit, discord, youtube), call `glitch_social_operation` with `operation=oauth.connect.start`, `arguments={ scheduler_id: \"" + createdSchedulerId + "\", platform }` and `confirm=true`, give the developer the returned consent link, then check `oauth.connect.status`.",
+          "Use `schedulers.update` to change posting frequency or settings, and `schedulers.generate_content` or `posts.create` to start the content library."
+        ].join("\n") } : {}),
         data,
         links: connectUrl
           ? [{ name: "Authorize social account", url: connectUrl }]

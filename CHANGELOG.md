@@ -17,6 +17,9 @@
 - `get` returns every campaign setting and `update` accepts any editable one.
 - `influencers.get` returns personal tracking links; new `links.list`.
 - `invitations.list` is paged and filterable and includes invitee emails.
+- Social media schedulers can be created from a name alone (`schedulers.create`);
+  the result tells the client to connect accounts, and a new
+  `/glitch_create_social_scheduler` prompt runs the setup.
 
 ## 0.1.9
 

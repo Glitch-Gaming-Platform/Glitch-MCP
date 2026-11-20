@@ -412,6 +412,27 @@ describe("Glitch MCP tools", () => {
     });
   });
 
+  it("creates a social media scheduler and points the AI at connecting accounts", async () => {
+    const mock = createFetchMock(() =>
+      jsonResponse({ data: { operation: "schedulers.create", result: { id: "scheduler-new", name: "Launch Social" } } })
+    );
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_social_operation", client, {
+      operation: "schedulers.create",
+      arguments: { name: "Launch Social", posts_per_week: 3 },
+      confirm: true
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe(
+      "https://mcp.example.test/mcp/v1/titles/title_default/social/operations/schedulers.create"
+    );
+    expect(mock.requests[0]?.body).toEqual({ arguments: { name: "Launch Social", posts_per_week: 3 }, confirm: true });
+    const text = JSON.stringify(result);
+    expect(text).toContain("scheduler-new");
+    expect(text).toContain("oauth.connect.start");
+  });
+
   it("returns a direct social OAuth consent link without opening the dashboard", async () => {
     const consentUrl = "https://api.glitch.fun/auth/mcp/social/connect?ticket=temporary-opaque-connection-link";
     const mock = createFetchMock(() =>
