@@ -124,11 +124,13 @@ export class GlitchClient {
     return this.titles.get() || this.config.defaultTitleId;
   }
 
-  dashboardUrl(kind: "title" | "run" | "action" | "billing" | "hosting" | "leaderboards" | "achievements", input: { titleId: string; runId?: string; actionId?: string }): string {
+  dashboardUrl(kind: "title" | "run" | "action" | "billing" | "hosting" | "leaderboards" | "achievements" | "reports", input: { titleId: string; runId?: string; actionId?: string; reportPath?: string }): string {
     const base = this.config.dashboardBaseUrl.replace(/\/+$/, "");
     const titlePath = `${base}/agents/titles/${encodeURIComponent(input.titleId)}`;
 
     switch (kind) {
+      case "reports":
+        return `${base}/reports/${encodeURIComponent(input.titleId)}/title${input.reportPath ? `/${encodeURIComponent(input.reportPath)}` : ""}`;
       case "run":
         return input.runId ? `${titlePath}?run=${encodeURIComponent(input.runId)}` : titlePath;
       case "action":

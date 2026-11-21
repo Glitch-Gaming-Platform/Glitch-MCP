@@ -316,13 +316,16 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_get_analytics_capabilities` — discover canonical report families,
   report keys, filters, source routes, requirements, and limits
 - `glitch_get_analytics_report` — run one canonical dashboard report directly
-- `glitch_get_session_reports`
-- `glitch_get_web_reports`
+- `glitch_get_session_reports` — the same data as the dashboard's Sessions page
+  (`/reports/<title_id>/title/sessions`): sessions, duration, retention, DAU/WAU/MAU, cohorts, funnels
+- `glitch_get_web_reports` — the dashboard's Web page (`/reports/<title_id>/title/web`):
+  traffic, pages, sources, UTMs, devices, geography, landing pages
 - `glitch_get_storefront_reports`
 - `glitch_get_wishlist_reports`
 - `glitch_get_earnings_reports`
 - `glitch_get_attribution_reports`
-- `glitch_get_cross_device_reports`
+- `glitch_get_cross_device_reports` — the dashboard's Cross-Device page
+  (`/reports/<title_id>/title/crossdevice`): identity, journeys, attribution funnels, fraud, conversions
 - `glitch_get_billing_status`
 - `glitch_social_operation` supports TikTok `tiktok.hashtags` (connected Business Account, keyword + optional language), `tiktok.trending_hashtags` (connected TikTok Ads account), and `tiktok.hashtag_detail`. See [TikTok hashtag discovery](docs/tool-reference.md#tiktok-hashtag-discovery-via-mcp).
 - `glitch_get_game_monetization` and `glitch_update_game_monetization` manage premium, rental, subscription pricing and the optional full-game premium purchase lock with confirmation and version checks. The validation tool exposes exact license metadata. See [premium-only access](docs/tool-reference.md#game-premium-only-access-and-license-details).

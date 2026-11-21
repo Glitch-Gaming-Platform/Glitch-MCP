@@ -2529,15 +2529,27 @@ function analyticsFamilyTool(
       report_filters: input.report_filters,
       fail_fast: input.fail_fast
     }));
+    const reportPage = analyticsReportPagePath[family];
+    const links = [{ name: "Open title analytics", url: client.dashboardUrl("title", { titleId }) }];
+    if (reportPage) {
+      links.unshift({ name: reportPage.name, url: client.dashboardUrl("reports", { titleId, reportPath: reportPage.path }) });
+    }
     return toolSuccess({
       title,
       summary: `Generated the ${family} analytics bundle from canonical Glitch report paths.`,
       data,
       bodyMarkdown: presentAnalytics(data),
-      links: [{ name: "Open title analytics", url: client.dashboardUrl("title", { titleId }) }]
+      links
     });
   });
 }
+
+/** Dashboard pages that show the same analytics families the MCP returns. */
+const analyticsReportPagePath: Partial<Record<z.infer<typeof analyticsFamilySchema>, { name: string; path: string }>> = {
+  web: { name: "Open web analytics", path: "web" },
+  cross_device: { name: "Open cross-device analytics", path: "crossdevice" },
+  sessions: { name: "Open session analytics", path: "sessions" }
+};
 
 function requireConfirmation(confirmed: boolean, action: string): void {
   if (!confirmed) {

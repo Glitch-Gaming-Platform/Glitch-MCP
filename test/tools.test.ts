@@ -391,6 +391,19 @@ describe("Glitch MCP tools", () => {
     });
   });
 
+  it("links web, cross-device, and session bundles to their dashboard report pages", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { family: "web", reports: [] } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const web = await callTool("glitch_get_web_reports", client, {});
+    const crossDevice = await callTool("glitch_get_cross_device_reports", client, {});
+    const sessions = await callTool("glitch_get_session_reports", client, {});
+
+    const serialized = (result: Awaited<ReturnType<typeof callTool>>) => JSON.stringify(result);
+    expect(serialized(web)).toContain("/reports/title_default/title/web");
+    expect(serialized(crossDevice)).toContain("/reports/title_default/title/crossdevice");
+    expect(serialized(sessions)).toContain("/reports/title_default/title/sessions");
+  });
+
   it("runs a social operation with arguments and explicit confirmation", async () => {
     const mock = createFetchMock(() =>
       jsonResponse({ data: { operation: "posts.reschedule", result: { id: "post_1", status: "scheduled" } } })
