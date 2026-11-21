@@ -928,6 +928,63 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   analyticsFamilyTool("glitch_get_cross_device_reports", "Get Cross-Device Reports", "cross_device", "Get identity, journey, attribution-funnel, device-environment, geography, fraud, pixel, and conversion-correlation reports."),
 
   defineTool(
+    "glitch_get_steam_financials",
+    "Get Steam Sales and Wishlists",
+    "Read the title's Steamworks Financial API data synced into Glitch. view=reports (default) returns the report bundle: summary, sales_timeseries, sales_monthly, sales_by_country, sales_by_region, sales_by_product, sales_by_platform, sales_by_sale_type, sales_by_discount, sales_by_price_point, activations_by_key_request, revenue_share_tiers, wishlist_timeseries, wishlist_by_country, wishlist_by_region, wishlist_by_language, wishlist_platforms and wishlist_to_sales_funnel. view=sales returns paginated line items with every GetDetailedSales field; view=wishlists returns daily wishlist rows (dimension=country|language adds breakdowns); view=status shows connection, partner, sync times and stored date ranges. Revenue is USD; sales dates are Pacific Time and wishlist dates GMT. The Financial API key is connected in the Glitch dashboard, never through MCP.",
+    z.object({
+      ...optionalTitleShape,
+      view: z.enum(["reports", "sales", "wishlists", "status"]).default("reports"),
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      report_keys: z.array(z.string().regex(/^[a-z_]+$/)).max(18).optional(),
+      app_scope: z.enum(["title", "partner"]).optional(),
+      app_id: z.number().int().positive().optional(),
+      limit: z.number().int().min(1).max(1000).optional(),
+      dimension: z.enum(["country", "language"]).optional(),
+      page: z.number().int().min(1).optional(),
+      per_page: z.number().int().min(1).max(500).optional(),
+      country_code: z.string().max(8).optional(),
+      platform: z.string().max(64).optional(),
+      line_item_type: z.string().max(64).optional(),
+      package_sale_type: z.string().max(64).optional(),
+      packageid: z.number().int().positive().optional()
+    }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const { title_id: _title, view, report_keys, ...rest } = input;
+      const query = omitUndefined({ ...rest, report_keys: report_keys?.join(",") }) as Record<string, unknown>;
+      const data = await client.steamFinancials(titleId, view, query);
+      return toolSuccess({
+        title: view === "status" ? "Steam Financial API status" : `Steam ${view}`,
+        summary: "Steam Financial API data stored in Glitch. Refresh it with glitch_sync_steam_financials.",
+        data,
+        links: [{ name: "Open Steam sales and wishlists", url: `${client.dashboardUrl("reports", { titleId, reportPath: "sales" })}?tab=steam` }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_sync_steam_financials",
+    "Refresh Steam Sales and Wishlists",
+    "Queue a pull of the latest sales and/or wishlist data from the Steamworks Financial API into Glitch. Read-only toward Steam; it only updates Glitch's copy of the data. Requires the title to have a Financial API key connected in the Glitch dashboard.",
+    z.object({
+      ...optionalTitleShape,
+      datasets: z.array(z.enum(["sales", "wishlists"])).min(1).max(2).optional()
+    }),
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.syncSteamFinancials(titleId, omitUndefined({ datasets: input.datasets }));
+      return toolSuccess({
+        title: "Steam sync queued",
+        summary: "Glitch is pulling Steam data in the background. Check progress with glitch_get_steam_financials view=status.",
+        data
+      });
+    }
+  ),
+
+  defineTool(
     "glitch_get_game_monetization",
     "Get Game Monetization Settings",
     "Read title-scoped premium, rental and subscription prices, and the optional premium-purchase-required policy. Returns a version token for safe concurrent updates.",

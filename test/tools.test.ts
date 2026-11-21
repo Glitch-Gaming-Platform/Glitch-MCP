@@ -32,6 +32,8 @@ describe("Glitch MCP tools", () => {
       "glitch_get_earnings_reports",
       "glitch_get_attribution_reports",
       "glitch_get_cross_device_reports",
+      "glitch_get_steam_financials",
+      "glitch_sync_steam_financials",
       "glitch_get_game_monetization",
       "glitch_update_game_monetization",
       "glitch_get_billing_status",
@@ -335,6 +337,28 @@ describe("Glitch MCP tools", () => {
     expect(result.isError).toBeUndefined();
     expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/social/capabilities");
     expect(result.structuredContent?.data).toEqual({ operation_count: 108, platforms: {} });
+  });
+
+  it("reads Steam Financial API reports with filters and queues a Steam refresh", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { reports: { summary: { metrics: { net_sales_usd: 48.48 } } } } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_get_steam_financials", client, { from: "2026-11-01", to: "2026-11-21", report_keys: ["summary", "sales_by_country"] });
+
+    expect(result.isError).toBeUndefined();
+    const url = new URL(mock.requests[0]!.url);
+    expect(url.pathname).toBe("/mcp/v1/titles/title_default/steam-financials/reports");
+    expect(url.searchParams.get("from")).toBe("2026-11-01");
+    expect(url.searchParams.get("report_keys")).toBe("summary,sales_by_country");
+    expect(result.structuredContent?.data).toEqual({ reports: { summary: { metrics: { net_sales_usd: 48.48 } } } });
+
+    const status = await callTool("glitch_get_steam_financials", client, { view: "status" });
+    expect(status.isError).toBeUndefined();
+    expect(new URL(mock.requests[1]!.url).pathname).toBe("/mcp/v1/titles/title_default/steam-financials");
+
+    const sync = await callTool("glitch_sync_steam_financials", client, { datasets: ["sales"] });
+    expect(sync.isError).toBeUndefined();
+    expect(mock.requests[2]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/steam-financials/sync");
+    expect(mock.requests[2]?.init?.method).toBe("POST");
   });
 
   it("retrieves the authoritative analytics capability catalog", async () => {

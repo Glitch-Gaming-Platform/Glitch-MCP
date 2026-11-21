@@ -215,6 +215,17 @@ export class GlitchClient {
     return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/analytics/query`, body);
   }
 
+  /** Steam Financial API status, reports, sales line items or wishlist rows synced into Glitch. */
+  async steamFinancials(titleId: string, view: "status" | "reports" | "sales" | "wishlists", query?: Record<string, unknown>): Promise<JsonObject> {
+    const suffix = view === "status" ? "" : `/${view}`;
+    return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/steam-financials${suffix}`, query);
+  }
+
+  /** Queue a refresh of Steam Financial API data. Pulls data only; cannot change the stored key. */
+  async syncSteamFinancials(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/steam-financials/sync`, body);
+  }
+
   async gameMonetization(titleId: string): Promise<JsonObject> {
     return this.http.get<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/monetization`);
   }

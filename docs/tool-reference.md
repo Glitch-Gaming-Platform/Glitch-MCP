@@ -449,6 +449,25 @@ Input:
 }
 ```
 
+### Steam sales and wishlists (Steamworks Financial API)
+
+Connect a Steamworks Financial API Group key in the dashboard (Reports > Wishlists & Sales > Steam). Glitch verifies it
+with Steam, stores it encrypted, and syncs every six hours. MCP can read the data and queue a refresh, but cannot see or
+change the key.
+
+- `glitch_get_steam_financials` — `view` is `reports` (default), `sales`, `wishlists` or `status`.
+  - `reports` accepts `from`, `to` (YYYY-MM-DD), `report_keys`, `app_scope` (`title` or `partner`), `app_id`, `limit`.
+    Reports: `summary`, `sales_timeseries`, `sales_monthly`, `sales_by_country`, `sales_by_region`, `sales_by_product`,
+    `sales_by_platform`, `sales_by_sale_type`, `sales_by_discount`, `sales_by_price_point`, `activations_by_key_request`,
+    `revenue_share_tiers`, `wishlist_timeseries`, `wishlist_by_country`, `wishlist_by_region`, `wishlist_by_language`,
+    `wishlist_platforms`, `wishlist_to_sales_funnel`.
+  - `sales` returns paginated line items (every `GetDetailedSales` field) and filters by `country_code`, `platform`,
+    `line_item_type`, `package_sale_type`, `packageid`.
+  - `wishlists` returns daily rows; `dimension=country|language` adds the breakdown rows.
+- `glitch_sync_steam_financials` — queue a refresh of `sales` and/or `wishlists`.
+
+Revenue is USD. Sales dates are Pacific Time and wishlist dates GMT, as Steam reports them.
+
 ### Analytics family tools
 
 - `glitch_get_session_reports`

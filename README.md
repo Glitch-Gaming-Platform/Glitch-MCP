@@ -326,6 +326,11 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_get_attribution_reports`
 - `glitch_get_cross_device_reports` — the dashboard's Cross-Device page
   (`/reports/<title_id>/title/crossdevice`): identity, journeys, attribution funnels, fraud, conversions
+- `glitch_get_steam_financials` — Steam sales and wishlists from the Steamworks Financial API, synced into Glitch
+  (dashboard: `/reports/<title_id>/title/sales?tab=steam`): revenue, units, refunds, taxes and key activations by day,
+  country, region, product, platform, discount and price point; wishlists by day, country, language and platform;
+  the wishlist-to-sales funnel; and raw line items. `glitch_sync_steam_financials` queues a refresh from Steam.
+  The Financial API key is connected in the dashboard, never through MCP.
 - `glitch_get_billing_status`
 - `glitch_social_operation` supports TikTok `tiktok.hashtags` (connected Business Account, keyword + optional language), `tiktok.trending_hashtags` (connected TikTok Ads account), and `tiktok.hashtag_detail`. See [TikTok hashtag discovery](docs/tool-reference.md#tiktok-hashtag-discovery-via-mcp).
 - `glitch_get_game_monetization` and `glitch_update_game_monetization` manage premium, rental, subscription pricing and the optional full-game premium purchase lock with confirmation and version checks. The validation tool exposes exact license metadata. See [premium-only access](docs/tool-reference.md#game-premium-only-access-and-license-details).
