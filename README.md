@@ -501,6 +501,27 @@ also require `template_id`. Mutations require `confirm=true`.
 The existing `social:read` and `social:write` MCP permissions authorize reads and mutations respectively; no campaign-specific token scopes are required.
 Campaign-specific templates do not change any other campaign. MCP can enable automatic invitations, daily outreach, and resume campaigns. Campaign activation uses the same backend checks as the existing dashboard.
 
+#### Send campaign email from your own provider or mailbox
+
+Each campaign can send creator email (invitations, follow-ups, replies,
+onboarding, acceptance and deadline reminders) through:
+
+| `email_provider` | What to set with `update` |
+| --- | --- |
+| `system` (default) | Nothing. Glitch sends from its own address. |
+| `mailgun` | `email_provider_key`, `email_provider_domain`, `email_provider_from_email` (EU: `email_provider_host=api.eu.mailgun.net`) |
+| `sendgrid` | `email_provider_key`, `email_provider_from_email` |
+| `postmark` | `email_provider_key` (server token), `email_provider_from_email` |
+| `azure` | `email_provider_domain` (endpoint), `email_provider_key`, `email_provider_from_email` |
+| `smtp` | `email_provider_host`, `email_provider_port`, `email_provider_encryption` (`tls`/`ssl`/`none`), `email_provider_username`, `email_provider_key` (password), `email_provider_from_email` |
+| `gmail` / `outlook` | Connect the mailbox once in the browser (links in `email_sender.get`). Sends as that address, capped at 20 automatic invites per hour. |
+
+Give your AI only the keys you want it to save. `email_provider_key` and
+`email_provider_secret` are write-only: they are encrypted, never returned, and
+leaving them out of an update keeps the saved value (`get` shows
+`email_provider_key_set`). `email_sender.get` reports readiness and what is
+missing; `email_sender.test` with `confirm=true` sends one test email.
+
 #### Outreach placeholder catalog and preflight
 
 Before creating or changing campaign invitation copy, call

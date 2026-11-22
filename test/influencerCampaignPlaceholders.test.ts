@@ -167,4 +167,32 @@ describe("Influencer campaign placeholders", () => {
     expect(mock.requests[2]?.init?.method).toBe("POST");
     expect(mock.requests[2]?.body).toMatchObject({ campaign_id, template_id, fields: { auto_send_onboarding: true } });
   });
+
+  it("saves write-only email sender secrets and sends a confirmed test email", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { email_sender: { provider: "smtp", ready: true, email_provider_key_set: true } } }));
+    const client = new GlitchClient({
+      apiBaseUrl: "https://mcp.example.test", dashboardBaseUrl: "https://app.example.test",
+      timeoutMs: 1000, clientName: "test-client",
+      defaultTitleId: "b7614555-f88b-4c55-a296-1376c08c4d24"
+    }, mock.fetch);
+    const operation = glitchToolDefinitions.find((x) => x.name === "glitch_influencer_campaign_operation")!;
+    expect(operation.description).toContain("email_sender.test");
+    expect(operation.description).toContain("write-only");
+    const campaign_id = "5ac4483b-9088-4762-9ab1-9df21a2fc002";
+
+    await operation.handler(client, { operation: "email_sender.get", campaign_id });
+    expect(mock.requests[0]?.init?.method ?? "GET").toBe("GET");
+    expect(mock.requests[0]?.url).toContain("/influencer-campaigns/email_sender.get");
+
+    const fields = { email_provider: "smtp", email_provider_host: "smtp.example.com", email_provider_port: 587,
+      email_provider_username: "dev@example.com", email_provider_key: "app-password", email_provider_from_email: "dev@example.com" };
+    await operation.handler(client, { operation: "update", campaign_id, confirm: true, fields });
+    expect(mock.requests[1]?.body).toMatchObject({ campaign_id, confirm: true, fields });
+
+    await expect(operation.handler(client, { operation: "email_sender.test", campaign_id }))
+      .rejects.toThrow("confirm=true");
+    await operation.handler(client, { operation: "email_sender.test", campaign_id, to: "dev@example.com", confirm: true });
+    expect(mock.requests[2]?.init?.method).toBe("POST");
+    expect(mock.requests[2]?.body).toMatchObject({ campaign_id, to: "dev@example.com", confirm: true });
+  });
 });
