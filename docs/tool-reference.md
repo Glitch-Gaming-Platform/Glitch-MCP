@@ -1081,19 +1081,22 @@ For **trending hashtags**, use `operation: "tiktok.trending_hashtags"` and `argu
 
 Credentials remain server-side, `social:read` is required, and cross-title scheduler IDs are rejected. Check returned provider and HTTP status before describing data as current.
 
-## Game premium-only access and license details
+## Game purchase-required access and license details
 
 - `glitch_get_game_monetization` reads current pricing, subscription eligibility,
   `premium_purchase_required_for_full_game`, and the `version` concurrency token.
 - `glitch_update_game_monetization` requires `commerce:write` plus current title
   administration, `expected_version`, and `confirm=true`. Set
   `premium_purchase_required_for_full_game=true` only with Premium enabled, a valid
-  sale price, Subscription enabled, and new rentals disabled. Changed versions
-  return 409 and must be re-read, not automatically overwritten.
-- When enabled, a production session for a subscriber without a premium license
-  returns `PREMIUM_PURCHASE_REQUIRED` (403) before game launch. Demo and
-  approved playtest builds remain non-revenue previews. Existing active rentals
-  purchased before activation are honored until their expiration.
+  sale price, and new rentals disabled. Subscription eligibility is optional and
+  compatible with the lock, so do not disable the lock to enable Glitch Pass.
+  Changed versions return 409 and must be re-read, not automatically overwritten.
+- When enabled, the full game has no free trial time. A production session for a
+  player without a premium license (or, for subscription-eligible titles, an
+  active Glitch Pass) returns `PREMIUM_PURCHASE_REQUIRED` (403) with
+  `accepted_purchase_types` before game launch. Demo and approved playtest
+  builds remain non-revenue previews. Existing active rentals purchased before
+  activation are honored until their expiration.
 - `glitch_validate_install` retains its existing `license_type` string for older
   games and adds `license` (exact `type`, `source`, `status`,
   `acquired_at`, `purchased_at`, `expires_at`, `is_permanent`, and

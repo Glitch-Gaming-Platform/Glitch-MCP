@@ -1000,7 +1000,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   defineTool(
     "glitch_update_game_monetization",
     "Update Game Monetization Settings",
-    "Change title-owned premium/rental/subscription options or enable the premium-only production lock. Requires a developer-authorized commerce:write credential, confirm=true, and the current expected_version from glitch_get_game_monetization. Strict mode requires premium and subscription enabled with valid premium price and new rentals disabled. Demo/playtest access remains separate. This never creates purchases or charges.",
+    "Change title-owned premium/rental/subscription options or enable the purchase-required production lock (premium_purchase_required_for_full_game). Requires a developer-authorized commerce:write credential, confirm=true, and the current expected_version from glitch_get_game_monetization. The lock requires premium enabled with a valid premium price and new rentals disabled; subscription eligibility is optional. While locked, the full game needs a premium purchase or, when subscription eligible, an active Glitch Pass; free trial time does not apply. Keep the lock on when enabling subscriptions. Demo/playtest access remains separate. This never creates purchases or charges.",
     z.object({
       ...optionalTitleShape,
       expected_version: z.string().regex(/^[0-9a-f]{64}$/),
