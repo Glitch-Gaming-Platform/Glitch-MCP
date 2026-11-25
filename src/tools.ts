@@ -42,6 +42,7 @@ import { microtransactionToolDefinitions } from "./microtransactionTools.js";
 import { preorderToolDefinitions } from "./preorderTools.js";
 import { influencerCampaignToolDefinitions } from "./influencerCampaignTools.js";
 import { campaignGameSourcingToolDefinitions } from "./campaignGameSourcingTools.js";
+import { steamResearchToolDefinitions } from "./steamResearchTools.js";
 import { campaignBudgetToolDefinitions } from "./campaignBudgetTools.js";
 import { marketingToolDefinitions } from "./marketingTools.js";
 import { progressionToolDefinitions } from "./progressionTools.js";
@@ -926,6 +927,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   analyticsFamilyTool("glitch_get_earnings_reports", "Get Earnings Reports", "earnings", "Get developer earnings, payouts, purchases, revenue trends, LTV, currency, item, install, and ad-revenue reports."),
   analyticsFamilyTool("glitch_get_attribution_reports", "Get Attribution Reports", "attribution", "Get title, ad, UTM, influencer, social-post, conversion-event, install-journey, and paid-media attribution reports."),
   analyticsFamilyTool("glitch_get_cross_device_reports", "Get Cross-Device Reports", "cross_device", "Get identity, journey, attribution-funnel, device-environment, geography, fraud, pixel, and conversion-correlation reports."),
+  ...steamResearchToolDefinitions,
 
   defineTool(
     "glitch_get_steam_financials",

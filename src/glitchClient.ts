@@ -215,6 +215,10 @@ export class GlitchClient {
     return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/analytics/query`, body);
   }
 
+  async steamResearch(titleId: string, operation: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(`/mcp/v1/titles/${segment(titleId)}/steam/research/${segment(operation)}`, body);
+  }
+
   /** Steam Financial API status, reports, sales line items or wishlist rows synced into Glitch. */
   async steamFinancials(titleId: string, view: "status" | "reports" | "sales" | "wishlists", query?: Record<string, unknown>): Promise<JsonObject> {
     const suffix = view === "status" ? "" : `/${view}`;

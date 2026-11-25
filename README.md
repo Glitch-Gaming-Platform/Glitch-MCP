@@ -326,6 +326,11 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_get_attribution_reports`
 - `glitch_get_cross_device_reports` — the dashboard's Cross-Device page
   (`/reports/<title_id>/title/crossdevice`): identity, journeys, attribution funnels, fraud, conversions
+- `glitch_research_steam_games` — read-only Steam market research from the Glitch
+  Steam catalog: `comparables` (a competitive set of similar games released
+  around your launch, with reviews, price, players and your rank), `search`,
+  `game` (details and daily player history) and `reports` (pricing fit, demand
+  proxy, marketing angles and more). Needs only `reports:read`.
 - `glitch_get_steam_financials` — Steam sales and wishlists from the Steamworks Financial API, synced into Glitch
   (dashboard: `/reports/<title_id>/title/sales?tab=steam`): revenue, units, refunds, taxes and key activations by day,
   country, region, product, platform, discount and price point; wishlists by day, country, language and platform;

@@ -430,6 +430,44 @@ Input:
 }
 ```
 
+### glitch_research_steam_games
+
+Read-only Steam market research from the catalog Glitch collects: 300k+ Steam
+games with genres, features, prices, review totals, and player counts sampled
+every few hours. Needs `reports:read`. It never starts an Agent run and never
+changes the game.
+
+Operations:
+
+- `capabilities`: operations, report keys and data notes.
+- `comparables`: games similar to yours (or `app_id`) released within
+  `window_days` (default 14) of its release date. Similarity uses genres as a
+  share of overlap, gameplay features, and theme words weighted by rarity; pass
+  `keywords` to weight themes. Returns reviews, positive rate, price, current
+  and peak players, ratios against your game, and your rank.
+- `search`: `query`, `genres`, `categories`, `released_from`/`released_to`,
+  `max_price`, `min_reviews`, `sort`, `limit`.
+- `game`: one game by `app_id` or `name`, with `history_days` of daily peak and
+  average players.
+- `reports`: up to 8 `report_keys` from the Steam report engine, e.g.
+  `competitive_set`, `pricing_fit_analysis`, `demand_proxy_score`,
+  `marketing_message_angles`.
+
+Adult-content games are excluded unless `include_adult` is true. Steam does not
+publish sales, so treat reviews, players and recommendations as demand signals.
+
+Input:
+
+```json
+{
+  "operation": "comparables",
+  "window_days": 14,
+  "keywords": ["alien", "invasion"],
+  "sort": "peak_players",
+  "limit": 15
+}
+```
+
 ### glitch_get_analytics_report
 
 Runs one canonical dashboard report without starting or billing an Agent run.

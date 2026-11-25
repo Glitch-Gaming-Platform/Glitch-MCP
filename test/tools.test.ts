@@ -32,6 +32,7 @@ describe("Glitch MCP tools", () => {
       "glitch_get_earnings_reports",
       "glitch_get_attribution_reports",
       "glitch_get_cross_device_reports",
+      "glitch_research_steam_games",
       "glitch_get_steam_financials",
       "glitch_sync_steam_financials",
       "glitch_get_game_monetization",
@@ -359,6 +360,35 @@ describe("Glitch MCP tools", () => {
     expect(sync.isError).toBeUndefined();
     expect(mock.requests[2]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/steam-financials/sync");
     expect(mock.requests[2]?.init?.method).toBe("POST");
+  });
+
+  it("researches Steam comparables without starting an Agent run", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {
+      operation: "comparables",
+      target: { name: "My Game", app_id: 1 },
+      window: { released_from: "2026-10-22", released_to: "2026-11-19" },
+      similar_games_found: 1,
+      target_rank: { by: "peak_players_30d", position: 2, out_of: 2 },
+      comparables: [{ app_id: 2, name: "Rival", store_url: "https://store.steampowered.com/app/2", release_date: "2026-11-02", reviews: 40, positive_rate: 90, price: 9.99, currency: "USD", peak_players_30d: 112, current_players: 30, similarity: { shared_genres: ["strategy"], shared_keywords: ["alien"] } }],
+      data_notes: ["Players are sampled."]
+    } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_research_steam_games", client, { operation: "comparables", keywords: ["alien"], window_days: 14 });
+
+    expect(result.isError).toBeUndefined();
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/steam/research/comparables");
+    expect(mock.requests[0]?.init?.method).toBe("POST");
+    expect(JSON.parse(String(mock.requests[0]?.init?.body))).toEqual({ keywords: ["alien"], window_days: 14 });
+    const text = JSON.stringify(result.content);
+    expect(text).toContain("ranks #2 of 2");
+    expect(text).toContain("[Rival](https://store.steampowered.com/app/2)");
+  });
+
+  it("requires report keys for Steam research reports", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {} }));
+    const client = new GlitchClient(config, mock.fetch);
+    await expect(callTool("glitch_research_steam_games", client, { operation: "reports" })).rejects.toThrow(/report_keys/);
+    expect(mock.requests).toHaveLength(0);
   });
 
   it("retrieves the authoritative analytics capability catalog", async () => {

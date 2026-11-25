@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.10 — November 25, 2026
+
+- New `glitch_research_steam_games`: read-only Steam market research from the
+  Glitch Steam catalog (300k+ games, with player counts sampled every few
+  hours). No Glitch Agent subscription needed, only `reports:read`.
+  - `comparables` builds a competitive set: games similar to yours released
+    around your launch, with reviews, price, current and peak players, and
+    where your game ranks. Pass `keywords` to weight themes.
+  - `search` finds games by name, genre, feature, release window, price or
+    review count.
+  - `game` returns one game's details and daily player history.
+  - `reports` runs Steam report-engine reports such as `competitive_set`,
+    `pricing_fit_analysis`, `demand_proxy_score` and `marketing_message_angles`.
+
 ## 0.5.9 — November 17, 2026
 
 - `glitch_influencer_campaign_operation` now manages creators who joined a
