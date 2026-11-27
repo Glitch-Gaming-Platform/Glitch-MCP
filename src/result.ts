@@ -75,6 +75,8 @@ export function toolError(error: unknown): CallToolResult {
   const text = [
     `Glitch MCP error: ${normalized.message}`,
     `Code: ${normalized.code}`,
+    ...(normalized.details.upstreamCode ? [`Glitch code: ${normalized.details.upstreamCode}`] : []),
+    ...(normalized.details.remediation ? [`Next step: ${normalized.details.remediation}`] : []),
     ...(links.length
       ? ["", "Links:", ...links.map((link) => `- ${link.name}: ${link.url}`)]
       : [])

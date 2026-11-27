@@ -51,6 +51,40 @@ export function registerGlitchPrompts(server: McpServer): void {
   );
 
   server.registerPrompt(
+    "glitch_distribute_game",
+    {
+      title: "Glitch Distribute Game",
+      description: "Connect stores and push a build to itch.io, Amazon Appstore, Meta Quest, Meta Instant Games, Steam and tracked stores, dry run first, with CLI handoffs and explicit approval before any public push.",
+      argsSchema: {
+        ...optionalTitleArgs,
+        request: z.string().optional().describe("Optional stores or task, such as push 1.4.2 to itch and Quest, or connect Amazon.")
+      }
+    },
+    async ({ title_id, request }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: [
+              "Use Glitch MCP to distribute this game to stores.",
+              title_id ? `Title id: ${title_id}` : "If no title is selected, list titles and ask me which title to use.",
+              request ? `Requested distribution task: ${request}` : "Start by showing the current distribution state and ask which stores I want.",
+              "Call glitch_get_distribution, then glitch_list_distribution_platforms for the stores I want. Explain each store's automation level in plain language: full, upload_only, handoff or manual.",
+              "To connect a store, ask me for the catalog's credential fields. Credentials are write-only: Glitch stores them encrypted and never returns them. Never invent, log or repeat them. Set confirm=true only after I approve.",
+              "Reuse a ready artifact, prepare one from a ready HTML5 build, or upload a local APK, AAB, OBB or zip (up to 5 GB) with glitch_upload_distribution_artifact. Fix every inspection error before submitting.",
+              "Always dry-run glitch_submit_distribution first and show me the result. A real push is public and may start store review; use dry_run=false and confirm=true only after I approve that exact store, channel and version.",
+              "Poll glitch_get_distribution_submission. On needs_action, show me the handoff actions. Run butler, ovr-platform-util or steamcmd only with my approval; I set environment variable values from my store account myself. Then call glitch_report_distribution_result with the outcome and CLI output, without secrets.",
+              "Store limits: Google Play publishes with my own service account only after I tick the policy acknowledgement (Google's API policy forbids third-party publishing services, so the risk to my Play account is mine); mark Play releases live once Publishing overview shows them live. Steam is a steamcmd handoff and Glitch never sets the default branch live. Amazon takes APKs only and will not commit an edit left open in its console unless I allow options.reuse_open_edit. Meta Quest needs an age group or Meta saves a draft. Instant Games zips need index.html and fbapp-config.json at the root; itch.io HTML5 zips need index.html at the root.",
+              "Keep store distribution separate from Glitch Hosting when reporting releases and revenue."
+            ].join("\n")
+          }
+        }
+      ]
+    })
+  );
+
+  server.registerPrompt(
     "glitch_launch_audit",
     {
       title: "Glitch Launch Audit",

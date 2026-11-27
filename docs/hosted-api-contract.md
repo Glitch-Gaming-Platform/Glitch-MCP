@@ -87,10 +87,38 @@ POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/services/estimate
 POST /mcp/v1/titles/{title_id}/hosting/sites/{site_id}/services/apply
 GET  /mcp/v1/titles/{title_id}/social/capabilities
 POST /mcp/v1/titles/{title_id}/social/operations/{operation}
+GET  /mcp/v1/titles/{title_id}/distribution
+GET  /mcp/v1/titles/{title_id}/distribution/platforms
+PUT  /mcp/v1/titles/{title_id}/distribution/connections/{platform}
+PATCH /mcp/v1/titles/{title_id}/distribution/connections/{platform}
+POST /mcp/v1/titles/{title_id}/distribution/connections/{platform}/test
+GET  /mcp/v1/titles/{title_id}/distribution/connections/{platform}/apps
+GET  /mcp/v1/titles/{title_id}/distribution/artifacts
+POST /mcp/v1/titles/{title_id}/distribution/artifacts
+POST /mcp/v1/titles/{title_id}/distribution/artifacts/from-build
+POST /mcp/v1/titles/{title_id}/distribution/artifacts/{artifact_id}/complete
+GET  /mcp/v1/titles/{title_id}/distribution/submissions
+POST /mcp/v1/titles/{title_id}/distribution/submissions
+GET  /mcp/v1/titles/{title_id}/distribution/submissions/{submission_id}
+POST /mcp/v1/titles/{title_id}/distribution/submissions/{submission_id}/{cancel|retry|refresh|result}
+GET  /mcp/v1/titles/{title_id}/distribution/reports
+POST /mcp/v1/titles/{title_id}/distribution/reports/sync
 GET  /mcp/v1/titles/{title_id}/tokens
 POST /mcp/v1/titles/{title_id}/tokens
 DELETE /mcp/v1/titles/{title_id}/tokens/{token_id}
 ```
+
+Distribution routes need `distribution:read` (overview, catalog,
+store apps, artifacts, submissions, reports), `distribution:submit`
+(artifacts, submissions and their actions, report sync) or
+`distribution:connections` (connect and update a store). Store credentials are
+write-only and never returned. A submission with `dry_run` false requires
+`confirm: true` or the facade returns 422 `confirmation_required`. Distribution
+errors add `code`, `retryable`, `remediation` and `context` to the error body;
+the adapter surfaces them as `upstreamCode`, `retryable`, `remediation` and
+`upstreamContext`. The artifact `upload_url` is a pre-signed storage URL: the
+adapter PUTs the file there with only `upload_headers` and no Glitch
+`Authorization` header.
 
 ## Canonical progression routes with scoped MCP access
 

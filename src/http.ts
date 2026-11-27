@@ -56,6 +56,13 @@ export class GlitchHttpClient {
     });
   }
 
+  async patch<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "PATCH",
+      ...(body === undefined ? {} : { body })
+    });
+  }
+
   async delete<T>(path: string, query?: Record<string, unknown>): Promise<T> {
     return this.request<T>(path, query ? { method: "DELETE", query } : { method: "DELETE" });
   }
@@ -117,6 +124,66 @@ export class GlitchHttpClient {
       return response;
     } finally {
       clearTimeout(timer);
+    }
+  }
+
+  /**
+   * PUT a file-backed Blob to an absolute pre-signed URL (store distribution
+   * artifacts up to 5 GB).
+   *
+   * Like putBinary this never attaches the Glitch Authorization header and never
+   * prepends the API base URL. The Blob is streamed by fetch with an exact
+   * Content-Length, so a multi-gigabyte artifact is never held in memory.
+   * Only the headers the pre-signed URL was signed with are forwarded; any
+   * auth-, cookie- or length-shaped header in `headers` is dropped.
+   */
+  async putPresigned(
+    absoluteUrl: string,
+    body: Blob,
+    headers: Record<string, string>,
+    timeoutMs: number,
+    signal?: AbortSignal
+  ): Promise<Response> {
+    let url: URL;
+    try {
+      url = new URL(absoluteUrl);
+    } catch {
+      throw new GlitchMcpError("upstream_error", "Glitch returned an invalid pre-signed upload URL.");
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new GlitchMcpError("upstream_error", "Glitch returned a pre-signed upload URL with an unsupported scheme.");
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.max(timeoutMs, this.config.timeoutMs));
+    const onAbort = () => controller.abort();
+    signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+      const response = await this.fetchFn(url.toString(), {
+        method: "PUT",
+        headers: safePresignedHeaders(headers),
+        body,
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        throw new GlitchMcpError(
+          "upstream_error",
+          `Pre-signed upload failed with status ${response.status}. The link may have expired; create the artifact again to get a new one.`,
+          { status: response.status, retryable: response.status >= 500 || response.status === 403 }
+        );
+      }
+      return response;
+    } catch (error) {
+      if (error instanceof GlitchMcpError) {
+        throw error;
+      }
+      if (isAbortError(error)) {
+        throw new GlitchMcpError("upstream_timeout", "The artifact upload timed out or was cancelled.", { status: 408, retryable: true });
+      }
+      throw new GlitchMcpError("upstream_error", "Unable to reach the pre-signed artifact upload URL.", { retryable: true });
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
     }
   }
 
@@ -294,7 +361,10 @@ function errorForResponse(response: Response, payload: unknown): GlitchMcpError 
     ...(retryAfter ? { retryAfterSeconds: Number.parseInt(retryAfter, 10) } : {}),
     ...(typeof objectPayload.billing_url === "string" ? { billingUrl: objectPayload.billing_url } : {}),
     ...(typeof objectPayload.dashboard_url === "string" ? { dashboardUrl: objectPayload.dashboard_url } : {}),
-    ...(typeof objectPayload.errors === "object" && objectPayload.errors !== null ? { fieldErrors: objectPayload.errors as Record<string, unknown> } : {})
+    ...(typeof objectPayload.errors === "object" && objectPayload.errors !== null ? { fieldErrors: objectPayload.errors as Record<string, unknown> } : {}),
+    ...(typeof objectPayload.retryable === "boolean" ? { retryable: objectPayload.retryable } : {}),
+    ...(typeof objectPayload.remediation === "string" && objectPayload.remediation.trim() ? { remediation: objectPayload.remediation.slice(0, 1000) } : {}),
+    ...(safeContext(objectPayload.context) ? { upstreamContext: safeContext(objectPayload.context) as Record<string, unknown> } : {})
   };
 
   if ((response.status === 403 || response.status === 409) && objectPayload.code === "human_approval_required") {
@@ -319,6 +389,35 @@ function errorForResponse(response: Response, payload: unknown): GlitchMcpError 
       return new GlitchMcpError("rate_limited", message, details);
     default:
       return new GlitchMcpError("upstream_error", message, details);
+  }
+}
+
+/** Headers that must never be forwarded to a pre-signed storage URL. */
+const PRESIGNED_BLOCKED_HEADERS = new Set(["authorization", "cookie", "proxy-authorization", "host", "content-length", "transfer-encoding"]);
+
+function safePresignedHeaders(headers: Record<string, string>): Record<string, string> {
+  const safe: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers || {})) {
+    if (typeof value !== "string" || PRESIGNED_BLOCKED_HEADERS.has(name.toLowerCase())) {
+      continue;
+    }
+    safe[name] = value;
+  }
+  return safe;
+}
+
+/**
+ * Structured error context (for example distribution preflight issues or the
+ * id of a conflicting submission). Kept only when it is a small plain object.
+ */
+function safeContext(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  try {
+    return JSON.stringify(value).length <= 16_000 ? (value as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
   }
 }
 

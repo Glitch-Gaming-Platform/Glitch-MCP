@@ -140,6 +140,9 @@ hosting:databases:write
 hosting:services:read
 hosting:services:write
 hosting:billing
+distribution:read
+distribution:submit
+distribution:connections
 social:read
 social:write
 social:publish
@@ -153,8 +156,8 @@ social:reports
 Token presets:
 
 ```text
-readonly  = read/report/artifact/action/guidance inspection + deployment/hosting/database inspection + social:read + social:reports; identity details redacted
-operator  = readonly + runs:create + guidance:answer + uploads:create + build/site deployment + social:write + social:sync; no paid Hosting changes; identity details redacted
+readonly  = read/report/artifact/action/guidance inspection + deployment/hosting/database inspection + distribution:read + social:read + social:reports; identity details redacted
+operator  = readonly + runs:create + guidance:answer + uploads:create + build/site deployment + social:write + social:sync; no paid Hosting changes, store pushes (distribution:submit) or store credentials; identity details redacted
 developer = all MCP abilities, including reports:identity
 ```
 
@@ -170,6 +173,12 @@ Hosting abilities are deliberately split:
 - `hosting:services:read` — inspect and estimate complex Hosting service stacks without creating resources.
 - `hosting:services:write` — queue metered multi-service releases after exact estimated-floor confirmation. It never grants secret-value access.
 - `hosting:billing` — change Hosting plans, purchase managed domains, and confirm secure checkout. Community billing permission, current-price confirmation, and proration acknowledgement remain mandatory.
+
+Store distribution abilities:
+
+- `distribution:read` — overview, store catalog, store app list, artifacts, submissions, and reports.
+- `distribution:submit` (developer preset only, like `deployments:activate`) — test store connections, upload and prepare artifacts, create submissions (a real push still needs `confirm=true`), cancel, retry, refresh, report handoff results, and queue report syncs.
+- `distribution:connections` — connect stores and change their settings. Store credentials are write-only: stored encrypted and never returned.
 
 The `operator` preset cannot purchase domains, change subscriptions, create paid
 databases, or activate releases. Use a custom least-privilege token when an

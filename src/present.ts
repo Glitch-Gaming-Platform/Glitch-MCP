@@ -339,3 +339,163 @@ function sizeLabel(value: unknown): string | undefined {
   }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Multi-store distribution                                            */
+/* ------------------------------------------------------------------ */
+
+/** Overview: one row per store with connection, latest submission and live version. */
+export function presentDistributionOverview(data: JsonObject): string {
+  const lines: string[] = [];
+  const counts = asRecord(data.counts);
+  if (counts) {
+    lines.push(
+      `**Connected stores:** ${str(counts.connected) ?? "0"} · **In flight:** ${str(counts.in_flight) ?? "0"} · **Needs action:** ${str(counts.needs_action) ?? "0"} · **Failed (7d):** ${str(counts.failed_7d) ?? "0"}`
+    );
+  }
+
+  const rows = asArray(data.platforms).map(asRecord).filter((row): row is JsonObject => row !== undefined);
+  if (rows.length) {
+    lines.push("", "| Store | Automation | Connection | Latest submission | Live version |", "|---|---|---|---|---|");
+    for (const row of rows) {
+      const platform = asRecord(row.platform) ?? {};
+      const connection = asRecord(row.connection);
+      const latest = asRecord(row.latest_submission);
+      lines.push(`| ${[
+        `${str(platform.name) ?? str(platform.key) ?? "?"} (\`${str(platform.key) ?? "?"}\`)`,
+        str(platform.automation) ?? "—",
+        connection ? str(connection.status) ?? "unknown" : "not connected",
+        latest ? `${str(latest.status) ?? "?"}${latest.dry_run === true ? " (dry run)" : ""} ${str(latest.version_label) ?? ""}`.trim() : "—",
+        str(row.last_live_version) ?? "—"
+      ].join(" | ")} |`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/** Catalog summary: automation level, accepted artifacts and the store's own limits. */
+export function presentDistributionPlatforms(platforms: JsonObject[]): string {
+  if (!platforms.length) {
+    return "_No distribution platforms were returned._";
+  }
+  const lines: string[] = [];
+  for (const platform of platforms) {
+    const kinds = asArray(platform.artifact_kinds).map(str).filter(Boolean).join(", ") || "none (tracking only)";
+    const channel = str(platform.default_channel);
+    lines.push(`- **${str(platform.name) ?? str(platform.key)}** (\`${str(platform.key)}\`) — ${str(platform.automation) ?? "manual"}; artifacts: ${kinds}${channel ? `; default ${str(platform.channel_label)?.toLowerCase() ?? "channel"}: ${channel}` : ""}`);
+    for (const limitation of asArray(platform.limitations).map(str).filter(Boolean).slice(0, 4)) {
+      lines.push(`  - ${truncate(limitation as string, 300)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+export function presentDistributionArtifact(artifact: JsonObject): string {
+  const lines: string[] = [];
+  lines.push(`**Artifact:** \`${str(artifact.id) ?? "?"}\` · ${str(artifact.kind) ?? "?"} · **${str(artifact.status) ?? "unknown"}**`);
+  const facts = [
+    str(artifact.filename),
+    sizeLabel(artifact.size_bytes),
+    str(artifact.version_name) ? `version ${str(artifact.version_name)}` : undefined,
+    str(artifact.version_code) ? `versionCode ${str(artifact.version_code)}` : undefined,
+    str(artifact.package_name)
+  ].filter(Boolean);
+  if (facts.length) {
+    lines.push(facts.join(" · "));
+  }
+  const invalid = str(artifact.invalid_reason);
+  if (invalid) {
+    lines.push(`**Invalid:** ${truncate(invalid, 600)}`);
+  }
+  const issues = asArray(asRecord(artifact.inspection)?.issues).map(asRecord).filter((issue): issue is JsonObject => issue !== undefined);
+  if (issues.length) {
+    lines.push("", "**Inspection issues:**");
+    for (const issue of issues.slice(0, 20)) {
+      lines.push(`- ${str(issue.level) ?? "info"} \`${str(issue.code) ?? "issue"}\`: ${truncate(str(issue.message) ?? "", 300)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Submission status, error, preflight and the handoff actions a store needs
+ * done outside Glitch (CLI commands, console steps).
+ */
+export function presentDistributionSubmission(submission: JsonObject): string {
+  const lines: string[] = [];
+  lines.push(
+    `**Submission:** \`${str(submission.id) ?? "?"}\` · ${str(submission.platform) ?? "?"}${str(submission.channel) ? ` (${str(submission.channel)})` : ""} · **${str(submission.status) ?? "unknown"}**${submission.dry_run === true ? " · dry run" : ""}`
+  );
+  const stage = str(submission.stage);
+  if (stage) {
+    lines.push(`Stage: ${stage}${str(submission.progress) ? ` (${str(submission.progress)}%)` : ""}`);
+  }
+  const message = str(asRecord(submission.store_result)?.message);
+  if (message) {
+    lines.push(truncate(message, 500));
+  }
+
+  const error = asRecord(submission.error);
+  if (error) {
+    lines.push("", `**Error \`${str(error.code) ?? "error"}\`:** ${truncate(str(error.message) ?? "", 500)}`);
+    if (str(error.remediation)) {
+      lines.push(`Next step: ${truncate(str(error.remediation) as string, 400)}`);
+    }
+    if (typeof error.retryable === "boolean") {
+      lines.push(`Retryable: ${error.retryable ? "yes" : "no"}`);
+    }
+  }
+
+  const preflight = asArray(submission.preflight).map(asRecord).filter((issue): issue is JsonObject => issue !== undefined);
+  if (preflight.length) {
+    lines.push("", "**Preflight:**");
+    for (const issue of preflight.slice(0, 20)) {
+      lines.push(`- ${str(issue.level) ?? "info"} \`${str(issue.code) ?? "issue"}\`: ${truncate(str(issue.message) ?? "", 300)}`);
+    }
+  }
+
+  const actions = asArray(submission.actions).map(asRecord).filter((action): action is JsonObject => action !== undefined);
+  if (actions.length) {
+    lines.push("", "**Handoff actions:**");
+    for (const action of actions.slice(0, 20)) {
+      const kind = str(action.kind);
+      if (kind === "report") {
+        lines.push("- Report the result with `glitch_report_distribution_result` (the dashboard's curl report command needs a one-time handoff token MCP does not issue).");
+        continue;
+      }
+      lines.push(`- ${truncate(str(action.label) ?? "Step", 300)}${str(action.detail) ? ` — ${truncate(str(action.detail) as string, 300)}` : ""}`);
+      const env = asRecord(action.env);
+      if (env) {
+        lines.push(`  - Environment variables (the developer sets the values; never paste secrets into chat): ${Object.keys(env).map((name) => `\`${name}\``).join(", ")}`);
+      }
+      if (str(action.command)) {
+        lines.push("", "  ```sh", `  ${str(action.command)}`, "  ```");
+      }
+      if (str(action.url)) {
+        lines.push(`  - ${kind === "download" ? "Download" : "Link"}: ${str(action.url)}`);
+      }
+    }
+  }
+
+  const events = asArray(submission.events).map(asRecord).filter((event): event is JsonObject => event !== undefined);
+  if (events.length) {
+    lines.push("", "**Recent events:**");
+    for (const event of events.slice(-10)) {
+      lines.push(`- ${str(event.created_at) ?? ""} ${str(event.level) ?? "info"}: ${truncate(str(event.message) ?? "", 240)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+export function presentDistributionSubmissions(rows: JsonObject[]): string {
+  if (!rows.length) {
+    return "_No distribution submissions match._";
+  }
+  const lines = ["| Submission | Store | Channel | Version | Status | Created |", "|---|---|---|---|---|---|"];
+  for (const row of rows) {
+    lines.push(`| \`${str(row.id) ?? "?"}\` | ${str(row.platform) ?? "?"} | ${str(row.channel) ?? "—"} | ${str(row.version_label) ?? "—"} | ${str(row.status) ?? "?"}${row.dry_run === true ? " (dry run)" : ""} | ${str(row.created_at) ?? "—"} |`);
+  }
+  return lines.join("\n");
+}

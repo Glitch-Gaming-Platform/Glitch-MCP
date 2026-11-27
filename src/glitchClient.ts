@@ -124,7 +124,7 @@ export class GlitchClient {
     return this.titles.get() || this.config.defaultTitleId;
   }
 
-  dashboardUrl(kind: "title" | "run" | "action" | "billing" | "hosting" | "leaderboards" | "achievements" | "reports", input: { titleId: string; runId?: string; actionId?: string; reportPath?: string }): string {
+  dashboardUrl(kind: "title" | "run" | "action" | "billing" | "hosting" | "distribution" | "leaderboards" | "achievements" | "reports", input: { titleId: string; runId?: string; actionId?: string; reportPath?: string }): string {
     const base = this.config.dashboardBaseUrl.replace(/\/+$/, "");
     const titlePath = `${base}/agents/titles/${encodeURIComponent(input.titleId)}`;
 
@@ -139,6 +139,8 @@ export class GlitchClient {
         return `${titlePath}/billing`;
       case "hosting":
         return `${base}/games/admin/${encodeURIComponent(input.titleId)}/hosting`;
+      case "distribution":
+        return `${base}/games/admin/${encodeURIComponent(input.titleId)}/distribution`;
       case "leaderboards":
       case "achievements":
         return `${base}/games/admin/${encodeURIComponent(input.titleId)}/${kind}`;
@@ -489,6 +491,99 @@ export class GlitchClient {
     }
 
     throw new GlitchMcpError("upstream_timeout", `Timed out waiting for hosting release ${releaseId} to become ready.`, { status: 408 });
+  }
+
+  // --- Multi-store distribution (Games admin > Distribution) ---
+  // distribution:read, distribution:submit and distribution:connections abilities.
+  private distributionPath(titleId: string, suffix = ""): string {
+    return `/mcp/v1/titles/${segment(titleId)}/distribution${suffix}`;
+  }
+
+  async distributionOverview(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(this.distributionPath(titleId));
+  }
+
+  async distributionPlatforms(titleId: string): Promise<JsonObject[]> {
+    const data = await this.http.get<unknown>(this.distributionPath(titleId, "/platforms"));
+    return collectionItems(data);
+  }
+
+  /** Credentials are write-only: the backend stores them encrypted and never returns them. */
+  async connectDistributionStore(titleId: string, platform: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.put<JsonObject>(this.distributionPath(titleId, `/connections/${segment(platform)}`), body);
+  }
+
+  async updateDistributionStore(titleId: string, platform: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.patch<JsonObject>(this.distributionPath(titleId, `/connections/${segment(platform)}`), body);
+  }
+
+  async testDistributionStore(titleId: string, platform: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(this.distributionPath(titleId, `/connections/${segment(platform)}/test`), {});
+  }
+
+  async distributionStoreApps(titleId: string, platform: string): Promise<JsonObject[]> {
+    const data = await this.http.get<unknown>(this.distributionPath(titleId, `/connections/${segment(platform)}/apps`));
+    return collectionItems(data);
+  }
+
+  async distributionArtifacts(titleId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(this.distributionPath(titleId, "/artifacts"));
+  }
+
+  /** Returns { artifact, upload_url, upload_method, upload_headers, expires_in_seconds }. */
+  async createDistributionArtifact(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(this.distributionPath(titleId, "/artifacts"), body);
+  }
+
+  async distributionArtifactFromBuild(titleId: string, gameBuildId: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(this.distributionPath(titleId, "/artifacts/from-build"), { game_build_id: gameBuildId });
+  }
+
+  async completeDistributionArtifact(titleId: string, artifactId: string): Promise<JsonObject> {
+    return this.http.post<JsonObject>(this.distributionPath(titleId, `/artifacts/${segment(artifactId)}/complete`), {});
+  }
+
+  /**
+   * PUT a local artifact to the pre-signed storage URL returned by
+   * createDistributionArtifact. Never sends the Glitch Authorization header.
+   */
+  async uploadDistributionArtifactFile(
+    uploadUrl: string,
+    file: Blob,
+    headers: Record<string, string>,
+    options: { timeoutMs: number; signal?: AbortSignal }
+  ): Promise<void> {
+    await this.http.putPresigned(uploadUrl, file, headers, options.timeoutMs, options.signal);
+  }
+
+  async distributionSubmissions(titleId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(this.distributionPath(titleId, "/submissions"), query);
+  }
+
+  /** A non-dry-run push requires confirm=true; the backend rejects it with confirmation_required otherwise. */
+  async createDistributionSubmission(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(this.distributionPath(titleId, "/submissions"), body);
+  }
+
+  async distributionSubmission(titleId: string, submissionId: string): Promise<JsonObject> {
+    return this.http.get<JsonObject>(this.distributionPath(titleId, `/submissions/${segment(submissionId)}`));
+  }
+
+  async distributionSubmissionAction(
+    titleId: string,
+    submissionId: string,
+    action: "cancel" | "retry" | "refresh" | "result",
+    body: JsonObject = {}
+  ): Promise<JsonObject> {
+    return this.http.post<JsonObject>(this.distributionPath(titleId, `/submissions/${segment(submissionId)}/${action}`), body);
+  }
+
+  async distributionReports(titleId: string, query?: JsonObject): Promise<JsonObject> {
+    return this.http.get<JsonObject>(this.distributionPath(titleId, "/reports"), query);
+  }
+
+  async syncDistributionReports(titleId: string, body: JsonObject): Promise<JsonObject> {
+    return this.http.post<JsonObject>(this.distributionPath(titleId, "/reports/sync"), body);
   }
 
   async marketingCapabilities(titleId: string): Promise<JsonObject> {

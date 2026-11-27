@@ -32,6 +32,10 @@ export interface GlitchErrorDetails {
   readonly retryable?: boolean;
   /** Safe server error identifier, never raw provider payload or credentials. */
   readonly upstreamCode?: string;
+  /** What the developer or AI client should do next, when the server says. */
+  readonly remediation?: string;
+  /** Small structured server context, e.g. distribution preflight issues or a conflicting submission id. */
+  readonly upstreamContext?: Record<string, unknown>;
 }
 
 /**

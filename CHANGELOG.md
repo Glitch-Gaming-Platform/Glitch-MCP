@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+- Multi-store distribution tools for the Games admin Distribution tab
+  (`distribution:read`, `distribution:submit`, `distribution:connections`):
+  - `glitch_get_distribution` and `glitch_list_distribution_platforms` show
+    every store's connection, latest submission, automation level, accepted
+    files and limitations.
+  - Google Play publishes through the developer's own service account (edits API:
+    upload, track release with optional staged rollout, validate, commit) only
+    after the developer acknowledges Google's third-party publishing policy risk.
+  - `glitch_connect_distribution_store`, `glitch_update_distribution_store_settings`,
+    `glitch_test_distribution_store` and `glitch_list_distribution_store_apps`
+    manage store connections. Credentials are write-only: stored encrypted and
+    never returned.
+  - `glitch_upload_distribution_artifact` streams a local APK, AAB, OBB or zip
+    (up to 5 GB) to its pre-signed URL without the Glitch auth header and
+    reports inspection issues; `glitch_prepare_distribution_artifact_from_build`
+    turns a ready HTML5 build into a web zip; `glitch_list_distribution_artifacts`.
+  - `glitch_submit_distribution` dry-runs by default. A real push needs
+    `confirm=true` and gets an idempotency key when none is given.
+  - `glitch_get_distribution_submission`, `glitch_list_distribution_submissions`,
+    `glitch_cancel_distribution_submission`, `glitch_retry_distribution_submission`,
+    `glitch_refresh_distribution_submission` and `glitch_report_distribution_result`
+    follow a push through store review and CLI handoffs (butler,
+    ovr-platform-util, steamcmd).
+  - `glitch_get_distribution_reports` and `glitch_sync_distribution_reports`.
+  - New `/glitch_distribute_game` prompt.
+- `glitch_open_dashboard` accepts `kind=distribution`.
+- Error results now include the server's `remediation`, `retryable` and
+  structured `upstreamContext` when Glitch returns them.
+
 ## 0.5.10 — November 25, 2026
 
 - New `glitch_research_steam_games`: read-only Steam market research from the

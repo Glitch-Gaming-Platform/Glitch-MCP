@@ -9,6 +9,7 @@ All tools are exposed by the public MCP adapter and fulfilled by the hosted Glit
 - Mutating tools return sanitized errors when subscription, scope, billing, approval, or account connection checks fail.
 - `glitch_approve_action` and `glitch_execute_action` require `confirm=true`.
 - Hosting creation, deployment, publishing, and rollback require `confirm=true`.
+- Store distribution: connecting a store, changing its settings, a real push (`dry_run=false`), cancel and retry require `confirm=true`.
 
 ## Tools
 
@@ -486,6 +487,89 @@ Input:
   "fail_fast": false
 }
 ```
+
+### Multi-store distribution
+
+Push builds to stores from the Games admin Distribution tab. This is separate
+from Glitch Hosting and from Steam Financial API reporting. Abilities:
+`distribution:read`, `distribution:submit`, `distribution:connections`.
+Store keys: `itch`, `amazon_appstore`, `meta_quest`, `meta_instant_games`,
+`steam`, `google_play`, `apple_app_store`, `microsoft_store`, `epic_games`,
+`gog`, `game_jolt`, `poki`, `crazygames`, `newgrounds`.
+
+- `glitch_get_distribution` — every store with automation level
+  (`full`, `upload_only`, `handoff`, `manual`), connection, latest submission,
+  last live version, and in-flight / needs-action / failed counts.
+- `glitch_list_distribution_platforms` — the catalog: accepted artifact kinds,
+  size limits, channels, `credential_fields`, `setting_fields`, option keys,
+  manual console steps and limitations.
+- `glitch_connect_distribution_store` — `platform`, `credentials{}` (write-only;
+  stored encrypted, never returned; blank fields keep the stored value),
+  `external_app_id`, `settings{}`, `confirm=true`. The store verifies new
+  credentials first. The result lists which credential fields are set, never
+  their values.
+- `glitch_update_distribution_store_settings` — `external_app_id` and
+  non-secret `settings`, `confirm=true`.
+- `glitch_test_distribution_store` / `glitch_list_distribution_store_apps`.
+- `glitch_list_distribution_artifacts` — uploaded artifacts (status, version,
+  sha256, inspection issues) and recent ready builds with a `distributable`
+  flag.
+- `glitch_prepare_distribution_artifact_from_build` — `game_build_id` of a ready
+  HTML5/WebGL build becomes a `web_zip` artifact.
+- `glitch_upload_distribution_artifact` — `file_path` (stdio only), `kind`
+  (inferred for `.apk`, `.aab`, `.obb`; required for `.zip`), `version_name`,
+  `version_code`. Creates the artifact, streams the file to the pre-signed URL
+  without Glitch auth, then completes it. 5 GB limit. Returns `ready`,
+  `invalid` (with `invalid_reason` and inspection issues) or `pending_upload`
+  while a file over 256 MB is inspected in the background.
+- `glitch_submit_distribution` — `platform`, `artifact_id` or `game_build_id`,
+  `channel`, `version_label`, `release_notes`, `dry_run` (default `true`),
+  `submit_for_review`, `options{}`, `idempotency_key` (generated when omitted
+  and returned), `confirm`. Dry-run first. A real push is public and may start
+  store review, so it needs `confirm=true`; the adapter rejects it before
+  calling Glitch otherwise.
+- `glitch_get_distribution_submission` / `glitch_list_distribution_submissions`
+  (`platform`, `status[]`, `per_page`).
+- `glitch_cancel_distribution_submission`, `glitch_retry_distribution_submission`
+  (both `confirm=true`), `glitch_refresh_distribution_submission`.
+- `glitch_report_distribution_result` — `status` (`submitted`, `in_review`,
+  `live`, `failed`), `external_build_id`, `store_url`, `notes`, `log`.
+- `glitch_get_distribution_reports` (`from`, `to`) and
+  `glitch_sync_distribution_reports` (`platform`).
+
+Submission statuses: `queued`, `preflight`, `uploading`, `processing`,
+`submitted`, `in_review`, `live`, `needs_action`, `failed`, `cancelled`,
+`validated` (a finished dry run).
+
+`needs_action` comes with handoff `actions`: a time-limited artifact download,
+environment variables whose values the developer takes from their store
+account, and commands to run locally (`butler` for itch.io,
+`ovr-platform-util` for Meta Quest, `steamcmd` for Steam). After running them,
+call `glitch_report_distribution_result`. The `curl` report command in the
+actions needs a one-time handoff token MCP does not issue; use the tool
+instead.
+
+Store limits agents must plan around:
+
+- Google Play publishes through the developer's own service account with the
+  edits API, but only after they tick `policy_acknowledged` on the connection:
+  Google's API usage policy forbids third-party publishing services, so the
+  risk to their Play account is theirs. The API does not report review
+  outcomes; mark Play releases live with `glitch_report_distribution_result`.
+- Steam uploads are a `steamcmd` handoff, and Glitch never sets the default
+  (public) branch live. Push to a beta branch and promote in Steamworks.
+- Amazon Appstore accepts APKs only (no AAB). Glitch will not commit an edit
+  someone left open in the Amazon console unless `options.reuse_open_edit=true`.
+- Meta Quest needs an age group (`options.age_group` or the connection's
+  `age_group` setting: `TEENS_AND_ADULTS`, `MIXED_AGES`, `CHILDREN`).
+  Without it Meta saves the build as a draft.
+- Meta Instant Games zips need `index.html` and `fbapp-config.json` at the zip
+  root.
+- itch.io HTML5 zips need `index.html` at the zip root.
+
+Distribution errors include `upstreamCode`, `retryable`, `remediation`, and
+`upstreamContext` (for example preflight `issues` or a conflicting
+`submission_id`).
 
 ### Steam sales and wishlists (Steamworks Financial API)
 

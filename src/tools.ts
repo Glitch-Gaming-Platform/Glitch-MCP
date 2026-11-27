@@ -1,6 +1,7 @@
+import { openAsBlob } from "node:fs";
 import { open, readFile, realpath, stat } from "node:fs/promises";
 import { basename, extname, isAbsolute, relative, resolve, sep } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import * as z from "zod/v4";
@@ -32,6 +33,11 @@ import {
   presentAnalytics,
   presentArtifacts,
   presentBilling,
+  presentDistributionArtifact,
+  presentDistributionOverview,
+  presentDistributionPlatforms,
+  presentDistributionSubmission,
+  presentDistributionSubmissions,
   presentFinalReport,
   presentGuidance,
   presentRun,
@@ -448,7 +454,7 @@ const uploadSocialAssetCandidatesInput = z.object({
 
 const openDashboardInput = z.object({
   ...optionalTitleShape,
-  kind: z.enum(["title", "run", "action", "billing", "hosting"]).default("title"),
+  kind: z.enum(["title", "run", "action", "billing", "hosting", "distribution"]).default("title"),
   run_id: runIdSchema.optional(),
   action_id: actionIdSchema.optional()
 });
@@ -718,6 +724,140 @@ const promoteHostingReleaseInput = z.object({
   site_id: idSchema,
   release_id: idSchema,
   confirm: z.boolean().default(false).describe("Must be true. Changes the live hosted website to this release.")
+});
+
+/* ------------------------------------------------------------------ */
+/* Multi-store distribution (Games admin > Distribution)              */
+/* ------------------------------------------------------------------ */
+
+const DISTRIBUTION_PLATFORMS = [
+  "itch",
+  "amazon_appstore",
+  "meta_quest",
+  "meta_instant_games",
+  "steam",
+  "google_play",
+  "apple_app_store",
+  "microsoft_store",
+  "epic_games",
+  "gog",
+  "game_jolt",
+  "poki",
+  "crazygames",
+  "newgrounds"
+] as const;
+
+const DISTRIBUTION_ARTIFACT_KINDS = ["apk", "aab", "obb", "web_zip", "windows_zip", "mac_zip", "linux_zip", "android_zip"] as const;
+
+/** Single pre-signed PUT limit enforced by the backend (ArtifactStorage::MAX_SINGLE_PUT_BYTES). */
+const MAX_DISTRIBUTION_ARTIFACT_BYTES = 5 * 1024 * 1024 * 1024;
+
+/** Store limitations every distribution tool description repeats so agents plan around them. */
+const DISTRIBUTION_STORE_LIMITS =
+  "Store limits: Google Play publishes through the developer's own service account only after they tick the connection's policy_acknowledged setting (Google's API usage policy forbids third-party publishing services, so the risk to their Play account is theirs). Play uses the edits API (AAB preferred, rollout via options.rollout_percent, options.cancel_in_review to replace changes in review); the API does not report review outcomes, so mark Play releases live with glitch_report_distribution_result. Never tick the acknowledgement for the developer without asking. " +
+  "Steam uploads are a steamcmd handoff the developer runs locally, and Glitch never sets the default (public) branch live; push to a beta branch. " +
+  "Amazon Appstore accepts APKs only (no AAB) and Glitch refuses to commit an edit left open in the Amazon console unless options.reuse_open_edit=true. " +
+  "Meta Quest needs an age group (options.age_group or the connection's age_group setting: TEENS_AND_ADULTS, MIXED_AGES or CHILDREN), otherwise Meta silently saves a draft. " +
+  "Meta Instant Games zips need index.html and fbapp-config.json at the zip root. itch.io HTML5 zips need index.html at the zip root.";
+
+const distributionPlatformSchema = z
+  .enum(DISTRIBUTION_PLATFORMS)
+  .describe("Store key. glitch_list_distribution_platforms returns each store's automation level, accepted artifact kinds, channels, credential fields and limitations.");
+
+const distributionSubmissionIdShape = {
+  ...optionalTitleShape,
+  submission_id: idSchema.describe("Distribution submission id from glitch_submit_distribution or glitch_list_distribution_submissions.")
+};
+
+const distributionDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.");
+
+const connectDistributionStoreInput = z.object({
+  ...optionalTitleShape,
+  platform: distributionPlatformSchema,
+  credentials: z
+    .record(z.string().min(1).max(120), z.string().max(20_000))
+    .optional()
+    .describe("Write-only store credentials keyed by the platform's credential_fields (for example { client_id, client_secret } for Amazon). Values are stored encrypted and never returned. A blank or omitted field keeps the stored value. Ask the developer to provide them; never invent them."),
+  external_app_id: z.string().trim().min(1).max(255).optional().describe("The store's id for this game (itch game id, Amazon app id, Meta app id, Steam app id)."),
+  settings: z.record(z.string(), z.unknown()).optional().describe("Non-secret settings keyed by the platform's setting_fields (for example default_channel, age_group, depot_windows)."),
+  confirm: z.boolean().default(false).describe("Must be true. Saves store credentials for this title after the store verifies them.")
+});
+
+const updateDistributionStoreInput = z.object({
+  ...optionalTitleShape,
+  platform: distributionPlatformSchema,
+  external_app_id: z.string().trim().min(1).max(255).optional(),
+  settings: z.record(z.string(), z.unknown()).optional().describe("Non-secret settings keyed by the platform's setting_fields. Credentials cannot be changed here; use glitch_connect_distribution_store."),
+  confirm: z.boolean().default(false).describe("Must be true. Changes the store connection's app id or settings.")
+});
+
+const distributionPlatformInput = z.object({ ...optionalTitleShape, platform: distributionPlatformSchema });
+
+const prepareDistributionArtifactInput = z.object({
+  ...optionalTitleShape,
+  game_build_id: idSchema.describe("A ready HTML5/WebGL Glitch game build id. glitch_list_distribution_artifacts lists recent builds with a distributable flag.")
+});
+
+const uploadDistributionArtifactInput = z.object({
+  ...optionalTitleShape,
+  file_path: z.string().trim().min(1).max(1024).describe("Local path to the APK, AAB, OBB or zip on the developer machine. stdio transport only; the file is streamed, never loaded into memory."),
+  kind: z.enum(DISTRIBUTION_ARTIFACT_KINDS).optional().describe("Artifact kind. Inferred for .apk, .aab and .obb; required for .zip (web_zip, windows_zip, mac_zip, linux_zip or android_zip)."),
+  version_name: z.string().trim().min(1).max(64).optional().describe("Human version, e.g. 1.4.2. Read from the APK manifest when omitted."),
+  version_code: z.number().int().min(1).max(2_100_000_000).optional().describe("Android versionCode. Must match the APK manifest when given."),
+  timeout_ms: z.number().int().positive().max(4 * 60 * 60 * 1000).optional().describe("Upload timeout. Defaults to a size-based value (at least 10 minutes); the upload link expires after 4 hours.")
+});
+
+const submitDistributionInput = z.object({
+  ...optionalTitleShape,
+  platform: distributionPlatformSchema,
+  artifact_id: idSchema.optional().describe("A ready artifact from glitch_upload_distribution_artifact or glitch_prepare_distribution_artifact_from_build."),
+  game_build_id: idSchema.optional().describe("A ready HTML5/WebGL Glitch build; Glitch prepares the artifact. Use artifact_id or game_build_id, not both."),
+  channel: z.string().trim().min(1).max(120).optional().describe("Store channel/track/branch (itch channel such as html5, Quest ALPHA/BETA/RC/store, Steam beta branch). Defaults to the connection's default channel."),
+  version_label: z.string().trim().min(1).max(64).optional(),
+  release_notes: z.string().max(4000).optional(),
+  dry_run: z.boolean().default(true).describe("Default true: validate credentials, artifact and store rules without changing the store. Set false only after a clean dry run and explicit developer approval."),
+  submit_for_review: z.boolean().optional().describe("Whether to send the release to store review where the store supports it (default true on the server)."),
+  options: z.record(z.string(), z.unknown()).optional().describe("Store-specific options. Amazon: reuse_open_edit (boolean), apk_strategy (replace|add). Meta Quest: age_group (TEENS_AND_ADULTS|MIXED_AGES|CHILDREN). Unknown keys are ignored."),
+  idempotency_key: z.string().trim().min(8).max(120).regex(/^[A-Za-z0-9_.:-]+$/).optional().describe("Reuse the same key when retrying a call that timed out so Glitch returns the existing submission instead of pushing twice. Generated when omitted and returned in the result."),
+  confirm: z.boolean().default(false).describe("Must be true when dry_run=false. Pushing is public and may start store review.")
+}).refine((value) => !(value.artifact_id && value.game_build_id), { message: "Pass artifact_id or game_build_id, not both.", path: ["game_build_id"] });
+
+const listDistributionSubmissionsInput = z.object({
+  ...optionalTitleShape,
+  platform: distributionPlatformSchema.optional(),
+  status: z
+    .array(z.enum(["queued", "preflight", "uploading", "processing", "submitted", "in_review", "live", "needs_action", "failed", "cancelled", "validated"]))
+    .min(1)
+    .max(11)
+    .optional(),
+  per_page: z.number().int().min(1).max(100).optional()
+});
+
+const distributionSubmissionInput = z.object(distributionSubmissionIdShape);
+
+const confirmedDistributionSubmissionInput = (description: string) => z.object({
+  ...distributionSubmissionIdShape,
+  confirm: z.boolean().default(false).describe(description)
+});
+
+const reportDistributionResultInput = z.object({
+  ...distributionSubmissionIdShape,
+  status: z.enum(["submitted", "in_review", "live", "failed"]).describe("submitted: the CLI upload or console step finished; in_review: the store is reviewing it; live: players can get it; failed: the step failed (include the log)."),
+  external_build_id: z.string().trim().min(1).max(120).optional().describe("Build id the store or CLI printed (Steam BuildID, butler build id, Quest build id)."),
+  store_url: z.url().max(500).optional(),
+  notes: z.string().max(2000).optional(),
+  log: z.string().max(200_000).optional().describe("CLI output. Redact any secrets before sending; only the last 20,000 characters are kept.")
+});
+
+const distributionReportsInput = z.object({
+  ...optionalTitleShape,
+  from: distributionDateSchema.optional().describe("Start date (default: 29 days before to)."),
+  to: distributionDateSchema.optional().describe("End date (default: today).")
+});
+
+const syncDistributionReportsInput = z.object({
+  ...optionalTitleShape,
+  platform: distributionPlatformSchema.optional().describe("Only this store. Omit to sync every connected store that supports reports.")
 });
 
 export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
@@ -2096,6 +2236,474 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   }),
 
   /* ------------------------------------------------------------------ */
+  /* Multi-store distribution: push builds to itch.io, Amazon, Meta,     */
+  /* Steam and track manual stores. Separate from Glitch Hosting.        */
+  /* ------------------------------------------------------------------ */
+
+  defineTool(
+    "glitch_get_distribution",
+    "Get Store Distribution",
+    `Get the title's multi-store distribution overview: every supported store with its automation level (full, upload_only, handoff, manual), connection status, latest submission, last live version, and counts of in-flight, needs-action and recently failed submissions. Start here before connecting a store or pushing a build. Needs distribution:read. ${DISTRIBUTION_STORE_LIMITS}`,
+    z.object({ ...optionalTitleShape }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionOverview(titleId);
+      return toolSuccess({
+        title: "Store distribution",
+        summary: "Store connections and the latest submission per store. Distribution is separate from Glitch Hosting.",
+        data,
+        bodyMarkdown: presentDistributionOverview(data),
+        links: [{ name: "Open Distribution", url: readString(data.dashboard_url) ?? client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_distribution_platforms",
+    "List Distribution Platforms",
+    `List the store catalog: automation level, accepted artifact kinds, size limits, channels and default channel, credential_fields (which are secret), setting_fields, option keys, manual steps the developer must do in the store's own console, and each store's limitations. Read this before asking the developer for credentials or choosing an artifact. ${DISTRIBUTION_STORE_LIMITS}`,
+    z.object({ ...optionalTitleShape }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const platforms = await client.distributionPlatforms(titleId);
+      return toolSuccess({
+        title: "Distribution platforms",
+        summary: `${platforms.length} stores. automation=full pushes from Glitch; upload_only uploads but release is finished in the store console; handoff means the developer runs a generated CLI command; manual means Glitch only tracks releases.`,
+        data: { platforms },
+        bodyMarkdown: presentDistributionPlatforms(platforms),
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_connect_distribution_store",
+    "Connect Distribution Store",
+    "Connect or update a store for this title with the developer's own store credentials, keyed by the platform's credential_fields from glitch_list_distribution_platforms. The store verifies new credentials before Glitch saves them. Credentials are write-only: Glitch stores them encrypted and never returns them, and this tool's result only says which fields are set. Ask the developer for the values; never guess, log or repeat them. Blank fields keep the stored value. Google Play and other manual stores only need external_app_id for tracking. Needs distribution:connections and confirm=true.",
+    connectDistributionStoreInput,
+    false,
+    async (client, input) => {
+      requireConfirmation(input.confirm, "Saving store credentials for distribution");
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.connectDistributionStore(titleId, input.platform, omitUndefined({
+        credentials: input.credentials,
+        external_app_id: input.external_app_id,
+        settings: input.settings
+      }));
+      const safe = redactCredentialEcho(data, input.credentials);
+      return toolSuccess({
+        title: "Store connected",
+        summary: `${input.platform} connection is ${readString(safe.status) ?? "saved"}. Credentials are stored encrypted and are never returned; credentials_set shows which fields are present.`,
+        data: safe,
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_update_distribution_store_settings",
+    "Update Distribution Store Settings",
+    "Change a connected store's external app id or non-secret settings (default channel, Quest age_group, Amazon apk_strategy, Steam depot ids). Does not touch credentials. Needs distribution:connections and confirm=true.",
+    updateDistributionStoreInput,
+    false,
+    async (client, input) => {
+      requireConfirmation(input.confirm, "Changing store connection settings");
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.updateDistributionStore(titleId, input.platform, omitUndefined({
+        external_app_id: input.external_app_id,
+        settings: input.settings
+      }));
+      return toolSuccess({
+        title: "Store settings updated",
+        summary: `Updated the ${input.platform} connection settings.`,
+        data,
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_test_distribution_store",
+    "Test Distribution Store",
+    "Check a connected store's stored credentials against the store. Nothing changes on the store, but Glitch records the result and marks the connection invalid if the store rejects the credentials. Needs distribution:submit. Returns whether they work and any account details the store reports.",
+    distributionPlatformInput,
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.testDistributionStore(titleId, input.platform);
+      return toolSuccess({
+        title: "Store connection test",
+        summary: data.valid === false
+          ? `The ${input.platform} credentials failed: ${readString(toRecord(data.error)?.message) ?? "see error"}. Update them with glitch_connect_distribution_store.`
+          : data.verified === false
+            ? `${input.platform} has no API to verify credentials; nothing was checked.`
+            : `The ${input.platform} credentials work.`,
+        data,
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_distribution_store_apps",
+    "List Distribution Store Apps",
+    "List the games/apps a connected store account can publish to, so the developer can pick external_app_id. Stores without an app-listing API return an empty list; ask the developer for the id instead.",
+    distributionPlatformInput,
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const apps = await client.distributionStoreApps(titleId, input.platform);
+      return toolSuccess({
+        title: "Store apps",
+        summary: apps.length ? `${apps.length} apps on the connected ${input.platform} account.` : `${input.platform} did not list any apps. Ask the developer for the store's app id.`,
+        data: { platform: input.platform, apps }
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_distribution_artifacts",
+    "List Distribution Artifacts",
+    "List uploaded store artifacts (APK, AAB, OBB and platform zips) with status, version, size, sha256 and inspection issues, plus recent ready Glitch game builds with a distributable flag (HTML5/WebGL builds can go to web stores).",
+    z.object({ ...optionalTitleShape }),
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionArtifacts(titleId);
+      const artifacts = toArray(data.artifacts).map(toRecord).filter((item): item is JsonObject => item !== undefined);
+      const builds = toArray(data.builds).map(toRecord).filter((item): item is JsonObject => item !== undefined);
+      const body = [
+        artifacts.length ? artifacts.slice(0, 20).map((artifact) => presentDistributionArtifact(artifact)).join("\n\n") : "_No uploaded artifacts._",
+        "",
+        "**Recent ready builds:**",
+        ...(builds.length
+          ? builds.map((build) => `- \`${readString(build.id) ?? "?"}\` ${readString(build.version_string) ?? ""} (${readString(build.deployment_type) ?? "?"})${build.distributable === true ? " — distributable to web stores" : ""}`)
+          : ["_None._"])
+      ].join("\n");
+      return toolSuccess({
+        title: "Distribution artifacts",
+        summary: `${artifacts.length} artifacts and ${builds.length} recent ready builds.`,
+        data,
+        bodyMarkdown: body,
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_prepare_distribution_artifact_from_build",
+    "Prepare Artifact From Build",
+    "Turn a ready HTML5/WebGL Glitch game build into a web_zip store artifact and inspect it. Native builds are rejected; upload a platform file with glitch_upload_distribution_artifact instead. Reuses the existing artifact for the same build. Builds that start somewhere other than index.html get a warning because itch.io and Instant Games need index.html at the zip root.",
+    prepareDistributionArtifactInput,
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const artifact = await client.distributionArtifactFromBuild(titleId, input.game_build_id);
+      return toolSuccess({
+        title: "Distribution artifact prepared",
+        summary: distributionArtifactSummary(artifact),
+        data: artifact,
+        bodyMarkdown: presentDistributionArtifact(artifact)
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_upload_distribution_artifact",
+    "Upload Distribution Artifact",
+    "Upload a local store file (APK, AAB, OBB, or a web/windows/mac/linux/android zip) from the developer machine as a distribution artifact: creates the artifact, streams the file to its pre-signed storage URL (without the Glitch Authorization header), then completes it so Glitch hashes and inspects it. Limit 5 GB per file (larger Steam depots are uploaded with steamcmd directly). stdio transport only. The result reports the artifact status (ready, invalid, or pending_upload while a large file is still being inspected) and every inspection issue; fix errors before submitting. Amazon takes APKs only; itch.io HTML5 and Instant Games zips need index.html at the root (Instant Games also fbapp-config.json). Needs distribution:submit.",
+    uploadDistributionArtifactInput,
+    false,
+    async (client, input, ctx) => {
+      if (!client.canReadLocalFiles) {
+        throw new GlitchMcpError(
+          "validation_error",
+          "Local file reads are disabled for this transport (HTTP). Run the stdio MCP adapter on the developer machine, or upload the file in the Glitch Distribution dashboard."
+        );
+      }
+      await assertUploadPathAllowed(input.file_path, client.uploadAllowedRoots);
+
+      let metadata;
+      try {
+        metadata = await stat(input.file_path);
+      } catch {
+        throw new GlitchMcpError("not_found", `Could not read a local file at "${input.file_path}".`);
+      }
+      if (!metadata.isFile()) {
+        throw new GlitchMcpError("validation_error", `Artifact path "${input.file_path}" is not a regular file.`);
+      }
+      if (metadata.size === 0) {
+        throw new GlitchMcpError("validation_error", "The artifact file is empty.");
+      }
+      if (metadata.size > MAX_DISTRIBUTION_ARTIFACT_BYTES) {
+        throw new GlitchMcpError(
+          "validation_error",
+          `The file is ${(metadata.size / (1024 * 1024 * 1024)).toFixed(2)} GB. Distribution uploads are limited to 5 GB per file; upload larger Steam depots with steamcmd from your machine.`
+        );
+      }
+
+      const fileName = basename(input.file_path);
+      const kind = input.kind ?? inferDistributionArtifactKind(fileName);
+      const titleId = client.resolveTitleId(input.title_id);
+
+      const created = await client.createDistributionArtifact(titleId, omitUndefined({
+        kind,
+        filename: fileName,
+        size_bytes: metadata.size,
+        version_name: input.version_name,
+        version_code: input.version_code
+      }));
+      const createdArtifact = toRecord(created.artifact) ?? {};
+      const artifactId = readString(createdArtifact.id);
+      const uploadUrl = readString(created.upload_url);
+      if (!artifactId || !uploadUrl) {
+        throw new GlitchMcpError("upstream_error", "Glitch did not return an artifact id and upload URL.");
+      }
+      const uploadHeaders = Object.fromEntries(
+        Object.entries(toRecord(created.upload_headers) ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      );
+
+      const timeoutMs = input.timeout_ms ?? Math.min(4 * 60 * 60 * 1000, Math.max(10 * 60 * 1000, 60_000 + Math.ceil(metadata.size / (512 * 1024)) * 1000));
+      await ctx?.log?.("info", `Uploading ${fileName} (${(metadata.size / (1024 * 1024)).toFixed(1)} MB) as ${kind} artifact ${artifactId}.`);
+      await ctx?.progress?.(0, 2, "Uploading");
+      const contentType = Object.entries(uploadHeaders).find(([name]) => name.toLowerCase() === "content-type")?.[1];
+      const file = await openAsBlob(input.file_path, contentType ? { type: contentType } : undefined);
+      try {
+        await client.uploadDistributionArtifactFile(uploadUrl, file, uploadHeaders, {
+          timeoutMs,
+          ...(ctx?.signal ? { signal: ctx.signal } : {})
+        });
+      } catch (error) {
+        if (error instanceof GlitchMcpError) {
+          throw new GlitchMcpError(
+            error.code,
+            `${error.message} Artifact ${artifactId} is still pending_upload; call glitch_upload_distribution_artifact again to create a fresh upload.`,
+            error.details
+          );
+        }
+        throw error;
+      }
+      await ctx?.progress?.(1, 2, "Inspecting");
+
+      const artifact = await client.completeDistributionArtifact(titleId, artifactId);
+      await ctx?.progress?.(2, 2, readString(artifact.status) ?? "done");
+      return toolSuccess({
+        title: "Distribution artifact uploaded",
+        summary: distributionArtifactSummary(artifact),
+        data: artifact,
+        bodyMarkdown: presentDistributionArtifact(artifact),
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_submit_distribution",
+    "Submit Build To Store",
+    `Push an artifact (or a ready HTML5 Glitch build) to one store. ALWAYS dry-run first (dry_run defaults to true): a dry run checks credentials, the artifact and store rules and ends as validated without touching the store. A real push (dry_run=false) is public, may start store review, and needs the developer's explicit approval plus confirm=true. One push per store channel/app can be in flight at a time. The result is queued; poll glitch_get_distribution_submission. Many stores end in needs_action with handoff \`actions\`: commands the developer can run locally (butler for itch.io, ovr-platform-util for Meta Quest, steamcmd for Steam), environment variables whose values come from the developer's store account, or console steps. After the step is done, call glitch_report_distribution_result with the outcome and CLI output. Reuse idempotency_key when retrying a call that timed out. ${DISTRIBUTION_STORE_LIMITS}`,
+    submitDistributionInput,
+    false,
+    async (client, input) => {
+      if (!input.dry_run && !input.confirm) {
+        throw new GlitchMcpError(
+          "confirmation_required",
+          "Pushing to a store (dry_run=false) is public and may start store review. Run with dry_run=true first, get the developer's approval, then repeat with dry_run=false and confirm=true."
+        );
+      }
+      const titleId = client.resolveTitleId(input.title_id);
+      const idempotencyKey = input.idempotency_key ?? `mcp-${randomUUID()}`;
+      const data = await client.createDistributionSubmission(titleId, omitUndefined({
+        platform: input.platform,
+        artifact_id: input.artifact_id,
+        game_build_id: input.game_build_id,
+        channel: input.channel,
+        version_label: input.version_label,
+        release_notes: input.release_notes,
+        dry_run: input.dry_run,
+        submit_for_review: input.submit_for_review,
+        options: input.options,
+        idempotency_key: idempotencyKey,
+        confirm: input.dry_run ? undefined : true
+      }));
+      const created = data.created !== false;
+      const summary = [
+        input.dry_run
+          ? `Validation run queued for ${input.platform}; nothing is sent to the store.`
+          : `Push to ${input.platform} queued.`,
+        created ? "" : "This idempotency_key matched an existing submission, so no new push was started.",
+        "Poll glitch_get_distribution_submission until it is validated, live, needs_action or failed. On needs_action, follow the handoff actions, then call glitch_report_distribution_result."
+      ].filter(Boolean).join(" ");
+      return toolSuccess({
+        title: input.dry_run ? "Distribution dry run queued" : "Distribution push queued",
+        summary,
+        data: { ...data, idempotency_key: idempotencyKey },
+        bodyMarkdown: presentDistributionSubmission(data),
+        links: [{ name: "Open Distribution", url: readString(data.dashboard_url) ?? client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_get_distribution_submission",
+    "Get Distribution Submission",
+    "Get one submission with status, stage, store result, preflight issues, structured error (code, remediation, retryable), handoff actions and the event log. On needs_action, run or relay the actions (commands such as butler, ovr-platform-util or steamcmd; the developer supplies env var values from their store account), then call glitch_report_distribution_result. Ignore the curl report command in actions: it needs a one-time handoff token MCP does not issue.",
+    distributionSubmissionInput,
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionSubmission(titleId, input.submission_id);
+      return toolSuccess({
+        title: "Distribution submission",
+        summary: `${readString(data.platform) ?? "Store"} submission is ${readString(data.status) ?? "unknown"}.`,
+        data,
+        bodyMarkdown: presentDistributionSubmission(data),
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_list_distribution_submissions",
+    "List Distribution Submissions",
+    "List recent store submissions, newest first, optionally filtered by store and status.",
+    listDistributionSubmissionsInput,
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionSubmissions(titleId, omitUndefined({
+        platform: input.platform,
+        status: input.status?.join(","),
+        per_page: input.per_page
+      }));
+      const rows = toArray(data.rows).map(toRecord).filter((row): row is JsonObject => row !== undefined);
+      return toolSuccess({
+        title: "Distribution submissions",
+        summary: `${rows.length} submissions.`,
+        data,
+        bodyMarkdown: presentDistributionSubmissions(rows),
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_cancel_distribution_submission",
+    "Cancel Distribution Submission",
+    "Cancel a queued or in-progress submission. Where the store supports it Glitch also discards the open store edit; an upload the store already accepted is not undone. Needs confirm=true.",
+    confirmedDistributionSubmissionInput("Must be true. Cancels the submission."),
+    false,
+    async (client, input) => {
+      requireConfirmation(input.confirm, "Cancelling a store submission");
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionSubmissionAction(titleId, input.submission_id, "cancel");
+      return toolSuccess({
+        title: "Distribution submission cancelled",
+        summary: `Submission ${input.submission_id} is ${readString(data.status) ?? "cancelled"}.`,
+        data,
+        bodyMarkdown: presentDistributionSubmission(data)
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_retry_distribution_submission",
+    "Retry Distribution Submission",
+    "Retry a failed submission after fixing the cause in its error remediation. A retried non-dry-run submission pushes to the store again (public). Needs confirm=true.",
+    confirmedDistributionSubmissionInput("Must be true. Re-runs the submission, which may push to the store again."),
+    false,
+    async (client, input) => {
+      requireConfirmation(input.confirm, "Retrying a store submission");
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionSubmissionAction(titleId, input.submission_id, "retry");
+      return toolSuccess({
+        title: "Distribution submission retried",
+        summary: `Submission ${input.submission_id} is ${readString(data.status) ?? "queued"}. Poll glitch_get_distribution_submission.`,
+        data,
+        bodyMarkdown: presentDistributionSubmission(data)
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_refresh_distribution_submission",
+    "Refresh Distribution Submission",
+    "Ask the store for the latest status of a processing, submitted or in-review submission now instead of waiting for the next scheduled check. Stores without a status API (manual stores, Meta Quest) cannot be refreshed; report the result instead.",
+    distributionSubmissionInput,
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionSubmissionAction(titleId, input.submission_id, "refresh");
+      return toolSuccess({
+        title: "Distribution submission refreshed",
+        summary: `Submission ${input.submission_id} is ${readString(data.status) ?? "unknown"}.`,
+        data,
+        bodyMarkdown: presentDistributionSubmission(data)
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_report_distribution_result",
+    "Report Distribution Result",
+    "Record the outcome of a step done outside Glitch for a needs_action, submitted or in_review submission: a butler/ovr-platform-util/steamcmd run, or a release finished in the store console (including Google Play, which Glitch tracks manually). Use status=submitted after an upload, in_review when the store is reviewing it, live when players can get it, or failed with the CLI log. Include the store build id and URL when known, and strip secrets from the log.",
+    reportDistributionResultInput,
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionSubmissionAction(titleId, input.submission_id, "result", omitUndefined({
+        status: input.status,
+        external_build_id: input.external_build_id,
+        store_url: input.store_url,
+        notes: input.notes,
+        log: input.log
+      }));
+      return toolSuccess({
+        title: "Distribution result recorded",
+        summary: `Submission ${input.submission_id} is now ${readString(data.status) ?? input.status}.`,
+        data,
+        bodyMarkdown: presentDistributionSubmission(data)
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_get_distribution_reports",
+    "Get Distribution Reports",
+    "Get store distribution reports for a date range: store metrics and daily timeseries pulled from stores that offer reporting (Amazon sales, Steam via the Financial API connection, itch.io lifetime snapshots), submission outcomes per store (success rate, median hours to live, top errors) and which connected stores support reports. Defaults to the last 30 days.",
+    distributionReportsInput,
+    true,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.distributionReports(titleId, omitUndefined({ from: input.from, to: input.to }));
+      return toolSuccess({
+        title: "Distribution reports",
+        summary: "Store metrics and submission outcomes. Refresh store data with glitch_sync_distribution_reports.",
+        data,
+        links: [{ name: "Open Distribution", url: client.dashboardUrl("distribution", { titleId }) }]
+      });
+    }
+  ),
+
+  defineTool(
+    "glitch_sync_distribution_reports",
+    "Sync Distribution Reports",
+    "Queue a pull of the latest report data from connected stores that support reporting. Read-only toward the stores; it only refreshes Glitch's copy.",
+    syncDistributionReportsInput,
+    false,
+    async (client, input) => {
+      const titleId = client.resolveTitleId(input.title_id);
+      const data = await client.syncDistributionReports(titleId, omitUndefined({ platform: input.platform }));
+      return toolSuccess({
+        title: "Distribution report sync queued",
+        summary: "Glitch is pulling store reports in the background. Read them with glitch_get_distribution_reports.",
+        data
+      });
+    }
+  ),
+
+  /* ------------------------------------------------------------------ */
   /* Game services: multiplayer, cloud save, leaderboards, achievements, */
   /* and deployments. These operate the game associated with the current */
   /* title token (title_or_jwt public API), so the agent can run live     */
@@ -3351,4 +3959,62 @@ function stringArrayField(data: JsonObject, key: string): string[] {
 
 function omitUndefined(input: JsonObject): JsonObject {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
+/** Infer a distribution artifact kind from the file extension; zips are ambiguous. */
+function inferDistributionArtifactKind(fileName: string): (typeof DISTRIBUTION_ARTIFACT_KINDS)[number] {
+  const ext = extname(fileName).replace(/^\./, "").toLowerCase();
+  if (ext === "apk" || ext === "aab" || ext === "obb") {
+    return ext;
+  }
+  if (ext === "zip") {
+    throw new GlitchMcpError(
+      "validation_error",
+      "Pass kind for a .zip: web_zip (HTML5), windows_zip, mac_zip, linux_zip or android_zip."
+    );
+  }
+  throw new GlitchMcpError(
+    "validation_error",
+    `"${fileName}" is not a store artifact. Upload an .apk, .aab, .obb or .zip and pass kind for zips.`
+  );
+}
+
+function distributionArtifactSummary(artifact: JsonObject): string {
+  const status = readString(artifact.status) ?? "unknown";
+  const id = readString(artifact.id) ?? "?";
+  if (status === "ready") {
+    return `Artifact ${id} is ready. Submit it with glitch_submit_distribution (dry run first).`;
+  }
+  if (status === "invalid") {
+    return `Artifact ${id} failed inspection: ${readString(artifact.invalid_reason) ?? "see inspection issues"}. Fix the file and upload it again; stores will reject it.`;
+  }
+  return `Artifact ${id} is ${status}. Large files are inspected in the background; check glitch_list_distribution_artifacts before submitting.`;
+}
+
+/**
+ * Defense in depth for write-only store credentials: the backend never returns
+ * them, but if any provided secret value ever appeared in a response it is
+ * redacted before it can reach model context. Non-secret identifiers the
+ * backend deliberately echoes under public_credentials are kept.
+ */
+function redactCredentialEcho(data: JsonObject, credentials: Record<string, string> | undefined): JsonObject {
+  const { credentials: _dropped, ...rest } = data;
+  const publicCredentials = toRecord(rest.public_credentials) ?? {};
+  const secrets = Object.entries(credentials ?? {})
+    .filter(([key, value]) => value.trim().length >= 4 && publicCredentials[key] !== value.trim())
+    .map(([, value]) => value.trim());
+  if (!secrets.length) {
+    return rest;
+  }
+  const scrub = (value: unknown): unknown => {
+    if (typeof value === "string") {
+      return secrets.some((secret) => value.includes(secret)) ? "[redacted]" : value;
+    }
+    if (Array.isArray(value)) {
+      return value.map(scrub);
+    }
+    const record = toRecord(value);
+    return record ? Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, scrub(entry)])) : value;
+  };
+  return scrub(rest) as JsonObject;
 }

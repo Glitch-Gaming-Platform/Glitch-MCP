@@ -375,6 +375,12 @@ The adapter exposes a guarded tool surface. Social primitives are discovered dyn
 - `glitch_list_hosting_databases` / `glitch_get_hosting_database` — inspect safe managed database metadata; owners reveal credentials manually in the Hosting dashboard, never through MCP
 - `glitch_create_hosting_database` / `glitch_update_hosting_database` / `glitch_retry_hosting_database` / `glitch_delete_hosting_database`
 - `glitch_change_hosting_plan` / `glitch_confirm_hosting_checkout` — manage direct, Microsoft Marketplace, or paid AWS Marketplace bandwidth plans and confirm direct paid Hosting checkouts
+- `glitch_get_distribution` / `glitch_list_distribution_platforms` — store distribution overview and the store catalog (automation level, accepted files, credential fields, limitations)
+- `glitch_connect_distribution_store` / `glitch_update_distribution_store_settings` / `glitch_test_distribution_store` / `glitch_list_distribution_store_apps` — connect itch.io, Amazon Appstore, Meta Quest, Meta Instant Games, Steam and tracked stores; credentials are write-only, stored encrypted and never returned
+- `glitch_list_distribution_artifacts` / `glitch_prepare_distribution_artifact_from_build` / `glitch_upload_distribution_artifact` — turn an HTML5 build into a web zip, or stream a local APK, AAB, OBB or zip (up to 5 GB) to Glitch for inspection
+- `glitch_submit_distribution` — dry-run by default; a real push is public, may start store review, and needs `confirm=true`
+- `glitch_get_distribution_submission` / `glitch_list_distribution_submissions` / `glitch_cancel_distribution_submission` / `glitch_retry_distribution_submission` / `glitch_refresh_distribution_submission` / `glitch_report_distribution_result` — follow a push, run handoff commands (butler, ovr-platform-util, steamcmd) and report the result
+- `glitch_get_distribution_reports` / `glitch_sync_distribution_reports` — store metrics and submission outcomes
 
 Full contract: [docs/tool-reference.md](docs/tool-reference.md).
 
@@ -424,6 +430,20 @@ Paid operations use a two-step safety flow:
 Database responses contain an endpoint, port, and binding name only. Passwords, secret references, and full connection strings are never returned. `glitch_update_hosting_site` also rejects password-, token-, key-, and connection-string-shaped configuration before it leaves the local adapter.
 
 Use the packaged `/glitch_manage_hosting` prompt for a guided, nontechnical management flow.
+
+## Distribute To Game Stores
+
+The distribution tools push builds from the Games admin Distribution tab to itch.io, Amazon Appstore, Google Play, Meta Quest, Meta Instant Games and Steam, and track releases on the App Store, Microsoft Store, Epic, GOG, Game Jolt, Poki, CrazyGames and Newgrounds.
+
+1. `glitch_get_distribution` and `glitch_list_distribution_platforms` show each store's automation level, accepted files and limitations.
+2. `glitch_connect_distribution_store` saves the developer's own store credentials. They are write-only: stored encrypted and never returned to MCP.
+3. `glitch_upload_distribution_artifact` streams a local APK, AAB, OBB or zip (up to 5 GB) to Glitch, or `glitch_prepare_distribution_artifact_from_build` reuses a ready HTML5 build. Glitch inspects the file before any store sees it.
+4. `glitch_submit_distribution` dry-runs by default. A real push is public, may start store review, and requires `confirm=true`.
+5. Stores that need a local step end in `needs_action` with commands to run (butler, ovr-platform-util, steamcmd). Report the outcome with `glitch_report_distribution_result`.
+
+Google Play publishes with the developer's own service account only after they acknowledge on the connection that Google's API usage policy forbids third-party publishing services; the risk to their Play account is theirs. Glitch never sets a Steam default branch live.
+
+Use the packaged `/glitch_distribute_game` prompt for a guided flow.
 
 ## Developer Social Assets
 
