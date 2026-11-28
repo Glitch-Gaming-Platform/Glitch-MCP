@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Glitch MCP pricing is one plan: $10/month per game, and every paid Glitch
-  plan includes MCP access. `glitch_get_billing_status` now reports whether the
+  plan (including the one-time $10 distribution fee) includes MCP access. `glitch_get_billing_status` now reports whether the
   game has Glitch MCP, which plan covers it, Glitch Agent runs left this month,
   and the subscribe link. A 402 from any tool links to "Subscribe to Glitch MCP
   ($10/month)" on the game's MCP page instead of the agent billing page.

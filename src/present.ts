@@ -249,7 +249,9 @@ export function presentBilling(data: JsonObject): string {
   const priceLabel = str(plan.price_label) || str(data.price_label) || "$10/month per game";
   const lines: string[] = [`**Glitch MCP:** ${hasAccess ? "active" : `not active. Subscribe for ${priceLabel}, or use any paid Glitch plan.`}`];
   if (hasAccess && str(mcp.active_plan_name)) {
-    lines.push(`**Plan:** ${str(mcp.active_plan_name)}${mcp.access_source === "business_plan" ? " (business plan)" : ""}`);
+    lines.push(mcp.access_source === "distribution_fee"
+      ? "**Plan:** included with this game's $10 distribution fee"
+      : `**Plan:** ${str(mcp.active_plan_name)}${mcp.access_source === "business_plan" ? " (business plan)" : ""}`);
   }
   if (hasAccess && typeof mcp.monthly_runs_included === "number") {
     lines.push(
