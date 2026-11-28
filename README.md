@@ -112,6 +112,20 @@ This repository is the public adapter. It does not contain the private Glitch Ag
 - Optional local stdio proxy for MCP clients that do not yet support remote auth cleanly.
 - Client setup docs for Codex, Cursor, and Claude Code.
 
+## Pricing
+
+Glitch MCP is one plan: **$10/month per game**. It unlocks every MCP tool for
+that game (analytics, Steam research, campaigns, influencers, social, commerce,
+hosting and distribution tools) plus a monthly allowance of Glitch Agent runs.
+Every paid plan on [glitch.fun/publishers/pricing](https://www.glitch.fun/publishers/pricing)
+also includes MCP access.
+
+- Subscribe from the game's MCP page: `https://www.glitch.fun/mcp/titles/<title_id>`.
+- `glitch_auth_status`, `glitch_get_billing_status` and token setup work without
+  a plan, so your AI can tell you the price and send you the subscribe link.
+- Without a plan, other tools return `subscription_required` with that link.
+- The one-time $10 distribution fee for publishing a game is a separate product.
+
 ## What Stays Private
 
 - Private Glitch Agent planning prompts. The separate AI Game Development Prompt library is intentionally public.
@@ -188,6 +202,33 @@ default_tools_approval_mode = "prompt"
 ```
 
 Hosted Streamable HTTP connector is provided on the same API domain at `https://api.glitch.fun/mcp`.
+
+#### Hosted connector with sign-in (ChatGPT, Claude, Claude Duet, Gemini CLI)
+
+No install or token needed: add `https://api.glitch.fun/mcp` as a remote MCP
+server and approve on glitch.fun (OAuth 2.1 with PKCE, dynamic client
+registration and Client ID Metadata Documents).
+
+- **Claude / Claude Duet:** claude.ai → Settings → Connectors → Add custom
+  connector → paste the URL → Connect → approve on glitch.fun. Claude Duet uses
+  your account's connectors.
+- **ChatGPT:** Settings → Apps (enable Developer mode under Advanced if asked) →
+  create a connector named Glitch with the URL and OAuth → approve on glitch.fun.
+- **Gemini CLI:**
+
+  ```bash
+  gemini mcp add --transport http glitch https://api.glitch.fun/mcp
+  ```
+
+  Then run `gemini` and type `/mcp auth glitch` to sign in. In
+  `settings.json` this is `"glitch": { "httpUrl": "https://api.glitch.fun/mcp" }`.
+
+The hosted connector exposes single-purpose tools such as `list_games`,
+`find_streamed_lookalike_games`, `assign_lookalike_games`, `send_creator_reply`,
+`generate_social_post_drafts`, `create_social_post`, `get_analytics_report` and
+`find_steam_comparables`. Tools that send email, publish or change settings
+require `confirm=true`. Sending an `Authorization: Bearer` title token instead
+reaches the full npm tool set described below.
 
 Local development stdio proxy:
 
