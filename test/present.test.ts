@@ -75,6 +75,12 @@ describe("presenters", () => {
       .toContain("My Game");
     expect(presentBilling({ has_access: true, agents: [{ name: "Marketer", billing_plan: "pro", billing_status: "active", has_billing_access: true }] }))
       .toContain("active");
+    const active = presentBilling({ has_access: true, mcp_subscription: { has_access: true, active_plan_name: "Glitch MCP", access_source: "agent_plan", monthly_runs_included: 6, monthly_runs_used: 2, plan: { price_label: "$10/month per game" } } });
+    expect(active).toContain("**Glitch MCP:** active");
+    expect(active).toContain("**Agent runs this month:** 2/6");
+    const business = presentBilling({ has_access: true, mcp_subscription: { has_access: true, active_plan_name: "Growth", access_source: "business_plan", monthly_runs_included: 0 } });
+    expect(business).toContain("Growth (business plan)");
+    expect(business).toContain("Add the $10/month per game Glitch MCP plan to run Glitch Agents");
   });
 
   it("renders analytics catalogs and partial bundles without flattening unavailable reports", () => {

@@ -211,7 +211,7 @@ token/session has not expired
 workspace is active
 title belongs to workspace
 user or key has title access
-subscription/trial/credits allow the requested tool
+the game has Glitch MCP access ($10/month plan or any paid Glitch plan)
 scope allows the requested tool
 rate limit has not been exceeded
 connected account requirements are satisfied
@@ -225,8 +225,9 @@ The hosted service should return clear, structured errors:
 
 ```json
 {
-  "message": "This title needs an active Glitch Agent subscription.",
-  "billing_url": "https://www.glitch.fun/agents/titles/title_123/billing"
+  "message": "Glitch MCP is $10/month per game, and every paid Glitch plan includes it. Subscribe for this game to unlock every MCP tool, including Glitch Agent runs.",
+  "code": "mcp_subscription_required",
+  "billing_url": "https://www.glitch.fun/mcp/titles/title_123"
 }
 ```
 

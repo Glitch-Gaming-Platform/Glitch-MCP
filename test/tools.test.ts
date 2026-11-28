@@ -318,12 +318,41 @@ describe("Glitch MCP tools", () => {
     expect(result.structuredContent?.data).toEqual({ id: "run_1", status: "queued" });
   });
 
-  it("returns the title-scoped billing page as a visible link when a run is payment blocked", async () => {
-    const billingUrl = "https://app.example.test/agents/titles/title_default/billing";
+  it("reports the $10/month Glitch MCP plan and subscribe page from glitch_get_billing_status", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: {
+      title_id: "title_default",
+      has_access: false,
+      agents: [],
+      price_label: "$10/month per game",
+      mcp_subscription: {
+        has_access: false,
+        status: "subscription_required",
+        plan: { key: "basic_10", name: "Glitch MCP", monthly_usd: 10, price_label: "$10/month per game", monthly_runs: 6 },
+        subscribe_url: "https://www.glitch.fun/mcp/titles/title_default"
+      }
+    } }));
+    const client = new GlitchClient(config, mock.fetch);
+    const result = await callTool("glitch_get_billing_status", client, {});
+    const text = result.content.map((item) => ("text" in item ? item.text : "")).join("\n");
+
+    expect(mock.requests[0]?.url).toBe("https://mcp.example.test/mcp/v1/titles/title_default/billing");
+    expect(text).toContain("Glitch MCP needs a subscription for this game: $10/month per game");
+    expect(text).toContain("**Glitch MCP:** not active. Subscribe for $10/month per game");
+    expect(text).toContain("https://www.glitch.fun/mcp/titles/title_default");
+    expect(result.content).toContainEqual(expect.objectContaining({
+      type: "resource_link",
+      name: "Subscribe to Glitch MCP ($10/month)",
+      uri: expect.stringMatching(/\/mcp\/titles\/title_default$/)
+    }));
+  });
+
+  it("returns the $10/month Glitch MCP subscribe link when a tool is payment blocked", async () => {
+    const billingUrl = "https://app.example.test/mcp/titles/title_default";
     const dashboardUrl = "https://app.example.test/agents/titles/title_default";
     const mock = createFetchMock(() => jsonResponse({
       data: { id: "run_blocked", status: "blocked", error: "subscription_required" },
-      message: "A Glitch Agent subscription is required before this run can execute.",
+      message: "Glitch MCP is $10/month per game, and every paid Glitch plan includes it.",
+      code: "mcp_subscription_required",
       billing_url: billingUrl,
       dashboard_url: dashboardUrl
     }, 402));
@@ -331,18 +360,19 @@ describe("Glitch MCP tools", () => {
     const result = await safeTool(() => callTool("glitch_start_agent_run", client, { prompt: "Post the approved image to X" }));
 
     expect(result.isError).toBe(true);
-    expect(result.content[0]?.text).toContain(`Open agent billing: ${billingUrl}`);
+    expect(result.content[0]?.text).toContain("$10/month per game");
+    expect(result.content[0]?.text).toContain(`Subscribe to Glitch MCP ($10/month): ${billingUrl}`);
     expect(result.content).toContainEqual(expect.objectContaining({
       type: "resource_link",
       uri: billingUrl,
-      name: "Open agent billing"
+      name: "Subscribe to Glitch MCP ($10/month)"
     }));
     expect(result.structuredContent).toMatchObject({
       status: "error",
       code: "subscription_required",
       details: { billingUrl, dashboardUrl },
       links: [
-        { name: "Open agent billing", url: billingUrl },
+        { name: "Subscribe to Glitch MCP ($10/month)", url: billingUrl },
         { name: "Open Glitch dashboard", url: dashboardUrl }
       ]
     });

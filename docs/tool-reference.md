@@ -221,7 +221,10 @@ blueprint at the path specified by `documentationInstruction`.
 
 ### glitch_get_billing_status
 
-Fetches subscription, trial, credits, plan, and entitlement status.
+Shows whether the game has Glitch MCP access, which plan covers it, Glitch Agent
+runs used and left this month, and the subscribe link. Glitch MCP is $10/month
+per game, and every paid Glitch plan includes it. This tool works without a
+subscription so a developer can see the price and subscribe.
 
 Input:
 

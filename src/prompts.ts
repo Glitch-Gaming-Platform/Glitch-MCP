@@ -542,8 +542,8 @@ const toolCommandPrompts: ToolCommandPrompt[] = [
   {
     name: "glitch_get_billing_status",
     title: "Glitch Get Billing Status",
-    description: "Check subscription, trial, plan, and credit state for a title.",
-    guidance: ["Use the selected title unless a title id is provided.", "Summarize whether paid agent runs are available and include returned billing links."]
+    description: "Check this game's Glitch MCP plan ($10/month per game, or included with any paid Glitch plan) and agent runs left.",
+    guidance: ["Use the selected title unless a title id is provided.", "Say whether Glitch MCP is active, which plan covers it, and how many Glitch Agent runs are left this month.", "If it is not active, give the $10/month price and the returned subscribe link."]
   },
   {
     name: "glitch_get_social_capabilities",

@@ -244,7 +244,27 @@ export function presentTitles(data: JsonObject): string {
 
 export function presentBilling(data: JsonObject): string {
   const hasAccess = data.has_access === true;
-  const lines: string[] = [`**Access:** ${hasAccess ? "active" : "no active subscription/credits"}`];
+  const mcp = asRecord(data.mcp_subscription) || {};
+  const plan = asRecord(mcp.plan) || {};
+  const priceLabel = str(plan.price_label) || str(data.price_label) || "$10/month per game";
+  const lines: string[] = [`**Glitch MCP:** ${hasAccess ? "active" : `not active. Subscribe for ${priceLabel}, or use any paid Glitch plan.`}`];
+  if (hasAccess && str(mcp.active_plan_name)) {
+    lines.push(`**Plan:** ${str(mcp.active_plan_name)}${mcp.access_source === "business_plan" ? " (business plan)" : ""}`);
+  }
+  if (hasAccess && typeof mcp.monthly_runs_included === "number") {
+    lines.push(
+      mcp.monthly_runs_included > 0
+        ? `**Agent runs this month:** ${typeof mcp.monthly_runs_used === "number" ? mcp.monthly_runs_used : 0}/${mcp.monthly_runs_included}`
+        : `**Agent runs:** not included. Add the ${priceLabel} Glitch MCP plan to run Glitch Agents.`
+    );
+  }
+  if (!hasAccess) {
+    lines.push(`**Price:** ${priceLabel}. One plan unlocks every MCP tool for the game, including Glitch Agent runs.`);
+  }
+  const subscribeUrl = str(mcp.subscribe_url) || str(data.billing_url);
+  if (subscribeUrl) {
+    lines.push(`**Subscribe or manage:** ${subscribeUrl}`);
+  }
   const agents = asArray(data.agents);
   for (const agent of agents.slice(0, 10)) {
     const record = asRecord(agent) || {};

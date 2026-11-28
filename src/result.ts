@@ -66,7 +66,7 @@ export function toolError(error: unknown): CallToolResult {
   const normalized = normalizeError(error);
   const links: ToolLink[] = [
     ...(normalized.details.billingUrl
-      ? [{ name: "Open agent billing", url: normalized.details.billingUrl }]
+      ? [{ name: "Subscribe to Glitch MCP ($10/month)", url: normalized.details.billingUrl }]
       : []),
     ...(normalized.details.dashboardUrl
       ? [{ name: "Open Glitch dashboard", url: normalized.details.dashboardUrl }]

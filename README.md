@@ -112,6 +112,20 @@ This repository is the public adapter. It does not contain the private Glitch Ag
 - Optional local stdio proxy for MCP clients that do not yet support remote auth cleanly.
 - Client setup docs for Codex, Cursor, and Claude Code.
 
+## Pricing
+
+Glitch MCP is one plan: **$10/month per game**. It unlocks every MCP tool for
+that game (analytics, Steam research, campaigns, influencers, social, commerce,
+hosting and distribution tools) plus a monthly allowance of Glitch Agent runs.
+Every paid plan on [glitch.fun/publishers/pricing](https://www.glitch.fun/publishers/pricing)
+also includes MCP access.
+
+- Subscribe from the game's MCP page: `https://www.glitch.fun/mcp/titles/<title_id>`.
+- `glitch_auth_status`, `glitch_get_billing_status` and token setup work without
+  a plan, so your AI can tell you the price and send you the subscribe link.
+- Without a plan, other tools return `subscription_required` with that link.
+- The one-time $10 distribution fee for publishing a game is a separate product.
+
 ## What Stays Private
 
 - Private Glitch Agent planning prompts. The separate AI Game Development Prompt library is intentionally public.

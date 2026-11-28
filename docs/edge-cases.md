@@ -10,9 +10,9 @@ This file documents expected behavior for commercial, auth, UX, and operational 
 | Expired token | Return `authentication_required`; client should reauth or rotate key. |
 | Token revoked | Return `authentication_required`; audit event should record denied use. |
 | Token valid but title removed | Return `permission_denied` or `not_found`. |
-| Subscription missing | Return `subscription_required` and `billing_url`. |
-| Trial expired | Return `subscription_required` and `billing_url`. |
-| Insufficient credits | Return `subscription_required` or `payment_required` payload with purchase URL. |
+| No Glitch MCP plan on the game | Return 402 `subscription_required` (upstream code `mcp_subscription_required`) with the $10/month plan and `billing_url` (the MCP subscribe page). |
+| Plan canceled or payment failed | Same as above; access is checked against the live subscription. |
+| Monthly Glitch Agent runs used up | Return 402 with a message about the run allowance and `billing_url`. |
 | Scope missing | Return `permission_denied` with missing scope. |
 
 ## Title Selection

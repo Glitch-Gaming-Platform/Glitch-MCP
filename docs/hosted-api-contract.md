@@ -39,8 +39,9 @@ Preferred error envelope:
 
 ```json
 {
-  "message": "Subscription required.",
-  "billing_url": "https://www.glitch.fun/agents/titles/title_123/billing",
+  "message": "Glitch MCP is $10/month per game, and every paid Glitch plan includes it.",
+  "code": "mcp_subscription_required",
+  "billing_url": "https://www.glitch.fun/mcp/titles/title_123",
   "dashboard_url": "https://www.glitch.fun/agents/titles/title_123",
   "errors": {}
 }

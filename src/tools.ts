@@ -1164,15 +1164,17 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
     }
   ),
 
-  defineTool("glitch_get_billing_status", "Get Billing Status", "Check subscription, trial, plan, and credit state for a title.", billingInput, true, async (client, input) => {
+  defineTool("glitch_get_billing_status", "Get Billing Status", "Check whether this game has Glitch MCP access. Glitch MCP is $10/month per game, and every paid Glitch plan includes it. Returns the active plan, monthly Glitch Agent runs left, and the subscribe link.", billingInput, true, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const data = await client.billingStatus(titleId);
     return toolSuccess({
-      title: "Glitch billing status",
-      summary: "Billing and entitlement status for this title.",
+      title: "Glitch MCP plan",
+      summary: data.has_access === true
+        ? "Glitch MCP is active for this game."
+        : "Glitch MCP needs a subscription for this game: $10/month per game, or any paid Glitch plan.",
       data,
       bodyMarkdown: presentBilling(data),
-      links: [{ name: "Open billing", url: client.dashboardUrl("billing", { titleId }) }]
+      links: [{ name: "Subscribe to Glitch MCP ($10/month)", url: client.dashboardUrl("billing", { titleId }) }]
     });
   }),
 
@@ -1241,7 +1243,7 @@ export const glitchToolDefinitions: readonly GlitchToolDefinition[] = [
   ...microtransactionToolDefinitions,
   ...preorderToolDefinitions,
 
-  defineTool("glitch_start_agent_run", "Start Agent Run", "Start a paid Glitch Agent run for a title. Subscription and title permissions are enforced by Glitch.", startRunInput, false, async (client, input) => {
+  defineTool("glitch_start_agent_run", "Start Agent Run", "Start a Glitch Agent run for a title. Runs are included in the $10/month Glitch MCP plan (monthly allowance) and in every monthly agent plan; subscription and title permissions are enforced by Glitch.", startRunInput, false, async (client, input) => {
     const titleId = client.resolveTitleId(input.title_id);
     const run = await client.startRun(titleId, omitUndefined({
       agent_id: input.agent_id,

@@ -136,7 +136,8 @@ export class GlitchClient {
       case "action":
         return input.actionId ? `${titlePath}?action=${encodeURIComponent(input.actionId)}` : titlePath;
       case "billing":
-        return `${titlePath}/billing`;
+        // The MCP title page holds the single $10/month Glitch MCP checkout.
+        return `${base}/mcp/titles/${encodeURIComponent(input.titleId)}`;
       case "hosting":
         return `${base}/games/admin/${encodeURIComponent(input.titleId)}/hosting`;
       case "distribution":
