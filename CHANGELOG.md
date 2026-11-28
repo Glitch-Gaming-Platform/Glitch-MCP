@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — November 28, 2026
 
 - Glitch MCP pricing is one plan: $10/month per game, and every paid Glitch
   plan (including the one-time $10 distribution fee) includes MCP access. `glitch_get_billing_status` now reports whether the
@@ -35,8 +35,6 @@
 - `glitch_open_dashboard` accepts `kind=distribution`.
 - Error results now include the server's `remediation`, `retryable` and
   structured `upstreamContext` when Glitch returns them.
-
-## 0.5.10 — November 25, 2026
 
 - New `glitch_research_steam_games`: read-only Steam market research from the
   Glitch Steam catalog (300k+ games, with player counts sampled every few

@@ -5,4 +5,4 @@
  * duplicated instead of importing package.json so the compiled CLI stays simple
  * across Node.js ESM loader versions.
  */
-export const GLITCH_MCP_VERSION = "0.5.10";
+export const GLITCH_MCP_VERSION = "0.6.0";
