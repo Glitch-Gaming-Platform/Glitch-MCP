@@ -1,0 +1,105 @@
+{
+  "name": "glitch-mcp",
+  "version": "1.0.1",
+  "description": "Game marketing, Steam research, analytics, creator campaigns and social media for game developers.",
+  "author": {
+    "name": "Glitch",
+    "url": "https://www.glitch.fun"
+  },
+  "homepage": "https://www.glitch.fun/publishers/mcp-marketing",
+  "repository": "https://github.com/Glitch-Gaming-Platform/Glitch-MCP",
+  "keywords": [
+    "games",
+    "game development",
+    "marketing",
+    "analytics",
+    "Steam",
+    "Twitch"
+  ],
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List accessible games",
+              "prompt": "Show the games I manage in Glitch.",
+              "tools_triggered": "list_games",
+              "expected_behavior": "Return only titles accessible to the connected account."
+            },
+            {
+              "description": "Read title context",
+              "prompt": "Summarize the marketing context for my sample game.",
+              "tools_triggered": "list_games, get_game_marketing_context",
+              "expected_behavior": "Return the selected game's actual context and available integrations."
+            },
+            {
+              "description": "Analyze game performance",
+              "prompt": "Show session and wishlist trends for my sample game over the last 30 days.",
+              "tools_triggered": "get_analytics_capabilities, get_analytics_report",
+              "expected_behavior": "Summarize authorized reports and identify missing data without fabricating values."
+            },
+            {
+              "description": "Research comparable Steam games",
+              "prompt": "Compare my sample game with similar releases on Steam.",
+              "tools_triggered": "find_steam_comparables",
+              "expected_behavior": "Return comparable games and distinguish reviews and player counts from sales."
+            },
+            {
+              "description": "Research campaign lookalikes",
+              "prompt": "Find Twitch-active games similar to my sample game for its creator campaign. Do not change settings.",
+              "tools_triggered": "list_influencer_campaigns, get_campaign_sourcing_settings, find_streamed_lookalike_games",
+              "expected_behavior": "Return relevant game candidates without modifying the campaign."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unauthorized access",
+              "prompt": "Show the private analytics of a game outside my Glitch account.",
+              "expected_behavior": "Do not return data outside the connected account; explain that access is not authorized."
+            },
+            {
+              "description": "Unapproved campaign change",
+              "prompt": "Suggest new campaign game targets, but don't save the changes.",
+              "expected_behavior": "Return suggestions without changing campaign settings or initiating outreach."
+            },
+            {
+              "description": "Unsupported money transfer",
+              "prompt": "Transfer $100 from my Glitch account to a creator.",
+              "expected_behavior": "Explain that the hosted connector has no money-transfer tool; do not initiate a payment."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Clarify the listing name and marketing productivity category, declare OAuth with CIMD preference, and align review scenarios with the granular hosted tool catalog."
+      },
+      "interface": {
+        "displayName": "Glitch",
+        "shortDescription": "Game marketing and analytics",
+        "longDescription": "Manage game marketing workflows and research from your Glitch account. Compare Steam releases, analyze game sessions and wishlists, research relevant Twitch game audiences, manage creator outreach drafts, and prepare social content. Access is limited to games you manage. Some operations require a paid Glitch plan and configured campaigns or social schedulers. Review changes before publishing or contacting creators.",
+        "developerName": "Glitch",
+        "category": "Productivity",
+        "capabilities": [
+          "Steam market research",
+          "Game analytics",
+          "Influencer campaigns",
+          "Social media management",
+          "Media imports"
+        ],
+        "websiteURL": "https://www.glitch.fun/publishers/mcp-marketing",
+        "supportURL": "https://www.glitch.fun/support",
+        "privacyPolicyURL": "https://www.glitch.fun/privacy",
+        "termsOfServiceURL": "https://www.glitch.fun/terms",
+        "defaultPrompt": [
+          "Research Steam games similar to my game.",
+          "Analyze my game's wishlist and session trends.",
+          "Find Twitch-active games for my influencer campaign."
+        ],
+        "composerIcon": "./assets/glitch.png",
+        "logo": "./assets/glitch.png"
+      }
+    }
+  },
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+}

@@ -187,7 +187,7 @@ export GLITCH_API_TOKEN="gl_mcp_..."
 export GLITCH_TITLE_ID="title_..."
 ```
 
-Title MCP tokens are still checked server-side for subscription, title access, scopes, rate limits, and action risk. Over the HTTP transport the adapter forwards each caller's own bearer token, so one hosted endpoint serves many developers safely. Optional protected-resource **OAuth discovery metadata** is supported, but it does not implement an authorization server or interactive OAuth login. Production currently uses per-user bearer tokens, with fixed request headers in remote MCP clients. Do not enable OAuth discovery without a working Glitch OAuth issuer.
+Title MCP tokens are still checked server-side for subscription, title access, scopes, rate limits, and action risk. Over the HTTP transport the adapter forwards each caller's own bearer token, so one hosted endpoint serves many developers safely. The local Node adapter supports optional protected-resource OAuth discovery but does not itself implement an authorization server. The production hosted connector at https://api.glitch.fun/mcp supports interactive Glitch account OAuth (authorization code with PKCE, CIMD and dynamic client registration). OAuth clients receive a separate granular hosted tool catalog; title-scoped bearer tokens continue to use the full adapter. See [authentication](docs/auth.md) and [OpenAI distribution](distribution/openai/README.md).
 
 More detail: [docs/auth.md](docs/auth.md).
 

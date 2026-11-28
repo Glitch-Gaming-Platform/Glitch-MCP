@@ -15,7 +15,13 @@ The implemented public distribution path uses the local MCP adapter plus the hos
 
 The token stores only a hash server-side, includes an audit user, and is revocable without exposing private planner, route, billing, or executor code.
 
-## Optional OAuth (implemented, off by default)
+## Hosted connector OAuth
+
+For ChatGPT and Claude, connect to `https://api.glitch.fun/mcp` and sign in to Glitch. The production authorization server at `https://api.glitch.fun` publishes protected-resource and authorization-server metadata, supports PKCE S256, CIMD, DCR, refresh tokens, and resource binding. The OAuth scope is `mcp:use`. The hosted connector exposes a granular set of game marketing tools, distinct from the full title-token adapter. Account access and plan eligibility are enforced server-side.
+
+The public OpenAI package is maintained in [distribution/openai](../distribution/openai/README.md). No user or service credential belongs in the manifest.
+
+## Optional OAuth (local Node adapter, off by default)
 
 The HTTP transport can advertise OAuth so MCP clients discover an authorization server instead of pasting a token. OAuth is **opt-in** — bearer-token auth keeps working unchanged when it is disabled.
 
